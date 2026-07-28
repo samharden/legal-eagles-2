@@ -177,6 +177,26 @@ SPR.hector = makeSprite([
   ".....kk..kk.....",
 ], { c: '#3e4a63', f: SKIN, k: K, m: '#7a6a58', g: '#6b5a3e', w: '#4a3f2c' });
 
+// Arturo Delgado — closes on Tuesdays, has been holding a summons upside down.
+SPR.delgado = makeSprite([
+  "................",
+  "......kkkk......",
+  ".....kkkkkk.....",
+  "....kkffffk.....",
+  "....ffkffkf.....",
+  "....ffffffff....",
+  ".....ffmmff.....",
+  "......ffff......",
+  "....bbbbbbbb....",
+  "...bbwwbbwwbb...",
+  "...bbbbbbbbpp...",
+  "...bb.bbbb.pp...",
+  "....bbbbbbbb....",
+  ".....bb..bb.....",
+  ".....bb..bb.....",
+  ".....kk..kk.....",
+], { k: '#2a2018', f: SKIN, m: '#7a6a58', b: '#4a6070', w: '#38505e', p: '#efe6d0' });
+
 // The Night Clerk. Nobody has described his face afterward.
 SPR.clerk = makeSprite([
   "................",
@@ -255,6 +275,26 @@ SPR.board = makeSprite([
   "......ww..ww....",
   "................",
 ], { b: '#7a5c34', p: '#efe6d0', w: '#3b3450' });
+
+// A grievance. It is a piece of paper and it is following you.
+SPR.grievance = makeSprite([
+  "................",
+  "...wwwwwwwwww...",
+  "...wrrrrrrrrw...",
+  "...wwwwwwwwww...",
+  "...wkkkkkkkkw...",
+  "...wwwwwwwwww...",
+  "...wkkkkkkwww...",
+  "...wwwwwwwwww...",
+  "...wkkkkkkkkw...",
+  "...wwwwwwwwww...",
+  "...wkkkkwwwww...",
+  "...wwwwwwwwww...",
+  "...wwwwrrrrww...",
+  "...wwwwwwwwww...",
+  "................",
+  "................",
+], { w: '#efe6d0', k: '#6b6478', r: '#c0392b' });
 
 // ---- particles ------------------------------------------------------------
 SPR.spark = makeSprite([

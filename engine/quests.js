@@ -22,6 +22,7 @@ export const questHooks = {
   onStart: null,     // (def) => void
   onStage: null,     // (def, stageIdx) => void
   onComplete: null,  // (def, outcome) => void
+  onFail: null,      // (def, reason) => void
   knows: () => false,
   // A quest may declare `layer`. THE STREET and THE FLOOR are separate games
   // sharing a registry, so a floor matter must not open while you are walking
@@ -98,6 +99,28 @@ function complete(q, outcome) {
   if (q.onComplete) q.onComplete(s.outcome);
   if (questHooks.onComplete) questHooks.onComplete(q, s.outcome);
 }
+
+/**
+ * The matter is over and you did not resolve it. This is LE2's real failure
+ * state: not a death screen, a case you were supposed to be working while you
+ * were somewhere else. Permanent — there is no retry, which is the whole point
+ * of a deadline.
+ */
+export function failQuest(id, reason) {
+  const q = QUESTS.get(id), s = qstate[id];
+  if (!q || !s || s.done) return false;
+  s.done = true;
+  s.failed = true;
+  s.outcome = 'failed';
+  s.reason = reason || 'not resolved in time';
+  if (q.onFail) q.onFail(s.reason);
+  if (questHooks.onFail) questHooks.onFail(q, s.reason);
+  return true;
+}
+export const isFailed = id => !!(qstate[id] && qstate[id].failed);
+
+/** Every started, unfinished matter — the host checks these against the clock. */
+export function openQuests() { return allQuests().filter(q => qstate[q.id] && !qstate[q.id].done); }
 
 /**
  * Feed gameplay in. Types: talk{npc} · learn{fact} · collect{item} ·

@@ -83,6 +83,33 @@ function topo(entries) {
   return order;
 }
 
+/**
+ * A namespace alias (`import * as Clock`) becomes a generated `const Clock`
+ * in the flat scope. If a module also EXPORTS a binding of that name, the
+ * bundle has two `const Clock` and dies with a parse error before a single
+ * line runs — silently, because nothing has executed to log anything. That
+ * shipped once. It does not get to ship twice.
+ */
+function checkAliasCollisions(order) {
+  const declared = new Map();
+  const RE_DECL = /^(?:const|let|var|function|class|async\s+function)\s+(\w+)/;
+  for (const abs of order)
+    for (const line of modules.get(abs).src.split('\n')) {
+      const m = line.match(RE_DECL);
+      if (m && !declared.has(m[1])) declared.set(m[1], abs);
+    }
+  const bad = [];
+  for (const abs of order)
+    for (const n of modules.get(abs).ns)
+      if (declared.has(n.name))
+        bad.push(`  namespace import "${n.name}" in ${rel(abs)} collides with a top-level `
+          + `declaration of the same name in ${rel(declared.get(n.name))}`);
+  if (bad.length) {
+    throw new Error('namespace alias collides with a real binding:\n' + bad.join('\n')
+      + '\n  Fix: rename the export, or use named imports instead of `import * as`.');
+  }
+}
+
 function checkDuplicates(order) {
   const seen = new Map();
   // anchored at column 0 on purpose: only MODULE-scope declarations collide
@@ -116,6 +143,7 @@ if (!entries.length) throw new Error('no <script type="module" src=…> tags fou
 for (const e of entries) load(e);
 const order = topo(entries);
 checkDuplicates(order);
+checkAliasCollisions(order);
 
 // Emit each module in dependency order, and immediately after a module's body
 // emit any namespace alias (`import * as X`) that points at it — so the alias
@@ -134,8 +162,20 @@ for (const abs of order) {
 }
 
 const bundle = '"use strict";\n' + parts.join('\n');
+
 html = html.replace(tagRe, '');
-html = html.replace('</body>', `<script>\n${bundle}\n</script>\n</body>`);
+// The replacement MUST be a function. With a replacement *string*, JS expands
+// `$&`, "$'", '$`' and `$$` inside it — and the bundle is full of `${...}` and
+// `$$` in template literals. That silently corrupts the shipped copy while the
+// source still parses perfectly, which is exactly as fun to debug as it sounds.
+html = html.replace('</body>', () => `<script>\n${bundle}\n</script>\n</body>`);
+
+// Gate on the EMBEDDED script, not the pre-insertion bundle, so insertion bugs
+// are caught too. A syntax error here produces a page that loads, renders
+// nothing and logs nothing — the most expensive kind of broken.
+const a = html.lastIndexOf('<script>'), b = html.lastIndexOf('</script>');
+try { new Function(html.slice(a + 8, b)); }
+catch (e) { throw new Error(`emitted bundle does not parse: ${e.message}`); }
 
 mkdirSync(resolve(ROOT, 'dist'), { recursive: true });
 writeFileSync(resolve(ROOT, 'dist/index.html'), html);

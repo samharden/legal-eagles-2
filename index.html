@@ -39,6 +39,12 @@
   #hTop { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:5px; }
   #hName { color:#f0c75e; font-size:13px; font-weight:bold; letter-spacing:1px; }
   #hDistrict { color:var(--muted); font-size:10px; letter-spacing:.5px; white-space:nowrap; }
+  #hLedger { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:5px; }
+  #hMoney { color:var(--muted); font-size:11px; letter-spacing:.3px; }
+  #hMoney b { color:#9be05e; }
+  #hMoney .trust { color:#5ec8f0; }
+  #hMoney .bad { color:#e05e5e; font-weight:bold; }
+  #hDay { color:#caa84a; font-size:11px; font-weight:bold; letter-spacing:1px; white-space:nowrap; }
   #hHpbar { position:relative; height:16px; background:#3a2440; border:1px solid var(--line); overflow:hidden; max-width:340px; }
   #hHpFill { height:100%; background:#9be05e; width:100%; transition:width .12s linear; }
   #hHpLabel { position:absolute; inset:0; display:flex; align-items:center; padding-left:7px;
@@ -164,6 +170,47 @@
   .cfFacts li:before { content:"▸"; position:absolute; left:0; color:#9be05e; }
   .cfFacts.cfOpen li { color:var(--dim); }
   .cfFacts.cfOpen li:before { content:"?"; color:var(--dim); }
+  .cfDim { color:var(--dim); font-size:11px; }
+  /* tabs */
+  #cfTabs { display:flex; gap:6px; margin-right:auto; }
+  .cfTab { font-family:inherit; font-size:11px; font-weight:bold; letter-spacing:1px;
+           padding:5px 12px; border-radius:5px; cursor:pointer;
+           background:#171227; border:2px solid #2c2542; color:var(--muted); }
+  .cfTab.on { border-color:#f0c75e; color:#f0c75e; background:#241d36; }
+  /* deadlines */
+  .cfDue { color:#caa84a; font-size:12px; margin-top:7px; letter-spacing:.3px; }
+  .cfDue b { color:var(--dim); font-size:10px; letter-spacing:1px; margin-right:7px; }
+  .cfDue.urgent { color:#e05e5e; font-weight:bold; }
+  .cfCase.failed { border-color:#5a2430; background:#170e14; opacity:.85; }
+  .cfCase.failed .cfStatus { color:#e05e5e; }
+  /* docket */
+  .cfToday { color:#f0c75e; font-size:12px; font-weight:bold; letter-spacing:1.5px;
+             border-bottom:1px solid var(--rule); padding-bottom:8px; margin-bottom:10px; }
+  .cfDocket, .cfLedger { width:100%; border-collapse:collapse; font-size:12px; }
+  .cfDocket td, .cfLedger td { padding:7px 8px; border-bottom:1px solid #1e1930; vertical-align:top; }
+  .cfDocket .d, .cfLedger .d { color:#caa84a; white-space:nowrap; font-weight:bold; }
+  .cfDocket .r { color:var(--dim); white-space:nowrap; }
+  .cfDocket .k, .cfLedger .k { color:var(--dim); font-size:10px; letter-spacing:1px; text-transform:uppercase; white-space:nowrap; }
+  .cfDocket .l, .cfLedger .l { color:#e8e0f0; width:100%; }
+  .cfDocket tr.today .d, .cfDocket tr.today .l { color:#f0c75e; }
+  .cfDocket tr.late .d, .cfDocket tr.late .l { color:#e05e5e; }
+  .cfFoot { color:var(--dim); font-size:11px; font-style:italic; line-height:1.6; margin-top:14px; }
+  /* accounts */
+  .cfAccts { display:flex; gap:12px; flex-wrap:wrap; }
+  .cfAcct { flex:1; min-width:190px; background:#120e1e; border:2px solid #2c2542;
+            border-radius:9px; padding:14px; }
+  .cfAcct.trust { border-color:#2b4a5e; }
+  .cfAcct .lbl { color:var(--dim); font-size:10px; letter-spacing:1.5px; }
+  .cfAcct .val { color:#9be05e; font-size:26px; font-weight:bold; margin-top:4px; }
+  .cfAcct .val.bad { color:#e05e5e; }
+  .cfAcct.trust .val { color:#5ec8f0; }
+  .cfAcct .sub { color:var(--dim); font-size:11px; font-style:italic; margin-top:2px; }
+  .cfWarn { color:#e05e5e; font-size:12px; line-height:1.6; margin-top:12px;
+            border-left:3px solid #e05e5e; padding-left:10px; }
+  .cfLedger .a { white-space:nowrap; font-weight:bold; text-align:right; }
+  .cfLedger .a.pos { color:#9be05e; }
+  .cfLedger .a.neg { color:#e05e5e; }
+  #cfBody h4 { margin-top:18px; }
 
   /* ---- title / menu ---- */
   #menu {
@@ -209,6 +256,7 @@
 
   <div id="hud" style="display:none">
     <div id="hTop"><span id="hName"></span><span id="hDistrict"></span></div>
+    <div id="hLedger"><span id="hMoney"></span><span id="hDay"></span></div>
     <div id="hHpbar"><div id="hHpFill"></div><span id="hHpLabel"></span></div>
     <div id="hMatterBox"><div id="hMatter"></div><div id="hObjective"></div></div>
     <div id="hCarry"></div>
@@ -250,7 +298,8 @@
 <div id="casefile">
   <div id="cfHead">
     <h2>THE CASEFILE</h2>
-    <span class="hint">what you know, and what you don't</span>
+    <span id="cfTabs"></span>
+    <span class="hint"></span>
     <button id="cfClose">CLOSE &nbsp;C</button>
   </div>
   <div id="cfBody"></div>

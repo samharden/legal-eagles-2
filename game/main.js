@@ -13,6 +13,8 @@ import { World, moveEntity } from '../engine/region.js';
 import { saveGame, loadGame, hasSave } from '../engine/save.js';
 import * as Facts from '../engine/facts.js';
 import * as Quests from '../engine/quests.js';
+import { Cal, clockHooks, dateString, schedule, unschedule, allEntries, advanceDay, saveClock, loadClock, resetClock } from '../engine/clock.js';
+import * as Practice from '../engine/practice.js';
 import { Dialogue } from '../engine/dialogue.js';
 import { REGIONS, SPAWN } from './city.js';
 import { LAYERS, layerOf } from './layers.js';
@@ -31,11 +33,11 @@ export const G = {
   player: null,
   fx: null,
   t: 0,
-  fees: 0,              // Phase 2 turns this into a real economy; for now it counts
   msg: { text: '', t: 0 },
   banner: { text: '', sub: '', t: 0 },
   carried: [],
   prompt: null,
+  complaint: null,      // the Bar Complaint, once you have earned one
 };
 
 const SPEED = 205, DASH_SPD = 880, DASH_T = 0.16, DASH_CD = 1.1;
@@ -53,8 +55,11 @@ function makePlayer(x, y) {
 // The engine never imports game code; it calls out through these.
 Quests.questHooks.knows = id => Facts.knows(id);
 Quests.questHooks.layerOk = q => !q.layer || q.layer === G.layer;
-Quests.questHooks.onStart = q => { showBanner('NEW MATTER', q.name); say(q.blurb, 7); SFX.district(); };
-Quests.questHooks.onComplete = () => { SFX.send(); refreshCasefile(); };
+Quests.questHooks.onComplete = q => {
+  SFX.send();
+  if (q.due) unschedule(q.id);   // a closed matter is off the docket
+  refreshCasefile(); syncHud();
+};
 // the objective line must follow the stage the moment it changes, including
 // mid-conversation — otherwise the HUD tells you to do the thing you just did
 Quests.questHooks.onStage = () => { refreshCasefile(); syncHud(); };
@@ -68,11 +73,74 @@ Facts.onLearn.push((id, def) => {
   refreshCasefile();
 });
 
+// A matter with a `due` gets a real docket entry the moment it opens.
+Quests.questHooks.onStart = q => {
+  showBanner('NEW MATTER', q.name);
+  say(q.blurb, 7);
+  SFX.district();
+  if (q.due && HAS_CLOCK()) {
+    const day = Cal.day + q.due;
+    // `once: false` on purpose. A rent day fires and is spent, but a deadline
+    // has to STAY on the docket after its date so endDay() can still see it and
+    // so the Casefile can show it in red. It is removed only when the matter
+    // closes or fails. Making it `once` silently made deadlines unmissable.
+    schedule({ day, once: false, kind: 'deadline', ref: q.id, label: q.dueLabel || (q.name + ' — due') });
+    say(`${q.name}. Due ${dateString(day)}.`, 7);
+  }
+};
+Quests.questHooks.onFail = q => {
+  SFX.del(); G.fx.addTrauma(0.6);
+  unschedule(q.id);
+  refreshCasefile(); syncHud();
+};
+
 CASE_HOOKS.say = (t, d) => say(t, d);
 CASE_HOOKS.banner = (a, b) => showBanner(a, b);
-CASE_HOOKS.reward = n => { G.fees += n; if (n) say(`Fee earned: $${n}.`, 4); syncHud(); };
+CASE_HOOKS.fee = (n, memo) => {
+  if (!n) return;
+  Practice.fee(n, memo, Cal.day);
+  say(`Fee received: $${n}. ${memo}`, 5);
+  syncHud();
+};
+CASE_HOOKS.retainer = (n, memo) => {
+  Practice.retainer(n, memo, Cal.day);
+  say(`$${n} into TRUST. It is not yours until you have earned it.`, 7);
+  syncHud();
+};
+CASE_HOOKS.earn = (n, memo) => {
+  const got = Practice.earn(n, memo, Cal.day);
+  if (got) say(`$${got} earned and moved from trust to operating. That one is yours.`, 6);
+  syncHud();
+};
+CASE_HOOKS.rep = (d, n) => {
+  if (!n) return;
+  Practice.bumpRep(d, n);
+  say(`Word gets around ${d === 'strand' ? 'The Strand' : 'Courthouse Square'}.`, 3);
+};
 
 function refreshCasefile() { if (Casefile.open) Casefile.render(G.layer); }
+
+/* ================================ THE DOCKET ============================= */
+// THE FLOOR has no clock — its calendar reads the same date forever, so the
+// whole survival layer is Path A's alone. This is the one predicate that says so.
+const HAS_CLOCK = () => G.layer === 'street';
+
+const RENT = 1100, RENT_EVERY = 7;
+
+function scheduleRent() {
+  for (let i = 1; i <= 12; i++)
+    schedule({ day: 1 + i * RENT_EVERY, kind: 'rent', label: `Rent — Suite 2B ($${RENT})` });
+}
+
+clockHooks.onDue = e => {
+  if (e.kind === 'rent') rentDay();
+  else if (e.kind === 'deadline') {
+    // the entry fires ON the due date; the matter has this day to be resolved.
+    // The check happens at the END of the day, in endDay() below.
+    say(`DUE TODAY — ${e.label}.`, 8);
+    showBanner('DUE TODAY', e.label);
+  }
+};
 
 /* -------------------------------- boot --------------------------------- */
 function beginPath(layerId, path) {
@@ -91,7 +159,13 @@ function beginPath(layerId, path) {
   const s = SPAWN[layerId];
   G.player = makePlayer(s.x, s.y);
   G.carried = [];
-  G.fees = 0;
+  G.complaint = null;
+  resetClock();
+  Practice.resetPractice();
+  if (layerId === 'street') {
+    Practice.post(4100, 'Opening balance — everything you had', 'operating', 1);
+    scheduleRent();
+  }
   G.world.update(s.x, s.y);
   camFollow(s.x, s.y);
   G.state = 'play';
@@ -116,19 +190,21 @@ function continueGame() {
   G.player.x = d.x; G.player.y = d.y;
   G.player.hp = d.hp ?? 100;
   G.carried = d.carried || [];
-  G.fees = d.fees || 0;
-  // restore knowledge and matters BEFORE residency, so quest markers and
-  // already-read props come back in the right state
+  // restore knowledge, matters, the docket and the books BEFORE residency, so
+  // quest markers and already-read props come back in the right state
   Facts.loadFacts(d.facts);
   Quests.loadQuests(d.quests);
+  loadClock(d.clock);
+  Practice.loadPractice(d.practice);
   G.world.loadDeltas(d.deltas);
   // rebuild residency at the restored position so deltas apply to fresh builds
   for (const id of G.world.residentIds()) G.world.evict(id);
   G.world.currentId = null;
   G.world.update(G.player.x, G.player.y);
   camFollow(G.player.x, G.player.y);
+  if (d.complaint) spawnComplaint();
   syncHud();
-  say('Representation resumed.', 3);
+  say(`Representation resumed. ${dateString()}.`, 4);
 }
 
 export function doSave() {
@@ -136,9 +212,12 @@ export function doSave() {
   return saveGame({
     layer: G.layer, path: G.path,
     x: G.player.x, y: G.player.y, hp: G.player.hp,
-    carried: G.carried, fees: G.fees,
+    carried: G.carried,
     facts: Facts.saveFacts(),
     quests: Quests.saveQuests(),
+    clock: saveClock(),
+    practice: Practice.savePractice(),
+    complaint: !!G.complaint,
     deltas: G.world.saveDeltas(),
   });
 }
@@ -161,6 +240,19 @@ function npcMarker(id) {
       && q.stages[Quests.qstate[q.id].stage - 1].npc === id) return '!';
   }
   return null;
+}
+
+/** Open any dialogue tree — an NPC, the rent man, a form letter. */
+function openDialogue(tree, onClose) {
+  G.state = 'dialog';
+  Input.clearHeld();
+  SFX.blip();
+  Dialogue.open(tree, () => {
+    G.state = 'play';
+    if (onClose) onClose();
+    refreshCasefile();
+    syncHud();
+  });
 }
 
 function talkTo(npc) {
@@ -191,14 +283,161 @@ function talkTo(npc) {
 
 function useProp(pr) {
   const first = !pr.used;
-  pr.used = true;
-  G.world.markUsed(pr.region, pr.id);
+  // a `repeat` prop is a place you keep going back to — the filing window, the
+  // stairs up to your office. It must never be marked spent.
+  if (!pr.repeat) { pr.used = true; G.world.markUsed(pr.region, pr.id); }
   say(pr.text, 9);
   SFX.door();
   Quests.questEvent('use', { prop: pr.id });
   if (pr.fact && first) Facts.learn(pr.fact);
   else if (pr.fact) SFX.page();
+  if (pr.endDay) endDay();
   syncHud();
+}
+
+/* ---------------------------- ending the day ---------------------------- */
+
+/**
+ * Sleep. Everything that was going to catch up with you catches up here:
+ * deadlines lapse, rent comes due, and you get the energy back that the day
+ * took. This is the only place the clock moves, which is what makes "I'll do
+ * it tomorrow" a decision instead of a shrug.
+ */
+function endDay(forced) {
+  if (!HAS_CLOCK()) { say('The calendar on the wall reads the same date it read before. Nothing here is going to become tomorrow.', 7); return; }
+
+  // A matter whose due date has passed is over. Checked at day's end, so the
+  // due date itself is a full day you can still work in.
+  for (const q of Quests.openQuests()) {
+    if (!q.due) continue;
+    const entry = allEntries().find(e => e.ref === q.id && e.kind === 'deadline');
+    if (entry && entry.day <= Cal.day) {
+      unschedule(q.id);
+      Quests.failQuest(q.id, 'the date passed');
+    }
+  }
+
+  advanceDay();
+
+  // Evicted, you can still end the day — blocking it would soft-lock the game,
+  // since ending days is how you get to the work that pays the arrears. You
+  // just sleep worse.
+  const roofless = !Practice.Office.held;
+  G.player.hp = roofless ? Math.round(G.player.maxhp * 0.55) : G.player.maxhp;
+
+  const d = Cal.day;
+  showBanner(dateString(d), forced ? 'you lost the rest of yesterday' : `DAY ${d}`);
+  if (!forced) say(roofless
+    ? `${dateString(d)}. You slept in the firm car with the files in the footwell and woke up at an angle you will feel until Thursday.`
+    : `${dateString(d)}. You slept about four hours, which is two more than the firm ever allowed.`, 6);
+  SFX.district();
+  syncHud();
+  refreshCasefile();
+}
+
+/** Rent day. The Wok bills weekly, in cash, which is its own answer. */
+function rentDay() {
+  const owed = RENT;
+  const T = { who: 'The Golden Wok', spr: 'sign', start: 'a', nodes: {} };
+  T.nodes.a = {
+    text: `Rent. Eleven hundred, weekly, cash, and the man who collects it does not come upstairs — he stands at the bottom and waits, which is worse.\n\nOperating account: $${Practice.Books.operating}.   Trust: $${Practice.Books.trust}.`,
+    choices: () => [
+      { label: `Pay the $${owed} out of the operating account.`,
+        if: () => Practice.canPay(owed),
+        showLocked: true, lockedNote: 'not enough in operating',
+        fx: () => { Practice.expense(owed, 'Rent — Suite 2B', Cal.day); Practice.clearArrears(); },
+        to: 'paid' },
+      { tag: 'TRUST', label: `Take $${Math.min(owed, Practice.Books.trust)} out of the trust account.`,
+        if: () => Practice.Books.trust > 0,
+        to: 'trustWarn' },
+      { label: 'Tell him next week.', to: 'miss' },
+    ],
+  };
+  T.nodes.paid = { text: 'He counts it twice on the step, nods at nothing in particular, and goes back inside. That is the whole ceremony.' };
+  T.nodes.trustWarn = {
+    text: 'It is right there in the same bank, under a different word. Delgado will not look at it this week. Nobody looks at it any week — that is the entire reason it works, right up until it does not.',
+    choices: [
+      { label: 'Do it.', fx: () => doCommingle(owed), to: 'didIt' },
+      { label: 'Don\'t. Tell him next week.', to: 'miss' },
+    ],
+  };
+  T.nodes.didIt = { text: 'The transfer takes eleven seconds. You are current on the rent. You are also, as of eleven seconds ago, holding less of your client\'s money than you are supposed to be holding.' };
+  T.nodes.miss = {
+    text: 'He does not argue. He writes something on the back of his hand and goes back inside, and that is somehow the part that gets you.',
+    fx: () => {
+      const n = Practice.missRent(Cal.day);
+      say(n >= 2 ? 'Second missed week.' : 'Rent missed. One more and the tape comes off the buzzer.', 7);
+    },
+  };
+  openDialogue(T);
+}
+
+function doCommingle(amount) {
+  const n = Practice.commingle(amount, 'Rent — Suite 2B', Cal.day);
+  Practice.clearArrears();
+  say(`$${n} moved out of trust. The rent is paid.`, 7);
+  syncHud();
+}
+
+Practice.practiceHooks.onCommingle = (n, count) => {
+  showBanner('TRUST ACCOUNT SHORT', `$${n} — crossing #${count}`);
+  G.fx.addTrauma(0.5);
+  SFX.del();
+  // The Bar Complaint is not an enemy you kill. It follows you between
+  // districts and stops only when the trust account is whole again.
+  spawnComplaint();
+};
+
+Practice.practiceHooks.onEvict = () => {
+  showBanner('EVICTED', 'SUITE 2B — THE TAPE IS OFF THE BUZZER');
+  say('Two weeks down and the lock is changed. Your files are in four boxes on the sidewalk, which at least makes them portable.', 10);
+  SFX.boom(); G.fx.addTrauma(0.8);
+};
+
+/**
+ * Running out of energy is not death. There is no game-over screen in a game
+ * about a law practice — you lose the rest of the day, which is worse, because
+ * the docket does not care why you were unconscious.
+ */
+function collapse() {
+  const p = G.player;
+  p.hp = p.maxhp;
+  G.fx.stamp(p.x, p.y - 10, 'CONTINUED', '#c0392b');
+  G.fx.addTrauma(0.7);
+  SFX.del();
+  if (HAS_CLOCK()) {
+    say('You come to on the sidewalk with your own business cards scattered around you and no memory of the afternoon.', 8);
+    endDay(true);
+  } else {
+    say('You come to at the same desk. The clock has not moved, because it does not.', 7);
+  }
+  // put some distance between you and whatever did it
+  const b = G.world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
+  if (b) { p.x = (b.ox + 3) * TILE + 20; p.y = (b.oy + 19) * TILE + 20; G.world.update(p.x, p.y); }
+}
+
+function spawnComplaint() {
+  if (G.complaint) return;
+  const p = G.player;
+  G.complaint = { x: p.x - 140, y: p.y - 140, rig: new Rig(), t: 0 };
+  G.complaint.rig.spawn();
+  say('A grievance has been opened. It is a piece of paper and it is following you.', 8);
+}
+/**
+ * How much client money ought to be sitting in trust right now.
+ * One retainer makes this a two-line function; when there are five, move the
+ * obligation onto the quest definitions and sum them.
+ */
+function trustOwed() {
+  const owedCoronado = Facts.knows('coronado_paid')
+    && !(Quests.isDone('coronado') && !Quests.isFailed('coronado'));
+  return owedCoronado ? 1400 : 0;
+}
+
+function clearComplaint() {
+  if (!G.complaint) return;
+  G.complaint = null;
+  say('The trust account is whole. The grievance closes without a finding, which is the best result there is.', 8);
 }
 
 /* ------------------------------- update -------------------------------- */
@@ -284,7 +523,7 @@ function updatePlay(dt) {
         fx.number(p.x, p.y - 30, d.onTouch, C.red);
         fx.addTrauma(0.4);
         SFX.hit();
-        if (p.hp <= 0) { p.hp = 1; say('You are running on nothing. Phase 0 has no death screen yet.', 4); }
+        if (p.hp <= 0) collapse();
         syncHud();
       }
     } else {
@@ -312,6 +551,32 @@ function updatePlay(dt) {
       fx.bark(a.x, a.y - d.r - 20, d.barks[(Math.random() * d.barks.length) | 0], '#bcb0d4', 2.6);
     }
     a.rig.step(dt, { moving, speed: d.speed, faceX: a.face || 0 });
+  }
+
+  // --- the Bar Complaint ---
+  // It is not an enemy. It cannot be hit, it does not care about walls, and it
+  // never stops. It follows you across district lines at a walking pace and
+  // takes a little energy whenever it reaches you. The only way to close it is
+  // to put the client's money back.
+  if (G.complaint) {
+    const c = G.complaint;
+    c.t += dt;
+    const dx = p.x - c.x, dy = p.y - c.y, m = Math.hypot(dx, dy) || 1;
+    c.x += (dx / m) * 62 * dt;
+    c.y += (dy / m) * 62 * dt;
+    c.rig.step(dt, { moving: true, speed: 62, faceX: dx });
+    if (m < 34 && p.hurtCd <= 0) {
+      p.hp -= 7; p.hurtCd = 1.3;
+      p.rig.hurt(dx / m, dy / m);
+      fx.number(p.x, p.y - 30, 'GRIEVANCE', C.red);
+      fx.addTrauma(0.3); SFX.hit();
+      if (p.hp <= 0) collapse();
+      syncHud();
+    }
+    if (c.t > 3 && Math.random() < dt * 0.25)
+      fx.bark(c.x, c.y - 26, 'RE: TRUST ACCOUNT', '#e05e5e', 2.6);
+    // cure: the trust account covers what is owed again
+    if (Practice.Books.trust >= trustOwed()) clearComplaint();
   }
 
   // --- npcs: idle rigs and the "I have something for you" marker ---
@@ -383,8 +648,20 @@ function updatePlay(dt) {
 const el = id => document.getElementById(id);
 
 function syncHud() {
-  el('hName').textContent = (G.path === 'delete' ? 'THE FLOOR' : 'ATTORNEY AT LAW')
-    + (G.fees ? `   $${G.fees}` : '');
+  el('hName').textContent = G.path === 'delete' ? 'THE FLOOR' : 'ATTORNEY AT LAW';
+  // The books only exist on the street. Showing a $0 balance on THE FLOOR
+  // would imply an economy that floor has no business having.
+  const money = el('hMoney');
+  if (HAS_CLOCK()) {
+    const B = Practice.Books;
+    money.innerHTML = `<b>$${B.operating}</b> operating`
+      + (B.trust ? ` &nbsp;·&nbsp; <span class="trust">$${B.trust} in trust</span>` : '')
+      + (Practice.Office.held ? '' : ' &nbsp;·&nbsp; <span class="bad">NO OFFICE</span>');
+    el('hDay').textContent = dateString();
+  } else {
+    money.textContent = '';
+    el('hDay').textContent = '';
+  }
   el('hCarry').textContent = G.carried.length ? 'CARRYING: ' + G.carried.join(' · ') : '';
   syncHudLight();
 }
@@ -439,21 +716,21 @@ function step(now) {
     // the world holds still behind the conversation, but keeps drawing
     G.fx.step(dt);
     G.player.rig.step(dt, { moving: false });
-    drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t);
+    drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint);
     stepDialogueInput();
     musicTick(layerOf(G.layer).music);
   } else if (G.state === 'play') {
     if (Casefile.open) {
       // the casefile is a reading screen; freeze play under it
-      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t);
+      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint);
       if (Input.pressed('casefile') || Input.pressed('cancel')) { Casefile.hide(); Input.clearHeld(); }
     } else {
       if (G.fx.hitStop > 0) G.fx.hitStop -= dt;
       else updatePlay(dt);
-      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t);
+      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint);
       if (G.prompt) drawPrompt(G.prompt);
       drawBanner();
-      if (Input.pressed('casefile')) { Casefile.show(G.layer); Input.clearHeld(); }
+      if (Input.pressed('casefile')) { Casefile.show(G.layer, HAS_CLOCK()); Input.clearHeld(); }
     }
     musicTick(layerOf(G.layer).music);
   } else {
@@ -505,4 +782,8 @@ if (DEV && q && LAYERS[q]) { audioInit(); beginPath(q, q === 'floor' ? 'delete' 
 requestAnimationFrame(loop);
 
 // expose for the dev editor and for browser-console verification
-window.LE2 = { G, Input, LAYERS, doSave, beginPath, loadGame, Facts, Quests, Dialogue, Casefile, talkTo, useProp };
+window.LE2 = {
+  G, Input, LAYERS, doSave, beginPath, loadGame, Facts, Quests, Practice,
+  Dialogue, Casefile, talkTo, useProp, endDay,
+  Clock: { Cal, dateString, allEntries, advanceDay, schedule, unschedule, resetClock },
+};

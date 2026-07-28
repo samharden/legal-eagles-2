@@ -19,7 +19,7 @@ function seedMotes(layer) {
   moteLayer = layer.id;
 }
 
-export function drawWorld(world, layer, player, fx, gameT) {
+export function drawWorld(world, layer, player, fx, gameT, complaint) {
   const g = ctx;
   const Z = view.zoom;
 
@@ -131,6 +131,19 @@ export function drawWorld(world, layer, player, fx, gameT) {
 
   // ---- player ----
   player.rig.draw(g, SPR[player.spr], player.x - cam.x, player.y - cam.y, 36, player.face.x < 0);
+
+  // ---- the grievance ----
+  // Drawn after the player and tinted red underneath, because it should read as
+  // something attached to you rather than something in the street.
+  if (complaint) {
+    const cx = complaint.x - cam.x, cy = complaint.y - cam.y;
+    g.save();
+    g.globalAlpha = 0.30 + Math.sin(gameT * 3) * 0.08;
+    g.fillStyle = '#c0392b';
+    g.beginPath(); g.arc(cx, cy, 26, 0, 7); g.fill();
+    g.restore();
+    complaint.rig.draw(g, SPR.grievance, cx, cy, 30, false);
+  }
 
   // ---- fx ----
   fx.drawWorld(g, cam);

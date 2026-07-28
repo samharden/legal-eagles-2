@@ -15,7 +15,7 @@ Design doc: [DESIGN.md](DESIGN.md).
 
 ---
 
-## Status: Phase 1 (vertical slice) — playable, one complete case per path
+## Status: Phase 2 (systems) — the survival loop is live on Path A
 
 **Phase 0** built the engine: the opening reel and the **SEND / DELETE** fork; a **seamless two-region city** (Courthouse Square gx 0–39, The Strand gx 40–75) on one global tile grid, crossed on foot with no loading break; **region streaming with persistent deltas**; **two layers over one geometry**; movement, dash, melee, pickups; one input layer over keyboard/mouse/touch/gamepad; ASCII tilemaps and the `?edit=1` editor; and a bundler emitting a self-contained `dist/index.html`.
 
@@ -33,7 +33,18 @@ The two cases:
 | THE STREET | **Ruiz v. Golden Wok** | Your first client wants to sue your landlord. Intake → three evidence sources → report → four resolutions, one of which only opens if you established the conflict. |
 | THE FLOOR | **In re: The Unsent** | Whose resignation letter is this, and what does filing one actually take. Three facts → the Night Clerk → file, keep, or burn. |
 
-Not built yet: the Docket/clock, the economy and trust account, reputation, staff, combat beyond a briefcase swing, the other four districts, the crossover. See DESIGN.md §8.
+**Phase 2** added the survival layer — and one scoping decision that shapes the rest of the game:
+
+> **The Docket, rent and the economy are Path A only.** DESIGN.md §4 says THE FLOOR's calendar reads the same date forever. So it does: `endDay()` refuses on that layer, the Casefile drops to a single tab, and the HUD shows no money. The two paths now have genuinely different verbs rather than the same verbs with different scenery.
+
+- **The Docket** (`engine/clock.js`) — a day counter and the things that come due on it. Matters can carry a `due`; miss it and the case is **dismissed with prejudice**, permanently. That is LE2's first real failure state.
+- **The books** (`engine/practice.js`) — two accounts, and the distinction between them is the whole point. A retainer is the *client's* money and sits in **trust** until you earn it. On rent day, with the operating account short, the game offers you the trust account. It always works. It is never free — it opens a grievance that follows you between districts until the trust is whole again.
+- **Rent, arrears and eviction** — $1,100 weekly. Miss twice and the lock changes. Evicted you can still end the day (blocking it would soft-lock the game); you just sleep in the firm car and wake at 55% energy.
+- **Reputation** per district, moved by how you close matters — and by how you lose them.
+- **Collapse instead of death.** Energy zero is not a game-over screen. You lose the rest of the day, which is worse, because the docket does not care why you were unconscious.
+- **The Casefile gained tabs** — MATTERS · DOCKET · ACCOUNTS, including a real double-entry ledger.
+
+Not built yet: staff and office upgrades, THE FLOOR's own resource (the lights/Hours loop in DESIGN.md §4), combat beyond a briefcase swing, the other four districts, the crossover. See DESIGN.md §8.
 
 ---
 
@@ -127,14 +138,26 @@ share one quest registry, so `layer: 'floor'` keeps a floor matter from opening
 while you are walking around in daylight. Omit `layer` only for something that
 genuinely belongs to both.
 
-### The bundler's two rules
+### The bundler's rules
 
 `tools/build.mjs` concatenates the module graph into one scope, so it enforces:
 
 1. **No circular imports.**
 2. **No duplicate module-scope declaration names across files.**
+3. **No `import * as X` where some module also exports a top-level `X`** — the
+   generated alias `const X = {…}` would collide with the real binding.
+4. **The emitted script must parse**, checked after insertion into the HTML.
 
-Both fail the build with the offending files named. Keep imports as plain relative specifiers — the dev server adds cache-busting, the source stays clean.
+All four fail the build with the offending files named. Rules 3 and 4 exist
+because both failure modes ship a page that loads, renders nothing, and logs
+nothing — the most expensive kind of broken. Keep imports as plain relative
+specifiers; the dev server adds cache-busting, the source stays clean.
+
+One non-obvious trap the bundler now guards: the bundle is inserted with
+`html.replace('</body>', () => …)` and the replacement **must** be a function.
+With a replacement string, JS expands `` $` ``, `$'`, `$&` and `$$` inside it,
+and the bundle is full of `${…}` in template literals. The source parses; the
+shipped copy is quietly corrupted.
 
 ### Why a Node dev server
 

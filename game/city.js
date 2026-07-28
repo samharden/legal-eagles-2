@@ -56,6 +56,9 @@ export const REGIONS = [
             text: 'The newsstand sells three papers, four lighters and a rack of business cards from attorneys who could afford the rack. Yours is not on it.' },
           { id: 'ch_bench', tx: 28, ty: 16, spr: 'sign', label: '[E] the bench nobody sits on',
             text: 'A brass plate on the backrest: IN MEMORY OF THOSE WHO SETTLED. Somebody has scratched an addendum: AND WERE RIGHT TO.' },
+          { id: 'ch_window', tx: 22, ty: 12, spr: 'sign', label: '[E] the clerk\'s filing window',
+            repeat: true,
+            text: 'A slot, a bell, and a laminated sign reading NO EXCEPTIONS that has been laminated twice. Everything that is going to happen to anybody here goes through this slot first.' },
           { id: 'ch_bonds', tx: 8, ty: 27, spr: 'sign', label: '[E] Ace Bail Bonds — 24 HRS',
             text: 'ACE BAIL BONDS — 24 HRS — SE HABLA ESPAÑOL. A hand-lettered addition: AND WE MEAN 24.' },
         ],
@@ -68,6 +71,8 @@ export const REGIONS = [
         npcs: [
           { id: 'hector', name: 'Hector', spr: 'hector', tx: 22, ty: 17,
             label: '[E] Hector (newsstand)' },
+          { id: 'delgado', name: 'Arturo Delgado', spr: 'delgado', tx: 16, ty: 14,
+            label: '[E] the man on the steps' },
         ],
         actors: [
           { id: 'ch_civ1', type: 'civ', tx: 14, ty: 18 },
@@ -149,6 +154,9 @@ export const REGIONS = [
           { id: 'st_board', tx: 6, ty: 13, spr: 'board', label: '[E] corkboard',
             text: 'LAUNDROMAT CORKBOARD: a lost cat, a bass amp, three tabs torn off a card that reads EVICTION? KNOW YOUR RIGHTS — and four staples in a rectangle, holding nothing. Whatever was posted there was county-yellow; there is a strip of it still under the left staple, and the printed date on it has not come yet.',
             fact: 'wok_notice' },
+          { id: 'st_endday', tx: 20, ty: 18, spr: 'sign', repeat: true, endDay: true,
+            label: '[E] go up to Suite 2B — end the day',
+            text: 'Up the stairs beside the Wok, past the smell, to a folding table and a cot you have decided not to describe as a cot.' },
         ],
         npcs: [
           { id: 'ruiz', name: 'Marisol Ruiz', spr: 'ruiz', tx: 8, ty: 12,

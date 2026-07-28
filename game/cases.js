@@ -11,7 +11,7 @@
 //                                      what does filing one actually take.
 
 import { defineFacts, learn, knows, knowsAny } from '../engine/facts.js';
-import { defineQuests, qResolve, isActive, isDone, started, outcomeOf, currentStage } from '../engine/quests.js';
+import { defineQuests, qResolve, isActive, isDone, isFailed as isFailedCase, started, outcomeOf, currentStage } from '../engine/quests.js';
 
 /* ================================ FACTS ================================ */
 
@@ -25,6 +25,10 @@ defineFacts([
   { id: 'wok_insured', case: 'ruiz', text: 'The Wok carries a general liability policy. There is money behind this, which is not the same as there being justice.' },
 
   // ---- In re: The Unsent ----
+  // ---- The Coronado Notice ----
+  { id: 'coronado_deadline', case: 'coronado', text: 'Delgado was served on the 28th. The answer is due at the filing window, and the window does not care why it is late.' },
+  { id: 'coronado_paid', case: 'coronado', text: 'He paid $1,400 up front. That is not your money until you have done the work — it sits in trust.' },
+
   { id: 'unsent_hand', case: 'unsent', text: 'The letter is not in your handwriting, and the signature line has been signed and struck out eleven times.' },
   { id: 'unsent_docket', case: 'unsent', text: 'Department 13 has one matter on its docket. You are named as counsel. You are also named as the party.' },
   { id: 'unsent_drawer', case: 'unsent', text: 'Every desk in the building has a letter like this in the drawer. Four hundred desks.' },
@@ -34,7 +38,10 @@ defineFacts([
 
 /* =============================== QUESTS ================================ */
 
-export const CASE_HOOKS = { say: () => {}, reward: () => {}, banner: () => {} };
+export const CASE_HOOKS = {
+  say: () => {}, banner: () => {},
+  fee: () => {}, retainer: () => {}, earn: () => {}, rep: () => {},
+};
 
 defineQuests([
   {
@@ -63,7 +70,45 @@ defineQuests([
       };
       CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 9);
       CASE_HOOKS.banner('MATTER CLOSED', 'RUIZ v. GOLDEN WOK — ' + String(outcome).toUpperCase());
-      CASE_HOOKS.reward({ take: 900, waive: 700, refer: 250, decline: 0 }[outcome] || 0);
+      // A contingency pays nothing today — that is what a contingency is. The
+      // referral is the only one of these that puts money in the account now,
+      // which is exactly the pressure the fee arrangement is supposed to create.
+      CASE_HOOKS.fee({ refer: 250, take: 0, waive: 0, decline: 0 }[outcome] || 0,
+        'Ruiz — referral fee');
+      CASE_HOOKS.rep('strand', { waive: 3, take: 1, refer: 1, decline: -1 }[outcome] || 0);
+      CASE_HOOKS.rep('courthouse', { waive: 1, take: -1 }[outcome] || 0);
+    },
+    onFail() {
+      CASE_HOOKS.say('Ruiz\'s complaint went unfiled past the date and the court dismissed it with prejudice. She found out from a form letter. You found out from the same one.', 10);
+      CASE_HOOKS.banner('DISMISSED WITH PREJUDICE', 'RUIZ v. GOLDEN WOK');
+      CASE_HOOKS.rep('strand', -4);
+    },
+  },
+  {
+    id: 'coronado',
+    name: 'The Coronado Notice',
+    layer: 'street',
+    blurb: 'Delgado was served and has four days to answer. He has the money and none of the words.',
+    auto: true,
+    due: 4,                       // days from the day it opens — a real deadline
+    dueLabel: 'Coronado — answer due at the filing window',
+    stages: [
+      { type: 'talk', npc: 'delgado',
+        hint: 'A man on the courthouse steps is holding a summons the wrong way up.' },
+      { type: 'use', prop: 'ch_window',
+        hint: 'File the answer at the clerk\'s window before the date runs out.' },
+    ],
+    onComplete() {
+      CASE_HOOKS.say('Filed, stamped, and in the box by four. Delgado shakes your hand with the summons still in it.', 8);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE CORONADO NOTICE — FILED');
+      CASE_HOOKS.earn(1400, 'Coronado — answer filed');   // trust -> operating, earned
+      CASE_HOOKS.rep('courthouse', 3);
+    },
+    onFail() {
+      CASE_HOOKS.say('The window closed on the fourth day with nothing in it. Default judgment against Delgado. His $1,400 is still sitting in your trust account, and it is still his.', 10);
+      CASE_HOOKS.banner('DEFAULT JUDGMENT', 'THE CORONADO NOTICE — NOT FILED');
+      CASE_HOOKS.rep('courthouse', -5);
+      CASE_HOOKS.rep('strand', -2);
     },
   },
   {
@@ -215,6 +260,46 @@ const NPC_TREES = {
         refer: 'The nice office called. They said "we\'re in receipt." I don\'t know what that means but they said it twice.',
         decline: 'I called the second name on your list. They wanted money first. — Yeah. — Yeah.',
       }[outcomeOf('ruiz')] || 'Thanks for coming by.',
+    };
+    return T;
+  },
+
+  /* -------------------------------- DELGADO -------------------------------- */
+  delgado() {
+    const T = { who: 'Arturo Delgado', spr: 'delgado', nodes: {} };
+    if (isDone('coronado')) {
+      T.start = 'a';
+      T.nodes.a = { text: isFailedCase('coronado')
+        ? 'You said four days. — I know. — I gave you the money on a Tuesday. I remember because I close on Tuesdays.'
+        : 'My wife says I should have been worried. I told her I had a lawyer. She said those are the same sentence.' };
+      return T;
+    }
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'You do law? Real law? — He is holding a summons upside down, which he has clearly been doing for some time. — They gave me this on the twenty-eighth. It says twenty days and I counted and it is not twenty days.',
+      choices: [{ label: 'Let me see the caption.', to: 'b' }],
+    };
+    T.nodes.b = {
+      text: 'CORONADO ARMS LLC v. A. DELGADO. Service on the 28th. The answer date is four days out and he has spent most of the twenty deciding whether it was real.',
+      fx: () => learn('coronado_deadline'),
+      choices: [
+        { label: '"I can file an answer. It has to be at the window before the date."', to: 'c' },
+        { label: '"You need somebody with more time than me."', to: 'no' },
+      ],
+    };
+    T.nodes.c = {
+      text: 'He counts it out on the step — fourteen hundred, in an envelope that has been opened and re-closed several times. — That is everything in the coffee can. When do I know?',
+      fx: () => {
+        learn('coronado_paid');
+        CASE_HOOKS.retainer(1400, 'Delgado — retainer (UNEARNED)');
+      },
+      choices: [{ label: '"When it is stamped. Not before."', to: 'd' }],
+    };
+    T.nodes.d = {
+      text: 'Then I will be here. — He sits back down on the step, next to the summons, and does not look at either of you.',
+    };
+    T.nodes.no = {
+      text: 'Yeah. Yeah, okay. — He folds the summons into a square small enough to stop being a summons.',
     };
     return T;
   },
