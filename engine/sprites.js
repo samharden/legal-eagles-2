@@ -217,6 +217,67 @@ SPR.clerk = makeSprite([
   ".....kk..kk.....",
 ], { p: '#5a5468', s: '#c9c2b4', k: '#0e0d12', n: '#22202e', w: '#8f88a6' });
 
+// Dee Ferraro — drives a hook truck on Motor Row. High-vis, brace, and the
+// specific stillness of somebody who has been told not to turn her head.
+SPR.dee = makeSprite([
+  "................",
+  "......nnnn......",
+  ".....nnnnnn.....",
+  "....nnffffn.....",
+  "....nfkffkf.....",
+  "....nffffffn....",
+  ".....cccccc.....",
+  "......cccc......",
+  "....vvvvvvvv....",
+  "...vvyyvvyyvv...",
+  "...vvyyvvyyvv...",
+  "...vv.vvvv.vv...",
+  "....vvvvvvvv....",
+  ".....dd..dd.....",
+  ".....dd..dd.....",
+  ".....kk..kk.....",
+], { n: '#2c1f19', f: SKIN, k: K, c: '#dcd6c8', v: '#c8631f', y: '#f0e14a', d: '#2a3040' });
+
+// Dr. Kestenbaum — walk-ins welcome, abogados welcomer. The coat is very white.
+SPR.kestenbaum = makeSprite([
+  "................",
+  "......gggg......",
+  ".....gggggg.....",
+  "....ggffffg.....",
+  "....ffkffkf.....",
+  "....ffffffff....",
+  ".....ffmmff.....",
+  "......ffff......",
+  "....wwwwwwww....",
+  "...wwwbbwwwww...",
+  "...wwwwwwwwww...",
+  "...ww.wwww.ww...",
+  "....wwwwwwww....",
+  ".....ww..ww.....",
+  ".....nn..nn.....",
+  ".....kk..kk.....",
+], { g: '#8d8d93', f: SKIN, k: K, m: '#6f6258', w: '#eef0f2', b: '#3f6ea8', n: '#2b2b33' });
+
+// The Yard Man. Been on the gate a long time. Has a clipboard he never writes on.
+SPR.yardman = makeSprite([
+  "................",
+  ".....kkkkkkk....",
+  "....kkkkkkkkk...",
+  "....kkssssk.....",
+  "....ksksskk.....",
+  "....kssssskk....",
+  ".....ssssss.....",
+  "......ssss......",
+  "....jjjjjjjj....",
+  "...jjooijjojj...",
+  "...jjjjjjjjjj...",
+  "...jj.jjjj.jj...",
+  "....jjjjjjjj....",
+  ".....jj..jj.....",
+  ".....jj..jj.....",
+  ".....kk..kk.....",
+], { k: '#161520', s: '#b9b2a4', j: '#31382c', o: '#4d5546', i: '#d8d2c0' });
+
 // ---- props ----------------------------------------------------------------
 SPR.dossier = makeSprite([
   "................",

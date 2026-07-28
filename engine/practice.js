@@ -18,7 +18,16 @@ export const Books = {
   arrears: 0,        // missed rent payments
 };
 
-export const Rep = { courthouse: 0, strand: 0 };
+// Standing, per district. Deliberately NOT a fixed shape — the host seeds it
+// from the city, so adding a district is a change to game/city.js and nowhere
+// else. DESIGN §3: The Flats trusting you and the Tower District trusting you
+// are different currencies, and mildly incompatible.
+export const Rep = {};
+
+/** Ensure every district exists at zero, without disturbing any that have moved. */
+export function seedRep(ids) {
+  for (const id of ids) if (!(id in Rep)) Rep[id] = 0;
+}
 
 export const Office = { held: true };
 
@@ -106,11 +115,12 @@ export function savePractice() {
 }
 export function loadPractice(o) {
   Object.assign(Books, { operating: 0, trust: 0, entries: [], commingled: 0, arrears: 0 }, (o && o.books) || {});
-  Object.assign(Rep, { courthouse: 0, strand: 0 }, (o && o.rep) || {});
+  for (const k in Rep) delete Rep[k];
+  Object.assign(Rep, (o && o.rep) || {});
   Object.assign(Office, { held: true }, (o && o.office) || {});
 }
 export function resetPractice() {
   Books.operating = 0; Books.trust = 0; Books.entries = []; Books.commingled = 0; Books.arrears = 0;
-  Rep.courthouse = 0; Rep.strand = 0;
+  for (const k in Rep) delete Rep[k];
   Office.held = true;
 }

@@ -56,7 +56,28 @@ The two cases:
 - **Collapse costs hours, not a day.** There is no day here to lose, so the building charges you for the time you were out. The entry is already written when you come round.
 - The Casefile's third tab on this layer is **THE HOURS** — the two columns, which floors are lit and what the dark ones cost, and the timesheet.
 
-Not built yet: staff and office upgrades, combat beyond a briefcase swing, the other four districts, the full enemy roster and bosses, the crossover. See DESIGN.md §8.
+**Phase 3b** laid out the whole city at once and built the first new district on it.
+
+The six districts are allocated on the global tile grid **up front**, before any of them have content, because a region's origin is baked into every save's deltas and into `SPAWN` — moving a district after it has content is the expensive mistake. Every band is 30 tiles tall so they stack flush:
+
+|  | `gx 0–35` | `gx 36–75` | `gx 76–111` |
+|---|---|---|---|
+| **`gy 0–29`** | — | THE TOWER DISTRICT | THE ANNEX |
+| **`gy 30–59`** | THE FLATS | **COURTHOUSE SQUARE** | **THE STRAND** |
+| **`gy 60–89`** | — | **MOTOR ROW** | — |
+
+Unbuilt space is solid, so a district whose neighbour does not exist yet simply has a wall there. The openings are cut on **both** sides in advance: Courthouse Square already has its road west to The Flats and its climb north to the Tower District, and they are walls until those regions land.
+
+**MOTOR ROW** (bold above = built) is reached down the alley on the courthouse's south side — no loading break, same as the seam east to The Strand. Tow yards, body shops, and a chain-link fence you can see through, which is the point of a fence.
+
+| Path | Matter | Shape |
+|---|---|---|
+| THE STREET | **The Kestenbaum Referral** | The chiropractor who refers, and what comes attached. Your first **contingency** — it pays nothing until it closes, which is a very different feeling once rent is weekly. Four resolutions; two of them need the ledger out of the alley. |
+| THE FLOOR | **The Impound** | Four rows of cars, every engine running, every ticket dated today. One car is not running and the ticket on it is dated tomorrow. Sign, count, or walk. |
+
+Reputation is no longer two hard-coded districts — `Practice.seedRep()` takes the city's own region list, so adding a district is a change to `game/city.js` and nowhere else.
+
+Not built yet: staff and office upgrades, combat beyond a briefcase swing, the other three districts, the full enemy roster and bosses, the crossover. See DESIGN.md §8.
 
 ---
 
@@ -131,6 +152,8 @@ Vanilla ES modules, canvas 2D, Web Audio. No framework, no dependencies, no asse
 **Maps are ASCII.** `game/city.js` holds each region's geometry as rows of characters (`engine/tilemap.js` defines the legend). Rows must be rectangular — the parser throws with the offending row rather than silently producing collision bugs. Paint with `?edit=1` and paste the export back.
 
 **The city is one coordinate space.** A region declares its origin in global tiles; there is no per-map coordinate system and no `setWorld`. Query by global tile: `world.tileAt(gx, gy)`. Unbuilt space is solid.
+
+**A district's origin is permanent.** It is baked into every save's delta keys and into `SPAWN`. The grid in the status section above allocates all six up front for exactly this reason — take the next free cell, don't reflow the ones that exist.
 
 **Deltas are keyed by layer.** `world.delta(id)` is scoped `"<layer>:<region>"`, so killing someone on THE STREET has no effect on THE FLOOR. Anything that permanently changes a region must go through `killActor` / `takePickup` / `markUsed`, or it will come back when the region rebuilds.
 

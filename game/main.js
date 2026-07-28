@@ -131,8 +131,14 @@ CASE_HOOKS.earn = (n, memo) => {
 CASE_HOOKS.rep = (d, n) => {
   if (!n) return;
   Practice.bumpRep(d, n);
-  say(`Word gets around ${d === 'strand' ? 'The Strand' : 'Courthouse Square'}.`, 3);
+  say(`Word gets around ${districtName(d)}.`, 3);
 };
+
+/** The city is the one place district names live. Nothing else spells them. */
+export function districtName(id) {
+  const r = REGIONS.find(x => x.id === id);
+  return r ? r.name : id;
+}
 
 function refreshCasefile() { if (Casefile.open) Casefile.render(G.layer); }
 
@@ -223,6 +229,7 @@ function beginPath(layerId, path) {
   G.complaint = null;
   resetClock();
   Practice.resetPractice();
+  Practice.seedRep(REGIONS.map(r => r.id));
   resetHours();
   if (layerId === 'street') {
     Practice.post(4100, 'Opening balance — everything you had', 'operating', 1);
@@ -265,6 +272,7 @@ function continueGame() {
   Quests.loadQuests(d.quests);
   loadClock(d.clock);
   Practice.loadPractice(d.practice);
+  Practice.seedRep(REGIONS.map(r => r.id));   // a save made before a district existed
   if (d.hours) loadHours(d.hours);
   G.world.loadDeltas(d.deltas);
   // rebuild residency at the restored position so deltas apply to fresh builds

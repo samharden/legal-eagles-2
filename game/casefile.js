@@ -227,9 +227,9 @@ function renderAccounts() {
   else if (Books.arrears) html += `<p class="cfWarn">Rent in arrears: ${Books.arrears} week${Books.arrears > 1 ? 's' : ''}. Two and the lock changes.</p>`;
 
   html += `<h4>STANDING</h4><ul class="cfFacts">`;
-  for (const k of Object.keys(Rep)) {
-    const name = k === 'strand' ? 'The Strand' : 'Courthouse Square';
-    html += `<li>${name} — <b>${repLabel(Rep[k])}</b> <span class="cfDim">(${Rep[k] > 0 ? '+' : ''}${Rep[k]})</span></li>`;
+  for (const r of REGIONS) {
+    if (!(r.id in Rep)) continue;
+    html += `<li>${r.name} — <b>${repLabel(Rep[r.id])}</b> <span class="cfDim">(${Rep[r.id] > 0 ? '+' : ''}${Rep[r.id]})</span></li>`;
   }
   html += `</ul>`;
 

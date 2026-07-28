@@ -21,6 +21,8 @@ export const TILES = {
   'b': { name: 'bench',    cls: 'prop',   solid: true },
   'k': { name: 'kiosk',    cls: 'prop',   solid: true },
   'x': { name: 'bollard',  cls: 'prop',   solid: true },
+  'o': { name: 'fence',    cls: 'fence',  solid: true },
+  ':': { name: 'lot',      cls: 'lot',    solid: false },
 };
 
 export const VOID = ' ';   // unbuilt space — solid, drawn as nothing

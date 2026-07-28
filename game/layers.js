@@ -16,6 +16,7 @@ export const LAYERS = {
     pal: {
       ground: '#2b2740', grass: '#2f4a35', road: '#1c1a2a', steps: '#3d3856',
       door: '#8a6a3a', build: '#4a3f63', glass: '#5e7fa8', tree: '#3f6b45', prop: '#5a4a6e',
+      fence: '#6a5f7d', lot: '#242032',
     },
     edge: '#71619a',        // top-edge highlight on solid tiles
     grid: 'rgba(0,0,0,0.16)',
@@ -31,6 +32,7 @@ export const LAYERS = {
     pal: {
       ground: '#1c1828', grass: '#22222a', road: '#14121e', steps: '#241f33',
       door: '#4a3a2a', build: '#2e2740', glass: '#2b3a48', tree: '#33303c', prop: '#332c44',
+      fence: '#3b3550', lot: '#17141f',
     },
     edge: '#463c66',
     grid: 'rgba(0,0,0,0.24)',

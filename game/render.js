@@ -81,6 +81,17 @@ export function drawWorld(world, layer, player, fx, gameT, complaint) {
         g.fillStyle = 'rgba(0,0,0,0.35)';
         g.fillRect(sx + 4, sy + 2, TILE - 8, TILE - 4);
       }
+      // chain link: a barrier you can see through, which is the whole reason a
+      // tow yard is a fence and not a wall — you are meant to look at what is
+      // inside it and not be able to get to it.
+      if (def.cls === 'fence') {
+        g.strokeStyle = 'rgba(0,0,0,0.34)'; g.lineWidth = 1;
+        for (let i = 1; i < 4; i++) {
+          g.beginPath(); g.moveTo(sx + i * TILE / 4, sy); g.lineTo(sx + i * TILE / 4, sy + TILE); g.stroke();
+        }
+        g.fillStyle = layer.edge;
+        g.fillRect(sx, sy, TILE, 3);
+      }
       if (def.cls === 'steps') {
         g.strokeStyle = 'rgba(0,0,0,0.25)'; g.lineWidth = 2;
         for (let i = 1; i < 4; i++) {

@@ -1,9 +1,20 @@
 "use strict";
 // ============================== THE CITY ==============================
 // Regions on one global tile grid. `ox`/`oy` are that region's origin in global
-// TILES — Courthouse Square owns gx 0..39, The Strand owns gx 40..75, and rows
-// 20..23 are open on both sides of the seam, so the road runs straight through
-// with nothing to load and no transition to sit through.
+// TILES, and the whole city is laid out ONCE, up front, so no district ever has
+// to move again — a region's origin is baked into every save's deltas and into
+// SPAWN, and shifting one after it has content is the expensive mistake:
+//
+//        gx 0..35        gx 36..75          gx 76..111
+//   gy    0..29  ·       THE TOWER DISTRICT · THE ANNEX
+//   gy   30..59  THE FLATS · COURTHOUSE SQ  · THE STRAND
+//   gy   60..89  ·       MOTOR ROW          · ·
+//
+// Everything is 30 tiles tall so the bands stack flush; unbuilt cells are solid
+// by default, so a district whose neighbour does not exist yet simply has a wall
+// there and gains an exit the day that neighbour lands. Openings are cut on both
+// sides in advance — the courthouse already has its doors to The Flats and the
+// Tower District, and they are walls until those regions arrive.
 //
 // Geometry is authored ONCE. `layers.street` and `layers.floor` dress it.
 // `sub` rewrites tiles per layer; the rest is content.
@@ -12,9 +23,9 @@ export const REGIONS = [
   {
     id: 'courthouse',
     name: 'COURTHOUSE SQUARE',
-    ox: 0, oy: 0,
+    ox: 36, oy: 30,
     rows: [
-      '########################################',
+      '##################################....##',
       '#......................................#',
       '#.....############################.....#',
       '#.....############################.....#',
@@ -34,16 +45,16 @@ export const REGIONS = [
       '#...................k..................#',
       '#......................................#',
       '#......................................#',
-      '#=======================================',
-      '#=======================================',
-      '#---------------------------------------',
-      '#=======================================',
+      '========================================',
+      '========================================',
+      '----------------------------------------',
+      '========================================',
       '#......................................#',
       '#.##############......###############..#',
       '#.#wwww####wwww#......##www####www###..#',
       '#.#####++#######......######++#######..#',
       '#......................................#',
-      '########################################',
+      '#################....###################',
     ],
     layers: {
       street: {
@@ -118,9 +129,9 @@ export const REGIONS = [
   {
     id: 'strand',
     name: 'THE STRAND',
-    ox: 40, oy: 0,
+    ox: 76, oy: 30,
     rows: [
-      '####################################',
+      '################....################',
       '#..................................#',
       '#.################################.#',
       '#.################################.#',
@@ -206,10 +217,116 @@ export const REGIONS = [
       },
     },
   },
+  {
+    id: 'motor',
+    name: 'MOTOR ROW',
+    ox: 36, oy: 60,
+    rows: [
+      '#################....###################',
+      '#################....###################',
+      '#################....###################',
+      '#......................................#',
+      '#.ooooooooooooo........###############.#',
+      '#.o:::::::::::o........###############.#',
+      '#.o:::::::::::o........###############.#',
+      '#.o:::::::::::o........###############.#',
+      '#.o::::::::::::........###############.#',
+      '#.o::::::::::::........##wwww###wwww##.#',
+      '#.o:::::::::::o........######++#######.#',
+      '#.o:::::::::::o........................#',
+      '#.ooooooooooooo........................#',
+      '#.....T.....T.............T.....T......#',
+      '#======================================#',
+      '#======================================#',
+      '#--------------------------------------#',
+      '#======================================#',
+      '#.......bb..................bb.........#',
+      '#......................................#',
+      '#.################....################.#',
+      '#.##wwww###wwww###....##wwww###wwww###.#',
+      '#.################....################.#',
+      '#.################....################.#',
+      '#.################....################.#',
+      '#.################....################.#',
+      '#.####++####++####....####++####++####.#',
+      '#......................................#',
+      '#..................xx..................#',
+      '########################################',
+    ],
+    layers: {
+      street: {
+        greet: 'MOTOR ROW. Tow yards, body shops, and the only chiropractor in this city who returns a lawyer\'s call inside the hour.',
+        props: [
+          { id: 'mr_gate', tx: 15, ty: 8, spr: 'sign', label: '[E] BONILLA TOWING — gate',
+            text: 'BONILLA TOWING & RECOVERY. STORAGE $65/DAY. LIEN SALE AFTER 30. The lien-sale line is the only one on the board that has been repainted, and it has been repainted recently.' },
+          { id: 'mr_impound', tx: 8, ty: 8, spr: 'sign', label: '[E] the impound rows',
+            text: 'Four rows of cars that stopped being transport and became collateral. Every one of them has a windshield ticket and a story, and in about a third of them the story is that somebody could not find eleven hundred dollars in a week. You know that number.' },
+          { id: 'mr_chiro', tx: 29, ty: 11, spr: 'sign', label: '[E] KESTENBAUM CHIROPRACTIC — WALK-INS',
+            text: 'KESTENBAUM CHIROPRACTIC — WALK-INS — ABOGADOS WELCOME. That last word is not on the sign. It is on a smaller sign, under the sign.' },
+          { id: 'mr_shop', tx: 6, ty: 27, spr: 'board', label: '[E] the body shop, roll-up door open',
+            text: 'A tow-truck cab up on the lift with its whole left side folded in — struck square, driver\'s door to the B-pillar, the paint transfer still on it in somebody else\'s colour. Nothing about this is a rear-end. Whoever hit this came across the intersection, and came across it fast.',
+            fact: 'dee_liability' },
+          { id: 'mr_bench', tx: 28, ty: 19, spr: 'board', label: '[E] the bus bench',
+            text: 'A bus bench with a face on it, six feet wide and smiling: HURT? CALL VONNIE. NO FEE UNLESS WE WIN. The face has been up long enough to have faded, and somebody has drawn nothing on it at all, which in this neighbourhood is a form of respect.',
+            fact: 'dee_rival' },
+        ],
+        pickups: [
+          { id: 'mr_ledger', tx: 19, ty: 24, spr: 'dossier', item: 'ledger',
+            name: 'A TREATMENT LEDGER, IN THE ALLEY TRASH',
+            note: 'Forty-one patients, all of them somebody\'s plaintiff. The per-visit figure at the bottom is three times what an insurer pays for the same forty minutes.',
+            fact: 'kest_lien' },
+        ],
+        npcs: [
+          { id: 'dee', name: 'Dee Ferraro', spr: 'dee', tx: 16, ty: 11,
+            label: '[E] the driver outside the yard' },
+          { id: 'kestenbaum', name: 'Dr. Kestenbaum', spr: 'kestenbaum', tx: 33, ty: 11,
+            label: '[E] the chiropractor' },
+        ],
+        actors: [
+          { id: 'mr_civ1', type: 'civ', tx: 24, ty: 19 },
+          { id: 'mr_civ2', type: 'civ', tx: 10, ty: 19 },
+          { id: 'mr_srv1', type: 'server', tx: 33, ty: 27 },
+        ],
+      },
+      floor: {
+        sub: { T: 'x' },
+        lightCost: 14,
+        greet: 'MOTOR ROW. Every bay is lit and every lift is down and every car on this street is running.',
+        greetDark: 'MOTOR ROW. You cannot see the cars. You can hear all of them.',
+        props: [
+          { id: 'mr_panel', tx: 18, ty: 3, spr: 'board', repeat: true, lights: true,
+            label: '[E] the lighting panel',
+            text: 'Bolted to the wall at the mouth of the alley, outdoors, in the weather — which it has not had for some time, there being no weather. Same form. Same hand.' },
+          { id: 'mr_cars', tx: 8, ty: 8, spr: 'sign', label: '[E] the impound rows',
+            text: 'Four rows, and every engine in all four is running. Warm hoods. Wipers parked. One of them has its indicator going, patiently, for a turn out of a lot it has been in for forty years. You put your hand on a tank and it is full, and you take your hand off, and it is still full.',
+            fact: 'mr_running' },
+          { id: 'mr_ticket', tx: 16, ty: 11, spr: 'board', label: '[E] a windshield ticket',
+            text: 'IMPOUNDED — RELEASE ON SIGNATURE ONLY. You check the next one, and the next, and the next row. Same date on all of them. It is the date on every calendar in this building, which is today, which is the day it has been the entire time you have been awake.',
+            fact: 'mr_tickets' },
+          { id: 'mr_mine', tx: 12, ty: 6, spr: 'sign', label: '[E] the car in the second row',
+            text: 'This one is not running. It is the only one. The ticket under the wiper has a name written on it in a hand you have been signing things with your entire adult life, and the date on it is not today. The date on it is tomorrow.',
+            fact: 'mr_yours' },
+        ],
+        pickups: [
+          { id: 'mr_keys', tx: 19, ty: 24, spr: 'dossier', item: 'keys',
+            name: 'A RING OF KEYS, TAGGED', note: 'Forty-odd keys on a ring, each with a paper tag, each tag a matter number. None of them is a car key.',
+            fact: 'mr_keyring' },
+        ],
+        npcs: [
+          { id: 'yardman', name: 'The Yard Man', spr: 'yardman', tx: 15, ty: 9,
+            label: '[E] the man at the gate' },
+        ],
+        actors: [
+          { id: 'mr_unb1', type: 'unbilled', tx: 26, ty: 19 },
+          { id: 'mr_unb2', type: 'unbilled', tx: 10, ty: 27 },
+        ],
+      },
+    },
+  },
 ];
 
 // Where each path starts. Both are on the same street, forty tiles apart.
 export const SPAWN = {
-  street: { x: 46 * 40 + 20, y: 19 * 40 + 20 },   // The Strand, outside your own door
-  floor: { x: 20 * 40 + 20, y: 18 * 40 + 20 },   // Courthouse Square, under Dept. 13
+  street: { x: 82 * 40 + 20, y: 49 * 40 + 20 },   // The Strand, outside your own door
+  floor: { x: 56 * 40 + 20, y: 48 * 40 + 20 },   // Courthouse Square, under Dept. 13
 };

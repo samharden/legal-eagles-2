@@ -29,6 +29,20 @@ defineFacts([
   { id: 'coronado_deadline', case: 'coronado', text: 'Delgado was served on the 28th. The answer is due at the filing window, and the window does not care why it is late.' },
   { id: 'coronado_paid', case: 'coronado', text: 'He paid $1,400 up front. That is not your money until you have done the work — it sits in trust.' },
 
+  // ---- The Kestenbaum Referral ----
+  { id: 'dee_injury', case: 'ferraro', text: 'Dee Ferraro cannot turn her head far enough to check a blind spot. Checking blind spots is her job.' },
+  { id: 'dee_liability', case: 'ferraro', text: 'The damage is a T-bone, not a rear-end — the other driver came across the intersection and came across it fast.' },
+  { id: 'dee_rival', case: 'ferraro', text: 'Vonnie Aslanian — the face on the bus bench — got to Dee first, and Dee has not said no to her yet.' },
+  { id: 'kest_capping', case: 'ferraro', text: 'Kestenbaum\'s referrals come with an expectation: your clients treat with him, and he keeps sending.' },
+  { id: 'kest_lien', case: 'ferraro', text: 'He bills the treatment on a lien at three times the going rate, and the lien comes out of the client\'s share, not yours.' },
+
+  // ---- The Impound ----
+  { id: 'mr_running', case: 'impound', text: 'Every engine in the yard is running, every tank is full, and none of them are going anywhere.' },
+  { id: 'mr_tickets', case: 'impound', text: 'Every windshield has an impound ticket and every ticket carries the same date — today\'s, which is the only date there is.' },
+  { id: 'mr_yours', case: 'impound', text: 'One car is not running. The ticket on it is in your handwriting and it is dated tomorrow.' },
+  { id: 'mr_keyring', case: 'impound', text: 'Forty-odd keys on a ring, each tagged with a matter number. Not one of them is a car key.' },
+  { id: 'mr_release', case: 'impound', text: 'The Yard Man: nothing leaves this lot without a signature, and a signature is a filing like any other.' },
+
   { id: 'unsent_hand', case: 'unsent', text: 'The letter is not in your handwriting, and the signature line has been signed and struck out eleven times.' },
   { id: 'unsent_docket', case: 'unsent', text: 'Department 13 has one matter on its docket. You are named as counsel. You are also named as the party.' },
   { id: 'unsent_drawer', case: 'unsent', text: 'Every desk in the building has a letter like this in the drawer. Four hundred desks.' },
@@ -109,6 +123,79 @@ defineQuests([
       CASE_HOOKS.banner('DEFAULT JUDGMENT', 'THE CORONADO NOTICE — NOT FILED');
       CASE_HOOKS.rep('courthouse', -5);
       CASE_HOOKS.rep('strand', -2);
+    },
+  },
+  {
+    id: 'ferraro',
+    name: 'The Kestenbaum Referral',
+    layer: 'street',
+    blurb: 'A chiropractor on Motor Row has sent you a tow-truck driver with a real injury and a real case. The referral is not the problem. What comes attached to it is.',
+    auto: true,
+    // The city does not hand you Motor Row on day one. A referral is something
+    // you get for having closed something, which is also true of referrals.
+    prereq: () => isDone('ruiz') || isDone('coronado'),
+    due: 6,
+    dueLabel: 'Ferraro — demand due before the adjuster closes the file',
+    stages: [
+      { type: 'talk', npc: 'dee',
+        hint: 'Motor Row, outside the tow yard. Kestenbaum\'s referral is waiting for you and has been for an hour.' },
+      { type: 'learn', facts: ['dee_liability', 'kest_capping', 'kest_lien'],
+        hint: 'Work it: the wreck in the body shop, the doctor himself, and whatever the alley behind his office is throwing away.' },
+      { type: 'talk', npc: 'dee',
+        hint: 'Go back to Dee. She is owed the version with the arrangement in it.' },
+      { type: 'resolve',
+        hint: 'Decide what the referral is worth to you.',
+        options: ['play', 'clean', 'report', 'decline'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        play: 'You send her back to him, and he sends you the next one, and the one after that. It is the best month you have had. The lien takes forty cents of every dollar she recovers and she will never once see the sentence that made that happen.',
+        clean: 'You took the case and told him the treatment goes wherever her own doctor says it goes. He was extremely pleasant about it. He has not called since, and he is not going to.',
+        report: 'You wrote it up — the ledger, the rate, the forty-one names — and walked it to the window. Motor Row will know inside a day who did that, and Motor Row is not going to be delicate about it.',
+        decline: 'You gave the file back. Vonnie Aslanian signed her up on Thursday. The bus bench was right about one thing: she does not charge unless she wins.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 10);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE KESTENBAUM REFERRAL — ' + String(outcome).toUpperCase());
+      // A contingency finally pays — which is the whole argument for taking one,
+      // and the reason the rent got so loud while you were working it.
+      CASE_HOOKS.fee({ play: 6800, clean: 3200, report: 0, decline: 0 }[outcome] || 0,
+        'Ferraro — contingency fee');
+      CASE_HOOKS.rep('motor', { play: 4, clean: 1, report: -6, decline: -1 }[outcome] || 0);
+      CASE_HOOKS.rep('courthouse', { play: -3, clean: 2, report: 5 }[outcome] || 0);
+    },
+    onFail() {
+      CASE_HOOKS.say('The adjuster closed the file on the sixth day with nothing in it from you. Dee found out when the letter came. She had been telling people she had a lawyer.', 10);
+      CASE_HOOKS.banner('FILE CLOSED — NO DEMAND', 'THE KESTENBAUM REFERRAL');
+      CASE_HOOKS.rep('motor', -5);
+      CASE_HOOKS.rep('courthouse', -2);
+    },
+  },
+  {
+    id: 'impound',
+    name: 'The Impound',
+    layer: 'floor',
+    blurb: 'Four rows of cars in a fenced lot on Motor Row, every engine running, every windshield ticketed for the same day. One of them is not running.',
+    auto: true,
+    prereq: () => isDone('unsent'),
+    stages: [
+      { type: 'learn', facts: ['mr_running', 'mr_tickets'],
+        hint: 'Motor Row, down the alley south of the courthouse. Look at the cars, and then look at what is under the wipers.' },
+      { type: 'learn', fact: 'mr_yours',
+        hint: 'One of them is not running. Find it.' },
+      { type: 'talk', npc: 'yardman',
+        hint: 'Somebody is on the gate. He has been on the gate a long time.' },
+      { type: 'resolve',
+        hint: 'Decide what you are taking out of this lot.',
+        options: ['sign', 'read', 'leave'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        sign: 'You sign it. He tears the ticket along the perforation and gives you the short half, and the engine turns over on the first try after forty years of not being asked, and you do not get in.',
+        read: 'You go down the rows matching tags to tickets until you have all forty-one names, and every one of them is somebody who was going to leave, and every one of them is still here. You put the ring in your pocket. It is the heaviest thing you are carrying.',
+        leave: 'You walk out through the gate and he does not stop you, and the storage on a car in that lot runs sixty-five a day, and it has been running for forty years, and the number that makes is not a number anybody intends to be paid.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 10);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE IMPOUND — ' + String(outcome).toUpperCase());
     },
   },
   {
@@ -300,6 +387,225 @@ const NPC_TREES = {
     };
     T.nodes.no = {
       text: 'Yeah. Yeah, okay. — He folds the summons into a square small enough to stop being a summons.',
+    };
+    return T;
+  },
+
+  /* ------------------------------ DEE FERRARO ------------------------------ */
+  dee() {
+    const stage = currentStage('ferraro');
+    const phase = !started('ferraro') || (stage && stage.type === 'talk' && !knows('dee_injury')) ? 'intake'
+      : isDone('ferraro') ? 'after'
+        : (stage && stage.type === 'resolve') || knows('dee_liability', 'kest_capping', 'kest_lien') ? 'report'
+          : 'working';
+
+    const T = { who: 'Dee Ferraro', spr: 'dee', nodes: {} };
+
+    if (phase === 'intake') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'Doc said you\'d come. — She turns her whole body to look at you, feet and all, the way you turn when the alternative is turning your head. — I drive the hook truck. Ten years. Ten years and I have never once been the one who got hit.',
+        to: 'b',
+      };
+      T.nodes.b = {
+        text: 'Guy came across Alameda and Seventh doing about forty and I was already in the box. I remember the noise and then I remember the airbag and then I remember being annoyed about the airbag, which the doc says is a normal thing to remember.',
+        choices: [
+          { label: 'What did the doctor actually find?', to: 'c' },
+          { label: 'How are you managing at work?', to: 'c' },
+        ],
+      };
+      T.nodes.c = {
+        text: 'Three discs. Which sounds like a number until somebody explains it and then it sounds like a job. — She does the whole-body turn again, toward the yard. — I cannot check a blind spot. That is the job. That is the entire job.',
+        fx: () => { learn('dee_injury'); },
+        choices: [
+          { label: 'Don\'t give a recorded statement to anybody. I\'ll look at it.', to: 'd' },
+          { label: 'Who else have you talked to about this?', to: 'vonnie' },
+        ],
+      };
+      T.nodes.vonnie = {
+        text: 'The bench lady called me. Twice. She knew my name before I said it, which I did not love. — Is that bad? — I don\'t know yet. — Okay. Okay, that\'s honest at least.',
+        to: 'd',
+      };
+      T.nodes.d = {
+        text: 'Doc says you\'re good and Doc says he\'ll handle the treating side so I don\'t have to think about it. — She says it the way people say things they have been told to say, without any idea that that is what she is doing.',
+      };
+      return T;
+    }
+
+    if (phase === 'working') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'Still upright. Still not turning my head. — She has been standing in the same place long enough that the yard dog has stopped registering her.',
+        choices: [
+          { label: 'Still working. I\'ll come back when I have it straight.', to: null },
+          { tag: 'PROGRESS', label: 'Tell her what you have so far.',
+            if: () => knowsAny('dee_liability', 'kest_capping', 'kest_lien'), to: 'b' },
+        ],
+      };
+      T.nodes.b = {
+        text: 'That is more than anybody has told me and I have been to four appointments. — Four? — Doc likes appointments.',
+      };
+      return T;
+    }
+
+    if (phase === 'report') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'Okay. Give it to me standing up. I can\'t nod so don\'t wait for one.',
+        to: 'b',
+      };
+      T.nodes.b = {
+        text: 'The liability is clean — the damage on that cab is a side impact and he came across the intersection to make it. That is the good part. The rest of it is about the man who sent you to me.',
+        choices: [
+          { tag: 'THE LIEN', label: '"He treats you, he bills it on a lien at triple, and it comes out of your share — not mine."',
+            if: () => knows('kest_lien'), to: 'lien' },
+          { tag: 'THE ARRANGEMENT', label: '"He keeps referring as long as I keep sending clients back to him."',
+            if: () => knows('kest_capping'), to: 'lien' },
+          { label: 'Say nothing about Kestenbaum. Run it the way he set it up.', to: 'play' },
+        ],
+      };
+      T.nodes.lien = {
+        text: 'She works it out faster than you expected her to, because it is her money and people are quick about their own money. — So the more he treats me, the less I get. — Yes. — And the more he treats me, the more he sends you. — Yes. — Huh. And you told me. — Yeah. — Why?',
+        choices: [
+          { label: '"Because you\'d have found out from the settlement statement."', to: 'options' },
+          { label: '"Because I want to still be doing this in five years."', to: 'options' },
+        ],
+      };
+      T.nodes.options = {
+        text: 'So what do we do.',
+        choices: [
+          { tag: 'CLEAN', label: 'Take it. Treatment goes wherever her own doctor sends her.',
+            if: () => knows('kest_lien', 'dee_liability'), to: 'clean' },
+          { tag: 'REPORT', label: 'Take the ledger to the bar. Forty-one names is not a misunderstanding.',
+            if: () => knows('kest_lien', 'kest_capping'), to: 'report' },
+          { label: 'Run it his way anyway. It pays, and rent is on the first.', to: 'play' },
+          { label: 'Give the file back. This is more than you can carry right now.', to: 'decline' },
+        ],
+      };
+      T.nodes.clean = {
+        text: 'Then we do that. — She looks at the yard for a second. — He is going to be so nice about it. That is the thing about him. He is going to be so nice about it.',
+        fx: () => qResolve('ferraro', 'clean'),
+      };
+      T.nodes.report = {
+        text: 'Forty-one. — Forty-one. — She thinks about it for a long moment, the way somebody thinks about a thing that is going to cost them something they cannot itemize. — Do it. I have to keep driving on this street. Do it anyway.',
+        fx: () => qResolve('ferraro', 'report'),
+      };
+      T.nodes.play = {
+        text: 'Then it\'s handled? — It\'s handled. — Good. Good, because I have been trying not to think about it and it turns out I am extremely good at that.',
+        fx: () => qResolve('ferraro', 'play'),
+      };
+      T.nodes.decline = {
+        text: 'She takes the folder back with both hands, because one hand would mean turning. — You could\'ve just not told me any of it. — I know. — Yeah. That\'s what I mean.',
+        fx: () => qResolve('ferraro', 'decline'),
+      };
+      return T;
+    }
+
+    // after
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        play: 'Doc\'s got me on three a week now. Is that a lot? — She asks it lightly. She is not asking you lightly.',
+        clean: 'New doc. Different building, no posters in the waiting room. She told me to stop lifting for six weeks and did not give me a card to give anybody.',
+        report: 'Bonilla won\'t look at me. Neither will the guy at the parts counter. — Dee — No, I said do it. I\'m not taking it back. I\'m just telling you what it\'s like.',
+        decline: 'The bench lady got it. She calls me every Friday whether there\'s anything to say or not. I think that\'s the service.',
+        failed: 'The letter came on a Tuesday. It says the file is closed. — I know. — You said six days. I counted them. I was counting them.',
+      }[isFailedCase('ferraro') ? 'failed' : outcomeOf('ferraro')] || 'Thanks for stopping.',
+    };
+    return T;
+  },
+
+  /* ----------------------------- DR KESTENBAUM ----------------------------- */
+  kestenbaum() {
+    const T = { who: 'Dr. Kestenbaum', spr: 'kestenbaum', nodes: {} };
+    if (isDone('ferraro')) {
+      T.start = 'a';
+      T.nodes.a = {
+        text: {
+          play: 'I have two more for you. A rear-ender and a slip. — He says it the way you\'d offer somebody a chair.',
+          clean: 'No hard feelings whatsoever. Truly. — He shakes your hand with both of his and you notice that he has stopped saying your name.',
+          report: 'The letter came from the board on Monday. — He is still smiling. That is the part you will think about. — Forty-one people, counsellor. Do you know how many of them still cannot sleep on their left side?',
+          decline: 'Aslanian took it. She sends me everything. — He shrugs, comfortably. — Somebody was always going to.',
+        }[outcomeOf('ferraro')] || 'Walk-ins welcome.',
+      };
+      return T;
+    }
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'Counsellor! — He says it like a diagnosis he is pleased about. — Ferraro. Good case. Clean liability, real injury, sympathetic plaintiff, and a defendant with a policy. You do not get all four. I have been doing this since 1997 and you do not get all four.',
+      choices: [
+        { label: 'Why me? You don\'t know me.', to: 'why' },
+        { tag: 'CASE', label: 'Ask how the treatment is being billed.',
+          if: () => isActive('ferraro'), to: 'bill' },
+        { label: 'Thanks for the referral.', to: null },
+      ],
+    };
+    T.nodes.why = {
+      text: 'Because you are new and you are hungry and you are four blocks away. — He is not embarrassed by any of that. — Also because the last three offices I sent people to stopped sending them back.',
+      choices: [
+        { label: '"Sent them back."', to: 'bill' },
+      ],
+    };
+    T.nodes.bill = {
+      text: 'On a lien. Nobody on this street has fifty dollars for a visit, so I treat, I hold the bill, and I get paid out of the settlement. Standard. Everybody does it. — And the referrals? — He spreads his hands, genuinely delighted to be asked. — I send you cases, your people treat with me, I send you more cases. That is not a scheme, counsellor, that is a neighbourhood.',
+      fx: () => { learn('kest_capping'); },
+      choices: [
+        { label: '"And the rate?"', to: 'rate' },
+        { label: 'Let it go for now.', to: null },
+      ],
+    };
+    T.nodes.rate = {
+      text: 'The rate is the rate. — It is not a number he is going to say out loud, and the way he does not say it is the most informative thing that has happened to you today. — Look at what I do for these people. Look at what the alternative is for these people. Then come back and ask me about the rate.',
+    };
+    return T;
+  },
+
+  /* ------------------------------ THE YARD MAN ----------------------------- */
+  yardman() {
+    const T = { who: 'The Yard Man', spr: 'yardman', nodes: {} };
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'Evening. — He has a clipboard. There is nothing on the clipboard. He holds it the way a man holds a thing he has held for thirty years without needing it. — Lot closes at six.',
+      choices: [
+        { label: 'What time is it now?', to: 'time' },
+        { tag: 'THE CAR', label: 'Ask about the one that is not running.',
+          if: () => knows('mr_yours'), showLocked: true,
+          lockedNote: 'you have not found it yet', to: 'car' },
+      ],
+    };
+    T.nodes.time = {
+      text: 'Coming up on six. — He does not look at anything to establish that. — It has been coming up on six for a while now. I find you stop minding.',
+    };
+    T.nodes.car = {
+      text: 'Second row. Blue one. — He does not look that way either. — That one is not impounded, counsellor. That one is HELD. There is a difference and the difference is that an impound is waiting on a fee and a hold is waiting on a person.',
+      choices: [
+        { label: 'What does it take to get it out?', to: 'release' },
+      ],
+    };
+    T.nodes.release = {
+      text: 'A signature. — That is it? — That is all it has ever been. Nothing leaves this lot without one and nothing has ever left this lot, and I would not want you to think those two facts are unrelated. A release is a filing, same as anything else. Somebody has to hand it in.',
+      fx: () => { learn('mr_release'); },
+      choices: [
+        { tag: 'SIGN', label: 'Sign the release for the car with your name on it.',
+          if: () => knows('mr_release', 'mr_yours'), to: 'do_sign' },
+        { tag: 'THE TAGS', label: 'Match the key tags to the tickets first. Find out who else is in here.',
+          if: () => knows('mr_keyring'), showLocked: true,
+          lockedNote: 'you would need the ring off the alley floor', to: 'do_read' },
+        { label: 'Nothing. Walk out through the gate.', to: 'do_leave' },
+        { label: 'Not yet.', to: null },
+      ],
+    };
+    T.nodes.do_sign = {
+      text: 'He turns the clipboard around and there is a form on it now, and you do not think there was one before. You sign on the line and he tears the ticket along the perforation and hands you the short half without a word, and behind you, in the second row, an engine that has not turned over in forty years turns over on the first try.',
+      fx: () => qResolve('impound', 'sign'),
+    };
+    T.nodes.do_read = {
+      text: 'He steps aside. It takes a long time. Forty-one tags, forty-one tickets, forty-one names, and every single one of them a person who came down here to get their car back and is on the list of people who did not. — You are the first one to count them, he says. — Somebody had to. — He says: that is what they all put on the form.',
+      fx: () => qResolve('impound', 'read'),
+    };
+    T.nodes.do_leave = {
+      text: 'He raises the clipboard about an inch, which is the whole of the goodbye. — Storage runs sixty-five a day, counsellor. In case you were doing the arithmetic. — I wasn\'t. — He says: you will.',
+      fx: () => qResolve('impound', 'leave'),
     };
     return T;
   },
