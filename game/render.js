@@ -8,6 +8,7 @@
 import { ctx, cam, view, TILE, W, H, C } from '../engine/stage.js';
 import { TILES, VOID } from '../engine/tilemap.js';
 import { SPR, drawSprite } from '../engine/sprites.js';
+import { isLit } from '../engine/hours.js';
 import { actorDef } from './actors.js';
 
 let motes = null, moteLayer = null;
@@ -132,6 +133,13 @@ export function drawWorld(world, layer, player, fx, gameT, complaint) {
   // ---- player ----
   player.rig.draw(g, SPR[player.spr], player.x - cam.x, player.y - cam.y, 36, player.face.x < 0);
 
+  // ---- the dark ----
+  // Drawn over everything in the world including the actors, because a floor
+  // that is not on the lights should not show you what is on it. You get a
+  // radius and your own footsteps. The player sits in the clear centre of the
+  // gradient, so they are never the thing that disappears.
+  if (layer.dark) drawDark(g, world, player);
+
   // ---- the grievance ----
   // Drawn after the player and tinted red underneath, because it should read as
   // something attached to you rather than something in the street.
@@ -151,6 +159,29 @@ export function drawWorld(world, layer, player, fx, gameT, complaint) {
   g.restore();
 
   drawLight(g, layer, gameT);
+}
+
+/**
+ * Black out every resident region that is not on the lights, clipped to that
+ * region's own rectangle — so the seam between a lit floor and a dark one is a
+ * hard line you can stand on, which is the whole reason to buy the light.
+ */
+function drawDark(g, world, player) {
+  const px = player.x - cam.x, py = player.y - cam.y;
+  for (const b of world.builtRegions()) {
+    if (isLit(b.id)) continue;
+    const rx = b.px - cam.x, ry = b.py - cam.y;
+    if (rx > W / view.zoom || ry > H / view.zoom || rx + b.pw < 0 || ry + b.ph < 0) continue;
+    g.save();
+    g.beginPath(); g.rect(rx, ry, b.pw, b.ph); g.clip();
+    const grad = g.createRadialGradient(px, py, 34, px, py, 250);
+    grad.addColorStop(0, 'rgba(0,0,0,0)');
+    grad.addColorStop(0.5, 'rgba(0,0,0,0.62)');
+    grad.addColorStop(1, 'rgba(0,0,0,0.97)');
+    g.fillStyle = grad;
+    g.fillRect(rx, ry, b.pw, b.ph);
+    g.restore();
+  }
 }
 
 function drawLight(g, layer, gameT) {

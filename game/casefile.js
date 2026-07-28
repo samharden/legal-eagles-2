@@ -18,6 +18,8 @@ import { allQuests, isDone, isFailed, started, currentStage, outcomeOf, qstate }
 import { knownFacts, openFacts, factCount } from '../engine/facts.js';
 import { Cal, dateString, relative, allEntries } from '../engine/clock.js';
 import { Books, Rep, Office, repLabel } from '../engine/practice.js';
+import { Hours, fmtHours, isLit, pressureStep } from '../engine/hours.js';
+import { REGIONS } from './city.js';
 
 let cfRoot, cfBody, cfTabs;
 export const Casefile = { open: false, tab: 'matters', hasClock: true, _layer: 'street' };
@@ -40,7 +42,6 @@ Casefile.show = function (layer, hasClock) {
   cfBuild();
   this.open = true;
   this.hasClock = hasClock !== false;
-  if (!this.hasClock) this.tab = 'matters';
   cfRoot.classList.add('open');
   this.render(layer);
 };
@@ -57,12 +58,16 @@ Casefile.render = function (layer) {
   cfBuild();
   this._layer = layer;
 
-  const tabs = this.hasClock ? ['matters', 'docket', 'accounts'] : ['matters'];
+  // Each layer gets the tabs its systems justify and no others. THE STREET has
+  // dates and money; THE FLOOR has neither and has the timesheet instead.
+  const tabs = this.hasClock ? ['matters', 'docket', 'accounts'] : ['matters', 'hours'];
+  if (!tabs.includes(this.tab)) this.tab = 'matters';
   cfTabs.innerHTML = tabs.map(t =>
-    `<button data-tab="${t}" class="cfTab${t === this.tab ? ' on' : ''}">${t.toUpperCase()}</button>`).join('');
+    `<button data-tab="${t}" class="cfTab${t === this.tab ? ' on' : ''}">${t === 'hours' ? 'THE HOURS' : t.toUpperCase()}</button>`).join('');
 
   if (this.tab === 'docket') return renderDocket();
   if (this.tab === 'accounts') return renderAccounts();
+  if (this.tab === 'hours') return renderHours();
   renderMatters(layer);
 };
 
@@ -148,6 +153,61 @@ function renderDocket() {
   html += `</tbody></table>`;
   if (hidden > 0) html += `<p class="cfFoot">${hidden} further item${hidden > 1 ? 's' : ''} beyond three weeks out. The rent, mostly. It does not stop.</p>`;
   html += `<p class="cfFoot">The day ends when you go up to Suite 2B. Nothing on this list moves until then — and then all of it moves at once.</p>`;
+  cfBody.innerHTML = html;
+}
+
+/* ------------------------------- THE HOURS ----------------------------- */
+// THE FLOOR's answer to ACCOUNTS, and shaped like it on purpose — two columns,
+// one of them somebody else's. The difference is that on the street the money
+// you are holding for other people can be given back. Nothing gives hours back.
+
+const PRESSURE_TEXT = [
+  'The building has not noticed you.',
+  'The building has noticed you.',
+  'The building is keeping the corridor lights on ahead of you now.',
+  'You are being routed. You have not been asked where you are going.',
+  'Your name has appeared on doors you have not opened.',
+  'You are the most productive person on this floor.',
+  'There is nobody else on this floor.',
+];
+
+function renderHours() {
+  let html = '';
+  html += `<div class="cfAccts">`;
+  html += `<div class="cfAcct"><div class="lbl">BANKED</div><div class="val">${fmtHours(Hours.banked)}</div><div class="sub">spendable</div></div>`;
+  html += `<div class="cfAcct trust"><div class="lbl">BILLED, TOTAL</div><div class="val">${fmtHours(Hours.billed)}</div><div class="sub">this does not go down</div></div>`;
+  html += `</div>`;
+
+  const step = pressureStep();
+  if (step > 0) html += `<p class="cfWarn">${PRESSURE_TEXT[step] || PRESSURE_TEXT[PRESSURE_TEXT.length - 1]}</p>`;
+
+  html += `<h4>THE LIGHTS</h4><ul class="cfFacts">`;
+  for (const r of REGIONS) {
+    const L = r.layers && r.layers.floor;
+    if (!L) continue;
+    const lit = isLit(r.id);
+    const cost = L.lightCost || 10;
+    html += `<li>${r.name} — <b>${lit ? 'ON' : 'DARK'}</b>`
+      + (lit ? (L.litFree ? ' <span class="cfDim">(lit when you woke up)</span>' : ' <span class="cfDim">(charged)</span>')
+        : ` <span class="cfDim">(${fmtHours(cost)} hours at the panel)</span>`)
+      + `</li>`;
+  }
+  html += `</ul>`;
+
+  const sheet = Hours.entries.slice().reverse().slice(0, 24);
+  if (sheet.length) {
+    html += `<h4>TIMESHEET</h4><table class="cfLedger"><tbody>`;
+    for (const e of sheet) {
+      html += `<tr><td class="d"></td>`
+        + `<td class="a ${e.tenths > 0 ? 'pos' : e.tenths < 0 ? 'neg' : ''}">${e.tenths ? (e.tenths > 0 ? '+' : '−') + fmtHours(Math.abs(e.tenths)) : '0.0'}</td>`
+        + `<td class="k">HRS</td>`
+        + `<td class="l">${e.memo}</td></tr>`;
+    }
+    html += `</tbody></table>`;
+  } else {
+    html += `<p class="cfFoot">Nothing on the sheet yet. Read something, establish something, or put down something that is carrying your time.</p>`;
+  }
+  html += `<p class="cfFoot">The lights run as long as the work does.</p>`;
   cfBody.innerHTML = html;
 }
 

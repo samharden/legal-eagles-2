@@ -119,7 +119,10 @@
   #dPortrait { width:52px; height:52px; image-rendering:pixelated; background:#1a1526;
                border:2px solid var(--line); flex-shrink:0; }
   #dWho { color:#f0c75e; font-size:15px; letter-spacing:.5px; }
-  #dText { color:#e8e0f0; font-size:15px; line-height:1.6; }
+  /* pre-wrap, because some of this layer's dialogue is not speech — the
+     lighting panel is a FORM, and a form that reflows into a paragraph stops
+     being one. Prose is unaffected: it has no newlines in it. */
+  #dText { color:#e8e0f0; font-size:15px; line-height:1.6; white-space:pre-wrap; }
   #dChoices { display:flex; flex-direction:column; gap:7px; }
   .dchoice { display:flex; align-items:baseline; gap:9px; width:100%; text-align:left;
              font-family:inherit; font-size:14px; line-height:1.45; padding:11px 13px;

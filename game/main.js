@@ -15,6 +15,7 @@ import * as Facts from '../engine/facts.js';
 import * as Quests from '../engine/quests.js';
 import { Cal, clockHooks, dateString, schedule, unschedule, allEntries, advanceDay, saveClock, loadClock, resetClock } from '../engine/clock.js';
 import * as Practice from '../engine/practice.js';
+import { Hours, hoursHooks, bill, lightUp, lightFree, isLit, writeDown, fmtHours, pressure, saveHours, loadHours, resetHours } from '../engine/hours.js';
 import { Dialogue } from '../engine/dialogue.js';
 import { REGIONS, SPAWN } from './city.js';
 import { LAYERS, layerOf } from './layers.js';
@@ -38,7 +39,17 @@ export const G = {
   carried: [],
   prompt: null,
   complaint: null,      // the Bar Complaint, once you have earned one
+  dark: false,          // standing on an unlit floor
 };
+
+// what you tell yourself in an unlit corridor
+const DARK_BARKS = [
+  'it is very quiet',
+  'you are counting your own steps',
+  'something ahead is billing',
+  'the carpet changed and you did not see it change',
+  'this is the same corridor',
+];
 
 const SPEED = 205, DASH_SPD = 880, DASH_T = 0.16, DASH_CD = 1.1;
 
@@ -58,6 +69,10 @@ Quests.questHooks.layerOk = q => !q.layer || q.layer === G.layer;
 Quests.questHooks.onComplete = q => {
   SFX.send();
   if (q.due) unschedule(q.id);   // a closed matter is off the docket
+  // Closing a matter on THE FLOOR is the biggest single entry on the timesheet.
+  // It is also the only way to bank enough to light anything substantial, which
+  // is how the layer makes you WANT to do the building's work.
+  if (HAS_HOURS()) bill(BILL_MATTER, `${fmtHours(BILL_MATTER)} — ${q.name}: matter concluded`);
   refreshCasefile(); syncHud();
 };
 // the objective line must follow the stage the moment it changes, including
@@ -69,6 +84,7 @@ Facts.onLearn.push((id, def) => {
   G.fx.bark(G.player.x, G.player.y - 40, 'NOTED', C.cyan, 1.8);
   say('NOTED — ' + def.text, 7);
   SFX.pick();
+  if (HAS_HOURS()) bill(BILL_FACT, `${fmtHours(BILL_FACT)} — review and analysis`);
   Quests.questEvent('learn', { fact: id });
   refreshCasefile();
 });
@@ -125,6 +141,47 @@ function refreshCasefile() { if (Casefile.open) Casefile.render(G.layer); }
 // whole survival layer is Path A's alone. This is the one predicate that says so.
 const HAS_CLOCK = () => G.layer === 'street';
 
+/* ================================ THE HOURS ============================== */
+// ...and its mirror. THE FLOOR has no money and no dates; it has the lights,
+// and what the lights cost. Both predicates are deliberately one line each,
+// because "which systems does this layer have" is a question the rest of the
+// file should never have to answer for itself.
+const HAS_HOURS = () => G.layer === 'floor';
+
+// what work is worth, in tenths of an hour
+const BILL_FACT = 3;      // 0.3 — a fact established
+const BILL_PROP = 1;      // 0.1 — something read for the first time
+const BILL_MATTER = 40;   // 4.0 — a matter closed
+const DARK_DRAIN = 1.7;   // energy per second on an unlit floor
+const COLLAPSE_TAKE = 20; // 2.0 — what the building charges for time you lost
+
+hoursHooks.onBill = (t, memo) => {
+  G.fx.bark(G.player.x, G.player.y - 52, '+' + fmtHours(t), '#9be05e', 2.0);
+  SFX.page();
+  syncHud();
+};
+hoursHooks.onLight = (regionId, cost) => {
+  showBanner('THE LIGHTS COME ON', `${fmtHours(cost)} HOURS — CHARGED`);
+  SFX.district();
+  say('It is not a switch. It is a ceiling coming on one bank at a time, the whole length of the floor, the way it does at ten past six for people who are staying.', 9);
+  refreshCasefile(); syncHud();
+};
+// The trap, announced. Not as a warning — the building is not warning you.
+hoursHooks.onPressure = step => {
+  const lines = [
+    '', 'Somewhere a printer starts, runs four pages, and stops.',
+    'The corridor is longer than it was. You have not measured it. You know.',
+    'A phone rings on a desk you passed. It rings eleven times.',
+    'Your name is on more doors than it was when you woke up.',
+    'The building has stopped treating you as a visitor.',
+    'You are the most productive person on this floor. There is nobody else on this floor.',
+  ];
+  showBanner('BILLED — ' + fmtHours(Hours.billed), 'THE BUILDING HAS NOTICED');
+  say(lines[step] || lines[lines.length - 1], 9);
+  G.fx.addTrauma(0.45);
+  SFX.del();
+};
+
 const RENT = 1100, RENT_EVERY = 7;
 
 function scheduleRent() {
@@ -151,8 +208,12 @@ function beginPath(layerId, path) {
   G.world = new World(REGIONS, layerId);
   G.world.onEnter = (def, built) => {
     const L = built.layerData;
-    showBanner(def.name, layerOf(G.layer).name);
-    if (L.greet) say(L.greet, 6);
+    const unlit = G.layer === 'floor' && !isLit(def.id);
+    showBanner(def.name, layerOf(G.layer).name + (unlit ? ' · UNLIT' : ''));
+    // a district you have not paid for describes itself differently, and the
+    // line you get after you light it is the one that was always written for it
+    const line = (unlit && L.greetDark) || L.greet;
+    if (line) say(line, 6);
     SFX.district();
     Quests.questEvent('reach', { region: def.id });
   };
@@ -162,9 +223,17 @@ function beginPath(layerId, path) {
   G.complaint = null;
   resetClock();
   Practice.resetPractice();
+  resetHours();
   if (layerId === 'street') {
     Practice.post(4100, 'Opening balance — everything you had', 'operating', 1);
     scheduleRent();
+  }
+  if (layerId === 'floor') {
+    // Wherever you wake up is already on the lights, and nowhere else is. The
+    // region declares it rather than main.js hard-coding a district, because by
+    // the end of Phase 3 there are six of these and only one is free.
+    for (const def of REGIONS)
+      if (def.layers.floor && def.layers.floor.litFree) lightFree(def.id);
   }
   G.world.update(s.x, s.y);
   camFollow(s.x, s.y);
@@ -196,6 +265,7 @@ function continueGame() {
   Quests.loadQuests(d.quests);
   loadClock(d.clock);
   Practice.loadPractice(d.practice);
+  if (d.hours) loadHours(d.hours);
   G.world.loadDeltas(d.deltas);
   // rebuild residency at the restored position so deltas apply to fresh builds
   for (const id of G.world.residentIds()) G.world.evict(id);
@@ -217,6 +287,7 @@ export function doSave() {
     quests: Quests.saveQuests(),
     clock: saveClock(),
     practice: Practice.savePractice(),
+    hours: saveHours(),
     complaint: !!G.complaint,
     deltas: G.world.saveDeltas(),
   });
@@ -284,15 +355,66 @@ function talkTo(npc) {
 function useProp(pr) {
   const first = !pr.used;
   // a `repeat` prop is a place you keep going back to — the filing window, the
-  // stairs up to your office. It must never be marked spent.
+  // stairs up to your office, the lighting panel. It must never be marked spent.
   if (!pr.repeat) { pr.used = true; G.world.markUsed(pr.region, pr.id); }
+  if (pr.lights) { openPanel(pr); return; }
   say(pr.text, 9);
   SFX.door();
   Quests.questEvent('use', { prop: pr.id });
   if (pr.fact && first) Facts.learn(pr.fact);
   else if (pr.fact) SFX.page();
+  // reading something on THE FLOOR is work, and work on this layer is billable.
+  // 0.1 is nothing. It is nothing six hundred times.
+  if (first && HAS_HOURS()) bill(BILL_PROP, `${fmtHours(BILL_PROP)} — reviewed file materials`);
   if (pr.endDay) endDay();
   syncHud();
+}
+
+/**
+ * The lighting panel. Every dark floor has one, and it is the only transaction
+ * on this layer — a breaker box with a time-entry form taped to it, because the
+ * building does not turn lights on for people, it turns them on for matters.
+ *
+ * It is deliberately not a keypress. The cost has to be READ, in the building's
+ * own language, every single time, so that the tenth floor you light costs the
+ * player the same sentence the first one did.
+ */
+function openPanel(pr) {
+  // one source for what a floor costs: the region's own floor-layer data, so
+  // the panel, the Casefile and the save all quote the same number.
+  const def = REGIONS.find(r => r.id === pr.region);
+  const cost = (def && def.layers.floor && def.layers.floor.lightCost) || 10;
+  const lit = isLit(pr.region);
+  const T = { who: 'FLOOR LIGHTING — CHARGE TO MATTER № ____', spr: 'sign', start: 'a', nodes: {} };
+
+  if (lit) {
+    T.nodes.a = { text: 'The form is filled in. The hours are in your handwriting and the matter number is blank, and the lights are on, and nobody has ever asked about the matter number.' };
+    openDialogue(T);
+    return;
+  }
+
+  T.nodes.a = {
+    text: (pr.text || 'A breaker panel with a form taped over the switches.')
+      + `\n\n    ────────────────────────────────`
+      + `\n    HOURS TO BE CHARGED . . ${fmtHours(cost).padStart(5)}`
+      + `\n    BANKED . . . . . . . . .${fmtHours(Hours.banked).padStart(6)}`
+      + `\n    MATTER № . . . . . . . .  ______`
+      + `\n    ────────────────────────────────\n`
+      + `\nUnder the line, in the same hand as everything else in this building: THE LIGHTS RUN AS LONG AS THE WORK DOES.`,
+    choices: () => [
+      { tag: 'BILL', label: `Sign it. Charge ${fmtHours(cost)} hours to the floor.`,
+        if: () => Hours.banked >= cost,
+        showLocked: true,
+        lockedNote: `short by ${fmtHours(cost - Hours.banked)} — go and do something billable`,
+        fx: () => { lightUp(pr.region, cost); Quests.questEvent('light', { region: pr.region }); },
+        to: 'done' },
+      { label: 'Leave it dark. You can see well enough.', to: null },
+    ],
+  };
+  T.nodes.done = {
+    text: 'You write the hours in, and you do not write a matter number, because there is no matter — and the lights come on anyway, which tells you what the form is actually for.',
+  };
+  openDialogue(T);
 }
 
 /* ---------------------------- ending the day ---------------------------- */
@@ -409,7 +531,14 @@ function collapse() {
     say('You come to on the sidewalk with your own business cards scattered around you and no memory of the afternoon.', 8);
     endDay(true);
   } else {
-    say('You come to at the same desk. The clock has not moved, because it does not.', 7);
+    // No day to lose here, so the building takes the only thing this layer has.
+    // It does not credit you for the time you were out; it charges you for it,
+    // and the entry is already written when you come round.
+    const took = writeDown(COLLAPSE_TAKE, 'non-productive time, written off');
+    say(took
+      ? `You come to at the same desk. The clock has not moved, because it does not. ${fmtHours(took)} hours have gone off the sheet, and the entry is in your handwriting.`
+      : 'You come to at the same desk. There was nothing on the sheet to take, which the building appears to find clarifying.', 9);
+    showBanner('TIME WRITTEN OFF', took ? '−' + fmtHours(took) + ' HOURS' : 'NOTHING LEFT TO TAKE');
   }
   // put some distance between you and whatever did it
   const b = G.world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
@@ -481,6 +610,20 @@ function updatePlay(dt) {
   world.update(p.x, p.y);
   camFollow(p.x, p.y);
 
+  // --- the dark ---
+  // An unlit floor takes energy off you for as long as you stand on it. Slowly:
+  // a minute of walking, not a death sentence. It is a clock, and the clock is
+  // the whole argument for paying the panel — you CAN cross a dark district,
+  // you just cannot work in one.
+  const here = world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
+  G.dark = HAS_HOURS() && !!here && !isLit(here.id);
+  if (G.dark) {
+    p.hp -= DARK_DRAIN * dt;
+    if (Math.random() < dt * 0.14)
+      fx.bark(p.x, p.y - 44, DARK_BARKS[(Math.random() * DARK_BARKS.length) | 0], '#6f6a86', 2.6);
+    if (p.hp <= 0) collapse();
+  }
+
   // --- strike ---
   if (Input.pressed('strike') && p.meleeCd <= 0) {
     p.meleeCd = 0.36; p.rig.strike();
@@ -498,6 +641,12 @@ function updatePlay(dt) {
           fx.stamp(a.x, a.y - 10, d.harmless ? 'EXCUSED' : 'DISMISSED', d.harmless ? '#9be05e' : C.red);
           SFX.die();
           world.killActor(a);          // <- the delta: this one stays gone
+          Quests.questEvent('kill', { enemy: a.type });
+          // The Unbilled are your own hours, itemized. Putting one down is the
+          // only way to get time back rather than earn it, and it is why the
+          // dark has anything in it worth walking into.
+          if (d.hours && HAS_HOURS())
+            bill(d.hours, `${fmtHours(d.hours)} — time recovered (previously written off)`);
         }
       }
     }
@@ -506,8 +655,15 @@ function updatePlay(dt) {
   }
 
   // --- actors ---
+  // On THE FLOOR, anything that `scales` gets the building's attention folded
+  // into it: every ten hours you have billed makes The Unbilled a little more
+  // urgent about collecting. Lighting a floor buys safety on that floor and
+  // pays for it everywhere else.
+  const PRESS = HAS_HOURS() ? pressure() : 1;
   for (const a of world.allActors()) {
     const d = actorDef(a.type);
+    const spd = d.scales ? d.speed * PRESS : d.speed;
+    const dmg = d.scales ? Math.round(d.dmg * PRESS) : d.dmg;
     if (!a.rig) { a.rig = new Rig(); a.rig.spawn(); }
     a.barkT = (a.barkT || 4 + Math.random() * 10) - dt;
     const dist = Math.hypot(p.x - a.x, p.y - a.y);
@@ -515,10 +671,10 @@ function updatePlay(dt) {
     let moving = false;
     if (!d.harmless && dist < d.chase) {
       const ux = (p.x - a.x) / (dist || 1), uy = (p.y - a.y) / (dist || 1);
-      moveEntity(world, a, ux * d.speed * dt, uy * d.speed * dt, d.r);
+      moveEntity(world, a, ux * spd * dt, uy * spd * dt, d.r);
       a.face = ux; moving = true;
       if (dist < d.r + p.r + 4 && p.hurtCd <= 0 && p.dashT <= 0) {
-        p.hp -= d.dmg; p.hurtCd = 0.9;
+        p.hp -= dmg; p.hurtCd = 0.9;
         p.rig.hurt(ux, uy);
         fx.number(p.x, p.y - 30, d.onTouch, C.red);
         fx.addTrauma(0.4);
@@ -539,7 +695,7 @@ function updatePlay(dt) {
         if (m < 8) { a.wp = null; a.lingerT = 1 + Math.random() * 3; }
         else {
           const bx = a.x, by = a.y;
-          moveEntity(world, a, (dx / m) * d.speed * dt, (dy / m) * d.speed * dt, d.r);
+          moveEntity(world, a, (dx / m) * spd * dt, (dy / m) * spd * dt, d.r);
           a.face = dx;
           moving = true;
           if (Math.abs(a.x - bx) < 0.01 && Math.abs(a.y - by) < 0.01) a.wp = null;  // wedged — replan
@@ -550,7 +706,7 @@ function updatePlay(dt) {
       a.barkT = 8 + Math.random() * 14;
       fx.bark(a.x, a.y - d.r - 20, d.barks[(Math.random() * d.barks.length) | 0], '#bcb0d4', 2.6);
     }
-    a.rig.step(dt, { moving, speed: d.speed, faceX: a.face || 0 });
+    a.rig.step(dt, { moving, speed: spd, faceX: a.face || 0 });
   }
 
   // --- the Bar Complaint ---
@@ -658,6 +814,13 @@ function syncHud() {
       + (B.trust ? ` &nbsp;·&nbsp; <span class="trust">$${B.trust} in trust</span>` : '')
       + (Practice.Office.held ? '' : ' &nbsp;·&nbsp; <span class="bad">NO OFFICE</span>');
     el('hDay').textContent = dateString();
+  } else if (HAS_HOURS()) {
+    // The floor's two columns. `banked` is what you can spend; `billed` is the
+    // one that matters, and it is deliberately the one you cannot do anything
+    // about — it sits there going up next to a number that goes up and down.
+    money.innerHTML = `<b>${fmtHours(Hours.banked)}</b> banked`
+      + ` &nbsp;·&nbsp; <span class="trust">${fmtHours(Hours.billed)} billed</span>`;
+    el('hDay').textContent = 'THE SAME DAY';
   } else {
     money.textContent = '';
     el('hDay').textContent = '';
@@ -671,7 +834,8 @@ function syncHudLight() {
   el('hHpFill').style.width = Math.max(0, (p.hp / p.maxhp) * 100) + '%';
   el('hHpLabel').textContent = `ENERGY ${Math.max(0, Math.round(p.hp))}/${p.maxhp}`;
   const b = G.world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
-  el('hDistrict').textContent = b ? b.def.name + ' · ' + layerOf(G.layer).name : layerOf(G.layer).name;
+  el('hDistrict').textContent = (b ? b.def.name + ' · ' + layerOf(G.layer).name : layerOf(G.layer).name)
+    + (G.dark ? ' · UNLIT' : '');
   // the active stage's hint IS the objective — one source, never restated
   const obj = Quests.objective();
   el('hObjective').textContent = obj ? obj.text : '';
@@ -785,5 +949,6 @@ requestAnimationFrame(loop);
 window.LE2 = {
   G, Input, LAYERS, doSave, beginPath, loadGame, Facts, Quests, Practice,
   Dialogue, Casefile, talkTo, useProp, endDay,
+  Hrs: { Hours, bill, lightUp, isLit, fmtHours, pressure },
   Clock: { Cal, dateString, allEntries, advanceDay, schedule, unschedule, resetClock },
 };

@@ -15,7 +15,7 @@ Design doc: [DESIGN.md](DESIGN.md).
 
 ---
 
-## Status: Phase 2 (systems) — the survival loop is live on Path A
+## Status: Phase 3 (content) — in progress. Both paths now have a resource loop.
 
 **Phase 0** built the engine: the opening reel and the **SEND / DELETE** fork; a **seamless two-region city** (Courthouse Square gx 0–39, The Strand gx 40–75) on one global tile grid, crossed on foot with no loading break; **region streaming with persistent deltas**; **two layers over one geometry**; movement, dash, melee, pickups; one input layer over keyboard/mouse/touch/gamepad; ASCII tilemaps and the `?edit=1` editor; and a bundler emitting a self-contained `dist/index.html`.
 
@@ -44,7 +44,19 @@ The two cases:
 - **Collapse instead of death.** Energy zero is not a game-over screen. You lose the rest of the day, which is worse, because the docket does not care why you were unconscious.
 - **The Casefile gained tabs** — MATTERS · DOCKET · ACCOUNTS, including a real double-entry ledger.
 
-Not built yet: staff and office upgrades, THE FLOOR's own resource (the lights/Hours loop in DESIGN.md §4), combat beyond a briefcase swing, the other four districts, the crossover. See DESIGN.md §8.
+**Phase 3a** closed the one place the two paths weren't at parity: THE FLOOR now has its own resource, and it is the structural inverse of THE STREET's.
+
+> On the street the pressure comes from outside — rent is imposed, the docket is imposed, and paying is how you keep working. On the floor nothing is imposed. **The building offers.**
+
+- **The Hours** (`engine/hours.js`) — two numbers. **Banked** is what you can spend and moves both ways. **Billed** is what you have put into this building ever, and only goes up. Everything is stored in tenths of an hour as integers, because a firm bills in six-minute increments and floats accumulate lies.
+- **The dark.** Every floor district but the one you wake in renders near-black beyond a radius, with a hard seam at the district line, and drains energy for as long as you stand in it. You can *cross* a dark district cheaply. You cannot *work* in one.
+- **The lighting panel.** The layer's only transaction: a breaker box with a time-entry form taped over the switches. It costs banked hours, it is permanent, and the cost has to be read in the building's own language every single time. There is a line for a matter number. Nobody has ever asked about the matter number.
+- **Work is what pays.** Establishing a fact, reading a file, closing a matter — and putting down one of **The Unbilled**, which are your own hours itemized and are carrying time you can take back. That is the only reason to fight anything on this layer.
+- **The trap, made mechanical.** Every ten hours billed, the building notices, and The Unbilled get faster and hit harder *everywhere*. Lighting a floor buys safety on that floor and pays for it in every other one. You cannot buy your way out; you can only buy your way further in.
+- **Collapse costs hours, not a day.** There is no day here to lose, so the building charges you for the time you were out. The entry is already written when you come round.
+- The Casefile's third tab on this layer is **THE HOURS** — the two columns, which floors are lit and what the dark ones cost, and the timesheet.
+
+Not built yet: staff and office upgrades, combat beyond a briefcase swing, the other four districts, the full enemy roster and bosses, the crossover. See DESIGN.md §8.
 
 ---
 
@@ -132,6 +144,11 @@ because the quest is still parked on the talk stage while the player is choosing
 The close emit catches a stage unlocked by facts learned in that same
 conversation. Two consecutive same-NPC talk stages would be walked through by
 that pair in one go.
+
+**A floor region needs `lightCost` and a `lights: true` panel prop**, or it is
+dark forever and there is no way to pay for it. Exactly one region carries
+`litFree: true` — the one you wake up in. `main.js` reads that flag off the
+region rather than naming a district, so this stays true at six districts.
 
 **A quest with a `layer` only exists on that layer.** THE STREET and THE FLOOR
 share one quest registry, so `layer: 'floor'` keeps a floor matter from opening

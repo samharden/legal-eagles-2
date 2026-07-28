@@ -152,6 +152,7 @@ export class World {
   /* -------------------- aggregated live content -------------------- */
   // Callers iterate the whole resident world, not a per-map array. Regions come
   // and go underneath; nothing else has to know.
+  *builtRegions() { yield* this.built.values(); }
   *allProps() { for (const b of this.built.values()) yield* b.props; }
   *allPickups() { for (const b of this.built.values()) yield* b.pickups; }
   *allActors() { for (const b of this.built.values()) yield* b.actors; }

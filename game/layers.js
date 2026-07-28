@@ -35,6 +35,8 @@ export const LAYERS = {
     edge: '#463c66',
     grid: 'rgba(0,0,0,0.24)',
     bg: '#0b0912',
+    // this layer's regions are dark until somebody bills against them
+    dark: true,
     // the building breathes — a slow vignette pulse, borrowed from LE1's Vault
     mood: { vign: 0.62, tint: 'rgba(30,45,60,0.16)', pulse: 0.10 },
     motes: { n: 34, color: 'rgba(150,160,190,0.10)', drift: 6 },

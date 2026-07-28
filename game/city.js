@@ -84,6 +84,11 @@ export const REGIONS = [
         // the trees are gone and the newsstand is a stump of itself
         sub: { T: 'x', k: 'x' },
         greet: 'COURTHOUSE SQUARE. No cars. No sun. Department 13 is lit, and it is in session.',
+        // Where you wake up is on the lights already, and it is the only place
+        // that is. You get one district free so you can learn what the panel
+        // says before you are standing in front of one in the dark.
+        litFree: true,
+        lightCost: 0,
         props: [
           { id: 'ch_doors', tx: 19, ty: 12, spr: 'sign',
             label: '[E] Department 13 — IN SESSION',
@@ -91,6 +96,9 @@ export const REGIONS = [
             fact: 'unsent_docket' },
           { id: 'ch_kiosk', tx: 20, ty: 17, spr: 'board', label: '[E] what is left of the newsstand',
             text: 'The papers are still stacked. Every one of them is the same edition. You check four before you stop checking.' },
+          { id: 'ch_panel', tx: 26, ty: 12, spr: 'board', repeat: true, lights: true,
+            label: '[E] the lighting panel',
+            text: 'A grey breaker panel set into the wall beside the steps, with a form taped over the switches at eye height — not a notice, a FORM, with a line for hours and a line for a matter number.' },
         ],
         npcs: [
           { id: 'clerk', name: 'The Night Clerk', spr: 'clerk', tx: 21, ty: 13,
@@ -174,7 +182,12 @@ export const REGIONS = [
       floor: {
         sub: { T: 'x' },
         greet: 'THE STRAND. Every storefront is lit, and every storefront is a different year.',
+        greetDark: 'THE STRAND. The storefronts are all still there. You cannot see into a single one of them, and they can presumably see out.',
+        lightCost: 10,
         props: [
+          { id: 'st_panel', tx: 3, ty: 19, spr: 'board', repeat: true, lights: true,
+            label: '[E] the lighting panel',
+            text: 'The same panel. The same form, in the same hand, taped at the same height — which means somebody walked the whole length of this street putting them up, and that somebody expected people to be working here.' },
           { id: 'st_office', tx: 17, ty: 17, spr: 'sign',
             label: '[E] SUITE 2B — the door is open',
             text: 'The tape on the buzzer is yellow and curling and your name is still on it, which is the part you cannot make work, because in this version you never resigned and never rented it. Inside, the desks go back further than the room should allow, and you open the nearest drawer, and then the next one, and then eleven more. Every drawer has a letter in it. None of them have been sent.',

@@ -24,6 +24,12 @@ export const ACTOR_TYPES = {
     spr: 'unbilled', size: 34, r: 14, hp: 44, speed: 58, dmg: 12, chase: 480,
     barks: ['0.1 — reviewed email re: lunch.', '0.2 — conference with self.', '0.1 — no charge.'],
     onTouch: 'BILLED',
+    // it is carrying your time. Put it down and you get the time back — which
+    // is the only reason to fight anything on THE FLOOR, and the reason the
+    // dark is survivable at all when the banked column reads zero.
+    hours: 6,
+    // the building's attention scales this one, and nothing else
+    scales: true,
   },
 };
 
