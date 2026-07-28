@@ -15,20 +15,25 @@ Design doc: [DESIGN.md](DESIGN.md).
 
 ---
 
-## Status: Phase 0 (engine spike) — playable
+## Status: Phase 1 (vertical slice) — playable, one complete case per path
 
-What exists today:
+**Phase 0** built the engine: the opening reel and the **SEND / DELETE** fork; a **seamless two-region city** (Courthouse Square gx 0–39, The Strand gx 40–75) on one global tile grid, crossed on foot with no loading break; **region streaming with persistent deltas**; **two layers over one geometry**; movement, dash, melee, pickups; one input layer over keyboard/mouse/touch/gamepad; ASCII tilemaps and the `?edit=1` editor; and a bundler emitting a self-contained `dist/index.html`.
 
-- The opening reel and the **SEND / DELETE** fork, end to end.
-- A **seamless two-region city** — Courthouse Square (gx 0–39) and The Strand (gx 40–75) on one global tile grid. Walk the road east and you cross districts with no loading break and no coordinate reset.
-- **Region streaming with persistent deltas** — regions build and evict by distance; what you killed, took and used stays that way when they rebuild.
-- **Two layers over one geometry** — THE STREET and THE FLOOR share every wall and differ in palette, light, music, tiles, props, pickups and population.
-- Movement, dash, melee, interaction prompts, pickups, wandering/chasing actors, DOM HUD, save/load.
-- Keyboard, mouse, touch and gamepad through one action layer.
-- ASCII tilemaps plus a **map editor** at `?edit=1`.
-- A bundler that emits a self-contained `dist/index.html`.
+**Phase 1** added the four systems a case needs, and one case per path:
 
-Not built yet: the Docket, the economy, reputation, the facts model, quest engine v2, combat beyond a briefcase swing, the other four districts. See DESIGN.md §8.
+- **Facts** (`engine/facts.js`) — what you *know*, as distinct from what you carry. Dialogue choices, quest stages and doors all gate on facts. This is the spine of the investigation loop and the thing LE1 had no model for.
+- **Quest engine v2** (`engine/quests.js`) — LE1's graph plus a `learn` stage (completes on facts, not counters), a `resolve` stage (parks until the player decides, and records which branch), and per-stage hints that *are* the HUD objective.
+- **Dialogue** (`engine/dialogue.js`) — DOM on every platform, trees as data, choices gated on `if` predicates with bracketed `[TAG]` unlocks. A gate you can't yet pass renders disabled rather than hidden.
+- **The Casefile** (`game/casefile.js`, key `C`) — every open matter, what to do next, everything established, and how many holes are left. It shows the count of what you don't know without showing what it is.
+
+The two cases:
+
+| Path | Matter | Shape |
+|---|---|---|
+| THE STREET | **Ruiz v. Golden Wok** | Your first client wants to sue your landlord. Intake → three evidence sources → report → four resolutions, one of which only opens if you established the conflict. |
+| THE FLOOR | **In re: The Unsent** | Whose resignation letter is this, and what does filing one actually take. Three facts → the Night Clerk → file, keep, or burn. |
+
+Not built yet: the Docket/clock, the economy and trust account, reputation, staff, combat beyond a briefcase swing, the other four districts, the crossover. See DESIGN.md §8.
 
 ---
 
@@ -68,6 +73,8 @@ Writes `dist/index.html` — one file, no external references, double-clickable 
 |-----|--------|
 | `WASD` / arrows | Move |
 | `E` | Use / talk / advance |
+| `C` / `Tab` | The Casefile |
+| `1`–`9` | Pick a dialogue choice |
 | `J` / `Space` | Briefcase strike |
 | `K` / click | Fire *(reserved)* |
 | `L` | Spin *(reserved)* |
@@ -82,11 +89,17 @@ Writes `dist/index.html` — one file, no external references, double-clickable 
 
 ```
 engine/     reusable — stage, sprites, anim (LEAnim), audio, input,
-            tilemap, region streaming, save
-game/       content — city regions, layers, actors, render, intro, main
+            tilemap, region streaming, save, facts, quests, dialogue
+game/       content — city regions, layers, actors, cases, casefile,
+            render, intro, main
 dev/        editor.js — the ?edit=1 map painter
 tools/      serve.mjs (dev server), build.mjs (bundler)
 ```
+
+`engine/` never imports `game/`. Where the engine needs to ask the game a
+question it calls out through a hooks object — `questHooks.knows`,
+`questHooks.layerOk`, `CASE_HOOKS.say`. That is what keeps the quest engine
+content-agnostic.
 
 Vanilla ES modules, canvas 2D, Web Audio. No framework, no dependencies, no asset files — every sprite, map and note is generated in code, as in LE1.
 
@@ -97,6 +110,22 @@ Vanilla ES modules, canvas 2D, Web Audio. No framework, no dependencies, no asse
 **The city is one coordinate space.** A region declares its origin in global tiles; there is no per-map coordinate system and no `setWorld`. Query by global tile: `world.tileAt(gx, gy)`. Unbuilt space is solid.
 
 **Deltas are keyed by layer.** `world.delta(id)` is scoped `"<layer>:<region>"`, so killing someone on THE STREET has no effect on THE FLOOR. Anything that permanently changes a region must go through `killActor` / `takePickup` / `markUsed`, or it will come back when the region rebuilds.
+
+### Two authoring rules for cases
+
+**Never put two consecutive `talk` stages on the same NPC.** `talkTo()` emits the
+talk event twice — once when the conversation opens and once when it closes.
+The open emit is what lets a single conversation both satisfy a `talk` stage and
+answer the `resolve` stage behind it; without it `qResolve()` is a silent no-op,
+because the quest is still parked on the talk stage while the player is choosing.
+The close emit catches a stage unlocked by facts learned in that same
+conversation. Two consecutive same-NPC talk stages would be walked through by
+that pair in one go.
+
+**A quest with a `layer` only exists on that layer.** THE STREET and THE FLOOR
+share one quest registry, so `layer: 'floor'` keeps a floor matter from opening
+while you are walking around in daylight. Omit `layer` only for something that
+genuinely belongs to both.
 
 ### The bundler's two rules
 

@@ -43,6 +43,10 @@
   #hHpFill { height:100%; background:#9be05e; width:100%; transition:width .12s linear; }
   #hHpLabel { position:absolute; inset:0; display:flex; align-items:center; padding-left:7px;
               font-size:10px; font-weight:bold; color:#0d0a14; letter-spacing:.5px; }
+  #hMatterBox { margin-top:6px; }
+  #hMatter { color:var(--muted); font-size:9px; font-weight:bold; letter-spacing:1px; }
+  #hObjective { color:#5ec8f0; font-size:13px; font-weight:bold; line-height:1.35; margin-top:1px;
+                text-shadow:0 1px 3px #000; max-width:620px; }
   #hCarry { color:#caa84a; font-size:10px; margin-top:4px; letter-spacing:.5px; }
   #hDev { display:none; color:#5ec8f0; font-size:10px; margin-top:3px; }
   #hMsg {
@@ -95,6 +99,72 @@
   body.touch .tagline, body.touch #ui { display:none; }
   body.touch #wrap { overflow:hidden; border-radius:6px; }
 
+  /* ---- dialogue (DOM on every platform) ---- */
+  #dlg { display:none; position:fixed; left:0; right:0; bottom:0; z-index:40;
+         background:#0b0912; border-top:2px solid #f0c75e; padding:14px 16px 16px;
+         max-height:82vh; overflow-y:auto; flex-direction:column; gap:11px; }
+  #dlg.open { display:flex; }
+  @media (min-width: 900px) {
+    #dlg { left:50%; transform:translateX(-50%); width:min(880px, 94vw);
+           bottom:14px; border:2px solid #f0c75e; border-radius:10px;
+           box-shadow:0 12px 44px rgba(0,0,0,.7); }
+  }
+  #dHead { display:flex; align-items:center; gap:12px; }
+  #dPortrait { width:52px; height:52px; image-rendering:pixelated; background:#1a1526;
+               border:2px solid var(--line); flex-shrink:0; }
+  #dWho { color:#f0c75e; font-size:15px; letter-spacing:.5px; }
+  #dText { color:#e8e0f0; font-size:15px; line-height:1.6; }
+  #dChoices { display:flex; flex-direction:column; gap:7px; }
+  .dchoice { display:flex; align-items:baseline; gap:9px; width:100%; text-align:left;
+             font-family:inherit; font-size:14px; line-height:1.45; padding:11px 13px;
+             background:#171227; border:2px solid #2c2542; border-radius:7px;
+             color:#5ec8f0; cursor:pointer; }
+  .dchoice.on { border-color:#f0c75e; background:#241d36; color:#f0c75e; }
+  .dchoice:hover:not(.locked) { border-color:#f0c75e; }
+  .dchoice.locked { color:var(--dim); border-color:#231e33; background:#100d1a;
+                    cursor:not-allowed; font-style:italic; }
+  .dchoice .dnum { color:var(--dim); font-weight:bold; flex-shrink:0; min-width:16px; }
+  .dchoice .dtag { color:#9be05e; font-weight:bold; font-size:12px; letter-spacing:.5px; }
+  .dchoice.locked .dtag { color:#4d5a41; }
+  .dchoice .dlock { color:var(--dim); font-size:11px; margin-left:auto; }
+  .dchoice.dcont { color:var(--muted); }
+
+  /* ---- casefile ---- */
+  #casefile { display:none; position:fixed; inset:0; z-index:50; background:#0d0a16;
+              flex-direction:column; padding:14px; }
+  #casefile.open { display:flex; }
+  #cfHead { display:flex; align-items:baseline; gap:12px; border-bottom:2px solid var(--line);
+            padding-bottom:8px; flex-shrink:0; }
+  #cfHead h2 { color:#f0c75e; font-size:17px; letter-spacing:2px; }
+  #cfHead .hint { color:var(--dim); font-size:11px; margin-right:auto; }
+  #cfClose { font-family:inherit; font-size:12px; font-weight:bold; padding:6px 14px;
+             background:#241d36; border:2px solid var(--line); border-radius:6px;
+             color:#f0c75e; cursor:pointer; }
+  #cfBody { flex:1; overflow-y:auto; padding:12px 2px; max-width:840px; width:100%; margin:0 auto; }
+  .cfEmpty { color:var(--dim); font-size:15px; line-height:1.8; text-align:center; padding:40px 20px; }
+  .cfEmpty span { font-size:12px; font-style:italic; }
+  .cfCase { border:2px solid #2c2542; border-radius:9px; padding:14px; margin-bottom:14px;
+            background:#120e1e; }
+  .cfCase.closed { opacity:.72; border-color:#241f38; }
+  .cfCase h3 { color:#f0c75e; font-size:15px; letter-spacing:.5px; display:flex;
+               justify-content:space-between; align-items:baseline; gap:12px; }
+  .cfStatus { color:#9be05e; font-size:10px; letter-spacing:1px; }
+  .cfCase.closed .cfStatus { color:var(--dim); }
+  .cfBlurb { color:var(--muted); font-size:12px; line-height:1.6; margin-top:6px; }
+  .cfNext { color:#5ec8f0; font-size:13px; line-height:1.55; margin-top:9px; }
+  .cfNext b { color:var(--dim); font-size:10px; letter-spacing:1px; margin-right:7px; }
+  .cfBar { height:5px; background:#241d36; margin-top:12px; border-radius:3px; overflow:hidden; }
+  .cfBarFill { height:100%; background:#9be05e; }
+  .cfCount { color:var(--dim); font-size:10px; letter-spacing:.5px; margin-top:4px; }
+  .cfCase h4 { color:#9be05e; font-size:10px; letter-spacing:1.5px; margin-top:12px; }
+  .cfCase h4.cfOpenH { color:var(--dim); }
+  .cfFacts { list-style:none; margin-top:6px; }
+  .cfFacts li { color:#e8e0f0; font-size:12.5px; line-height:1.6; padding:4px 0 4px 15px;
+                position:relative; }
+  .cfFacts li:before { content:"▸"; position:absolute; left:0; color:#9be05e; }
+  .cfFacts.cfOpen li { color:var(--dim); }
+  .cfFacts.cfOpen li:before { content:"?"; color:var(--dim); }
+
   /* ---- title / menu ---- */
   #menu {
     position:absolute; inset:0; background:rgba(10,8,16,.97); z-index:10;
@@ -134,11 +204,13 @@
   <div id="util">
     <button class="tb" id="tbZ" title="Zoom">2×</button>
     <button class="tb" id="tbM">♪</button>
+    <button class="tb" data-act="casefile">FILE</button>
   </div>
 
   <div id="hud" style="display:none">
     <div id="hTop"><span id="hName"></span><span id="hDistrict"></span></div>
     <div id="hHpbar"><div id="hHpFill"></div><span id="hHpLabel"></span></div>
+    <div id="hMatterBox"><div id="hMatter"></div><div id="hObjective"></div></div>
     <div id="hCarry"></div>
     <div id="hDev"></div>
     <div id="hMsg"></div>
@@ -169,8 +241,23 @@
   </div>
 </div>
 
+<div id="dlg">
+  <div id="dHead"><canvas id="dPortrait" width="52" height="52"></canvas><b id="dWho"></b></div>
+  <div id="dText"></div>
+  <div id="dChoices"></div>
+</div>
+
+<div id="casefile">
+  <div id="cfHead">
+    <h2>THE CASEFILE</h2>
+    <span class="hint">what you know, and what you don't</span>
+    <button id="cfClose">CLOSE &nbsp;C</button>
+  </div>
+  <div id="cfBody"></div>
+</div>
+
 <div id="ui">
-  <span>WASD move &nbsp;·&nbsp; <b>E</b> use &nbsp;·&nbsp; <b>J</b>/Space strike &nbsp;·&nbsp; <b>Shift</b> dash &nbsp;·&nbsp; <b>M</b> mute</span>
+  <span>WASD move &nbsp;·&nbsp; <b>E</b> use/talk &nbsp;·&nbsp; <b>C</b> casefile &nbsp;·&nbsp; <b>J</b>/Space strike &nbsp;·&nbsp; <b>Shift</b> dash &nbsp;·&nbsp; <b>M</b> mute</span>
   <span style="white-space:nowrap">− / + zoom<button id="saveBtn">SAVE</button><button id="fsBtn" title="Fullscreen (F)">⛶ F</button></span>
 </div>
 

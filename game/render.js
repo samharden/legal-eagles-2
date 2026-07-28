@@ -107,6 +107,21 @@ export function drawWorld(world, layer, player, fx, gameT) {
     drawSprite(g, SPR[p.spr], p.x - cam.x, p.y - cam.y + bob, 26);
   }
 
+  // ---- npcs ----
+  for (const n of world.allNpcs()) {
+    if (n.rig) n.rig.draw(g, SPR[n.spr], n.x - cam.x, n.y - cam.y, 34, false);
+    else drawSprite(g, SPR[n.spr], n.x - cam.x, n.y - cam.y, 34);
+    if (n.marker) {
+      const bob = Math.sin(gameT * 3.4 + n.x * 0.02) * 3;
+      g.fillStyle = n.marker === '?' ? C.gold : C.cyan;
+      g.font = 'bold 20px "Courier New", monospace';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = 3; g.strokeStyle = 'rgba(0,0,0,0.8)';
+      g.strokeText(n.marker, n.x - cam.x, n.y - cam.y - 30 + bob);
+      g.fillText(n.marker, n.x - cam.x, n.y - cam.y - 30 + bob);
+    }
+  }
+
   // ---- actors ----
   for (const a of world.allActors()) {
     const d = actorDef(a.type);

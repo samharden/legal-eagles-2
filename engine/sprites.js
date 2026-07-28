@@ -136,6 +136,67 @@ SPR.civ = makeSprite([
   "................",
 ], { c: '#6b4a2a', f: SKIN, k: K, v: '#4a4560' });
 
+// ---- named characters -----------------------------------------------------
+// Marisol Ruiz — laundromat, The Strand. Apron, forearms, no patience left.
+SPR.ruiz = makeSprite([
+  "................",
+  "......hhhh......",
+  ".....hhhhhh.....",
+  "....hhffffhh....",
+  "....hfkffkfh....",
+  "....hffffffh....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....rrrrrrrr....",
+  "...frraaaarrf...",
+  "...frraaaarrf...",
+  "....raaaaaar....",
+  "....rraaaarr....",
+  ".....rr..rr.....",
+  ".....rr..rr.....",
+  ".....kk..kk.....",
+], { h: '#2b1d12', f: SKIN, k: K, r: '#8c3a3a', a: '#e0d8c4' });
+
+// Hector — newsstand, Courthouse Square, est. 1991. Cardigan, cap, opinions.
+SPR.hector = makeSprite([
+  "................",
+  ".....cccccc.....",
+  "....cccccccc....",
+  "....ccffffcc....",
+  "....ffkffkff....",
+  "....ffffffff....",
+  ".....ffmmff.....",
+  "......ffff......",
+  "....ggggggg.....",
+  "...ggwwggwwgg...",
+  "...ggwwggwwgg...",
+  "...gg.gggg.gg...",
+  "....gggggggg....",
+  ".....gg..gg.....",
+  ".....gg..gg.....",
+  ".....kk..kk.....",
+], { c: '#3e4a63', f: SKIN, k: K, m: '#7a6a58', g: '#6b5a3e', w: '#4a3f2c' });
+
+// The Night Clerk. Nobody has described his face afterward.
+SPR.clerk = makeSprite([
+  "................",
+  "......pppp......",
+  ".....pppppp.....",
+  "....ppssssp.....",
+  "....psksskp.....",
+  "....pssssspp....",
+  ".....ssssss.....",
+  "......ssss......",
+  "....nnnnnnnn....",
+  "...nnwwnnwwnn...",
+  "...nnnnnnnnnn...",
+  "...nn.nnnn.nn...",
+  "....nnnnnnnn....",
+  ".....nn..nn.....",
+  ".....nn..nn.....",
+  ".....kk..kk.....",
+], { p: '#5a5468', s: '#c9c2b4', k: '#0e0d12', n: '#22202e', w: '#8f88a6' });
+
 // ---- props ----------------------------------------------------------------
 SPR.dossier = makeSprite([
   "................",

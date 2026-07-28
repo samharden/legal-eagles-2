@@ -80,6 +80,9 @@ export class World {
     const actors = (L.actors || [])
       .filter(a => !d.killed.has(a.id))
       .map(a => ({ ...a, region: id, x: gx(a.tx), y: gy(a.ty), hp: a.hp || 20, rig: null }));
+    // NPCs are not actors: they never fight, never die, and are the only things
+    // in the world that can hand you a fact.
+    const npcs = (L.npcs || []).map(n => ({ ...n, region: id, x: gx(n.tx), y: gy(n.ty), rig: null }));
 
     const built = {
       def, id, grid, w, h,
@@ -87,7 +90,7 @@ export class World {
       px: def.ox * TILE, py: def.oy * TILE,      // world-pixel origin
       pw: w * TILE, ph: h * TILE,
       layerData: L,
-      props, pickups, actors,
+      props, pickups, actors, npcs,
     };
     this.built.set(id, built);
     return built;
@@ -152,6 +155,8 @@ export class World {
   *allProps() { for (const b of this.built.values()) yield* b.props; }
   *allPickups() { for (const b of this.built.values()) yield* b.pickups; }
   *allActors() { for (const b of this.built.values()) yield* b.actors; }
+  *allNpcs() { for (const b of this.built.values()) yield* b.npcs; }
+  npc(id) { for (const b of this.built.values()) for (const n of b.npcs) if (n.id === id) return n; return null; }
 
   takePickup(p) {
     const b = this.built.get(p.region);

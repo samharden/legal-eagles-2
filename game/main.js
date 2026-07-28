@@ -11,21 +11,27 @@ import { audioInit, musicTick, toggleMute, SFX } from '../engine/audio.js';
 import * as Input from '../engine/input.js';
 import { World, moveEntity } from '../engine/region.js';
 import { saveGame, loadGame, hasSave } from '../engine/save.js';
+import * as Facts from '../engine/facts.js';
+import * as Quests from '../engine/quests.js';
+import { Dialogue } from '../engine/dialogue.js';
 import { REGIONS, SPAWN } from './city.js';
 import { LAYERS, layerOf } from './layers.js';
 import { actorDef } from './actors.js';
 import { drawWorld, drawPrompt } from './render.js';
 import { Intro } from './intro.js';
+import { npcDialogue, CASE_HOOKS } from './cases.js';
+import { Casefile } from './casefile.js';
 
 /* -------------------------------- state -------------------------------- */
 export const G = {
-  state: 'menu',        // menu | intro | play
+  state: 'menu',        // menu | intro | play | dialog
   path: null,           // 'send' | 'delete'
   layer: 'street',
   world: null,
   player: null,
   fx: null,
   t: 0,
+  fees: 0,              // Phase 2 turns this into a real economy; for now it counts
   msg: { text: '', t: 0 },
   banner: { text: '', sub: '', t: 0 },
   carried: [],
@@ -43,25 +49,55 @@ function makePlayer(x, y) {
   };
 }
 
+/* ------------------------- case / quest plumbing ------------------------ */
+// The engine never imports game code; it calls out through these.
+Quests.questHooks.knows = id => Facts.knows(id);
+Quests.questHooks.layerOk = q => !q.layer || q.layer === G.layer;
+Quests.questHooks.onStart = q => { showBanner('NEW MATTER', q.name); say(q.blurb, 7); SFX.district(); };
+Quests.questHooks.onComplete = () => { SFX.send(); refreshCasefile(); };
+// the objective line must follow the stage the moment it changes, including
+// mid-conversation — otherwise the HUD tells you to do the thing you just did
+Quests.questHooks.onStage = () => { refreshCasefile(); syncHud(); };
+
+// Learning a fact is a gameplay event like any other: it can complete a stage.
+Facts.onLearn.push((id, def) => {
+  G.fx.bark(G.player.x, G.player.y - 40, 'NOTED', C.cyan, 1.8);
+  say('NOTED — ' + def.text, 7);
+  SFX.pick();
+  Quests.questEvent('learn', { fact: id });
+  refreshCasefile();
+});
+
+CASE_HOOKS.say = (t, d) => say(t, d);
+CASE_HOOKS.banner = (a, b) => showBanner(a, b);
+CASE_HOOKS.reward = n => { G.fees += n; if (n) say(`Fee earned: $${n}.`, 4); syncHud(); };
+
+function refreshCasefile() { if (Casefile.open) Casefile.render(G.layer); }
+
 /* -------------------------------- boot --------------------------------- */
 function beginPath(layerId, path) {
   G.path = path;
   G.layer = layerId;
+  Facts.resetFacts();
+  Quests.resetQuests();
   G.world = new World(REGIONS, layerId);
   G.world.onEnter = (def, built) => {
     const L = built.layerData;
     showBanner(def.name, layerOf(G.layer).name);
     if (L.greet) say(L.greet, 6);
     SFX.district();
+    Quests.questEvent('reach', { region: def.id });
   };
   const s = SPAWN[layerId];
   G.player = makePlayer(s.x, s.y);
   G.carried = [];
+  G.fees = 0;
   G.world.update(s.x, s.y);
   camFollow(s.x, s.y);
   G.state = 'play';
   document.getElementById('menu').style.display = 'none';
   document.getElementById('hud').style.display = '';
+  Quests.qTick();      // opens whichever matter this path starts with
   syncHud();
 }
 
@@ -80,6 +116,11 @@ function continueGame() {
   G.player.x = d.x; G.player.y = d.y;
   G.player.hp = d.hp ?? 100;
   G.carried = d.carried || [];
+  G.fees = d.fees || 0;
+  // restore knowledge and matters BEFORE residency, so quest markers and
+  // already-read props come back in the right state
+  Facts.loadFacts(d.facts);
+  Quests.loadQuests(d.quests);
   G.world.loadDeltas(d.deltas);
   // rebuild residency at the restored position so deltas apply to fresh builds
   for (const id of G.world.residentIds()) G.world.evict(id);
@@ -95,7 +136,9 @@ export function doSave() {
   return saveGame({
     layer: G.layer, path: G.path,
     x: G.player.x, y: G.player.y, hp: G.player.hp,
-    carried: G.carried,
+    carried: G.carried, fees: G.fees,
+    facts: Facts.saveFacts(),
+    quests: Quests.saveQuests(),
     deltas: G.world.saveDeltas(),
   });
 }
@@ -103,6 +146,60 @@ export function doSave() {
 /* ------------------------------ messaging ------------------------------ */
 function say(text, t = 4) { G.msg.text = text; G.msg.t = t; }
 function showBanner(text, sub) { G.banner.text = text; G.banner.sub = sub || ''; G.banner.t = 3.2; }
+// prompts read as keyboard by default; on touch they name the on-screen button
+const ek = s => IS_TOUCH ? s.replace('[E]', '[USE]') : s;
+
+/* --------------------------- world interaction -------------------------- */
+
+/** '!' when an NPC is the current objective, '?' when they merely have lines. */
+function npcMarker(id) {
+  for (const q of Quests.activeQuests()) {
+    const stage = Quests.currentStage(q.id);
+    if (stage && stage.type === 'talk' && stage.npc === id) return '!';
+    // a resolve stage is parked ON the npc who offered it
+    if (stage && stage.type === 'resolve' && q.stages[Quests.qstate[q.id].stage - 1]
+      && q.stages[Quests.qstate[q.id].stage - 1].npc === id) return '!';
+  }
+  return null;
+}
+
+function talkTo(npc) {
+  const tree = npcDialogue(npc.id);
+  if (!tree) { say(`${npc.name} has nothing to say.`, 3); return; }
+  G.state = 'dialog';
+  Input.clearHeld();
+  SFX.blip();
+  // Order matters here. The tree is BUILT from the state you walked up in — so
+  // the intake conversation still reads as intake — and the talk event fires
+  // immediately AFTER, before a word is exchanged. That is what lets a single
+  // conversation both satisfy a `talk` stage and answer the `resolve` stage
+  // behind it: by the time the player picks a resolution, `resolve` is current.
+  // Emitting only on close made qResolve() a no-op, because the quest was still
+  // parked on the talk stage while the player was choosing.
+  //
+  // AUTHORING RULE: never put two consecutive `talk` stages on the same NPC —
+  // the open/close pair would walk through both in one conversation.
+  Quests.questEvent('talk', { npc: npc.id });
+  Dialogue.open(tree, () => {
+    G.state = 'play';
+    // and again on close, for a stage this conversation's own facts unlocked
+    Quests.questEvent('talk', { npc: npc.id });
+    refreshCasefile();
+    syncHud();
+  });
+}
+
+function useProp(pr) {
+  const first = !pr.used;
+  pr.used = true;
+  G.world.markUsed(pr.region, pr.id);
+  say(pr.text, 9);
+  SFX.door();
+  Quests.questEvent('use', { prop: pr.id });
+  if (pr.fact && first) Facts.learn(pr.fact);
+  else if (pr.fact) SFX.page();
+  syncHud();
+}
 
 /* ------------------------------- update -------------------------------- */
 function updatePlay(dt) {
@@ -217,6 +314,13 @@ function updatePlay(dt) {
     a.rig.step(dt, { moving, speed: d.speed, faceX: a.face || 0 });
   }
 
+  // --- npcs: idle rigs and the "I have something for you" marker ---
+  for (const n of world.allNpcs()) {
+    if (!n.rig) { n.rig = new Rig(); n.rig.spawn(); }
+    n.rig.step(dt, { moving: false });
+    n.marker = npcMarker(n.id);
+  }
+
   // --- pickups ---
   for (const q of [...world.allPickups()]) {
     if (Math.hypot(q.x - p.x, q.y - p.y) < 30) {
@@ -225,25 +329,33 @@ function updatePlay(dt) {
       SFX.pick();
       fx.number(q.x, q.y - 16, '+ ' + q.name, C.gold, true);
       say(q.name + ' — ' + q.note, 6);
+      Quests.questEvent('collect', { item: q.item });
+      if (q.fact) Facts.learn(q.fact);
       syncHud();
     }
   }
 
   // --- prompts + interaction ---
+  // NPCs outrank props: standing between Ruiz and the corkboard should offer
+  // Ruiz, because a person is always the more interesting of the two.
   G.prompt = null;
+  let bestNpc = null, npcD = 66;
+  for (const n of world.allNpcs()) {
+    const d = Math.hypot(n.x - p.x, n.y - p.y);
+    if (d < npcD) { npcD = d; bestNpc = n; }
+  }
   let best = null, bestD = 62;
   for (const pr of world.allProps()) {
     const d = Math.hypot(pr.x - p.x, pr.y - p.y);
     if (d < bestD) { bestD = d; best = pr; }
   }
-  if (best) {
-    G.prompt = IS_TOUCH ? best.label.replace('[E]', '[USE]') : best.label;
-    if (Input.pressed('interact')) {
-      best.used = true;
-      G.world.markUsed(best.region, best.id);
-      say(best.text, 8);
-      SFX.door();
-    }
+
+  if (bestNpc) {
+    G.prompt = ek(bestNpc.label || `[E] ${bestNpc.name}`);
+    if (Input.pressed('interact')) talkTo(bestNpc);
+  } else if (best) {
+    G.prompt = ek(best.label);
+    if (Input.pressed('interact')) useProp(best);
   }
 
   // --- fx ---
@@ -271,7 +383,8 @@ function updatePlay(dt) {
 const el = id => document.getElementById(id);
 
 function syncHud() {
-  el('hName').textContent = G.path === 'delete' ? 'THE FLOOR' : 'ATTORNEY AT LAW';
+  el('hName').textContent = (G.path === 'delete' ? 'THE FLOOR' : 'ATTORNEY AT LAW')
+    + (G.fees ? `   $${G.fees}` : '');
   el('hCarry').textContent = G.carried.length ? 'CARRYING: ' + G.carried.join(' · ') : '';
   syncHudLight();
 }
@@ -282,6 +395,10 @@ function syncHudLight() {
   el('hHpLabel').textContent = `ENERGY ${Math.max(0, Math.round(p.hp))}/${p.maxhp}`;
   const b = G.world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
   el('hDistrict').textContent = b ? b.def.name + ' · ' + layerOf(G.layer).name : layerOf(G.layer).name;
+  // the active stage's hint IS the objective — one source, never restated
+  const obj = Quests.objective();
+  el('hObjective').textContent = obj ? obj.text : '';
+  el('hMatter').textContent = obj ? obj.quest.name : '';
   const m = el('hMsg');
   m.textContent = G.msg.t > 0 ? G.msg.text : '';
   m.style.opacity = G.msg.t > 0 ? Math.min(1, G.msg.t) : 0;
@@ -318,17 +435,45 @@ function step(now) {
     Intro.step(dt);
     Intro.draw();
     musicTick('letter');
-  } else if (G.state === 'play') {
-    if (G.fx.hitStop > 0) G.fx.hitStop -= dt;
-    else updatePlay(dt);
+  } else if (G.state === 'dialog') {
+    // the world holds still behind the conversation, but keeps drawing
+    G.fx.step(dt);
+    G.player.rig.step(dt, { moving: false });
     drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t);
-    if (G.prompt) drawPrompt(G.prompt);
-    drawBanner();
+    stepDialogueInput();
+    musicTick(layerOf(G.layer).music);
+  } else if (G.state === 'play') {
+    if (Casefile.open) {
+      // the casefile is a reading screen; freeze play under it
+      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t);
+      if (Input.pressed('casefile') || Input.pressed('cancel')) { Casefile.hide(); Input.clearHeld(); }
+    } else {
+      if (G.fx.hitStop > 0) G.fx.hitStop -= dt;
+      else updatePlay(dt);
+      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t);
+      if (G.prompt) drawPrompt(G.prompt);
+      drawBanner();
+      if (Input.pressed('casefile')) { Casefile.show(G.layer); Input.clearHeld(); }
+    }
     musicTick(layerOf(G.layer).music);
   } else {
     musicTick(null);
   }
 }
+// Dialogue is DOM and takes clicks on its own, but it must also be fully
+// drivable from the keyboard and the pad — the choice list is the game's
+// primary verb, not a mouse-only convenience.
+function stepDialogueInput() {
+  if (!Dialogue.active) { G.state = 'play'; return; }
+  const nv = Input.nav();
+  if (nv === 'up') { Dialogue.move(-1); SFX.blip(); }
+  if (nv === 'down') { Dialogue.move(1); SFX.blip(); }
+  const n = Input.numberPressed();
+  if (n) { Dialogue.choose(n - 1); return; }
+  if (Input.pressed('confirm') || Input.pressed('interact')) Dialogue.advance();
+  else if (Input.pressed('cancel')) Dialogue.close();
+}
+
 function loop(now) { step(now); requestAnimationFrame(loop); }
 
 // keep ticking when rAF is throttled (hidden/background tab)
@@ -360,4 +505,4 @@ if (DEV && q && LAYERS[q]) { audioInit(); beginPath(q, q === 'floor' ? 'delete' 
 requestAnimationFrame(loop);
 
 // expose for the dev editor and for browser-console verification
-window.LE2 = { G, Input, LAYERS, doSave, beginPath, loadGame };
+window.LE2 = { G, Input, LAYERS, doSave, beginPath, loadGame, Facts, Quests, Dialogue, Casefile, talkTo, useProp };

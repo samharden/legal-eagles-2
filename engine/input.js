@@ -21,6 +21,7 @@ const BINDINGS = {
   fire: ['k'], strike: ['j', ' '], spin: ['l'], dash: ['shift'],
   interact: ['e'], confirm: ['e', 'enter', ' '], cancel: ['escape'],
   bag: ['i'], manual: ['h'], mute: ['m'], fullscreen: ['f'],
+  casefile: ['c', 'tab'],
   zoomIn: ['=', '+'], zoomOut: ['-', '_'],
   // dev only — main.js ignores these unless ?dev=1
   devLayer: ['p'], devSave: ['o'], devLoad: ['u'],
@@ -30,7 +31,7 @@ const BINDINGS = {
 const PAD_BUTTONS = {
   confirm: [0], interact: [0], strike: [1], cancel: [1],
   fire: [2, 5, 7], spin: [3], dash: [4, 6],
-  bag: [9], manual: [8],
+  bag: [9], manual: [8], casefile: [9],
 };
 
 const ACTIONS = Object.keys(BINDINGS);
@@ -64,7 +65,7 @@ export const hooks = {
 /* ------------------------------ keyboard ------------------------------ */
 window.addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
-  if (k === ' ' || k === '/' || k.startsWith('arrow')) e.preventDefault();
+  if (k === ' ' || k === '/' || k === 'tab' || k.startsWith('arrow')) e.preventDefault();
   // one-shot system keys never enter the action state — they'd need a consumer
   if (k === 'm') { if (hooks.onMute) hooks.onMute(); return; }
   if (k === 'f') { if (hooks.onFullscreen) hooks.onFullscreen(); return; }
