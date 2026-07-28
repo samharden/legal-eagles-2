@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>LEGAL EAGLES II: Motion to Withdraw</title>
+<style>
+  :root {
+    --muted:#b6a9d0; --dim:#8d82a8; --line:#6b5c8f; --rule:#2e2745;
+    --shelf:262px; --chrome:52px;
+    --board-ar:960 / 600; --board-k:1.6;
+  }
+  @media (max-height: 720px) { :root { --shelf:220px; --chrome:44px; } }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:#120f1c; color:#e8e0f0; font-family:"Courier New", monospace;
+    display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:12px;
+  }
+  #head {
+    width:100%; max-width:966px; display:flex; align-items:baseline; gap:14px;
+    border-bottom:2px solid var(--line); padding-bottom:6px; margin-bottom:8px; white-space:nowrap;
+  }
+  h1 { font-size:17px; letter-spacing:2px; color:#f0c75e; font-weight:bold; }
+  .tagline { color:var(--muted); font-style:italic; font-size:12px; overflow:hidden; text-overflow:ellipsis; }
+  #wrap { position:relative; width:100%; max-width:966px; }
+  canvas { background:#08060f; border:2px solid var(--line); display:block;
+           width:100%; height:auto; touch-action:none; }
+  #wrap:fullscreen { max-width:none; display:flex; align-items:center; justify-content:center; background:#000; }
+  #wrap:fullscreen canvas { width:min(100vw, calc(100vh * var(--board-k))); height:auto; border:none; }
+  #wrap:-webkit-full-screen { max-width:none; display:flex; align-items:center; justify-content:center; background:#000; }
+  #wrap:-webkit-full-screen canvas { width:min(100vw, calc(100vh * var(--board-k))); height:auto; border:none; }
+
+  /* ---- HUD (DOM on every platform — one implementation, not two) ---- */
+  #hud {
+    position:absolute; left:0; right:0; top:0; z-index:4; padding:8px 10px 20px;
+    pointer-events:none;
+    background:linear-gradient(180deg, rgba(9,7,15,.92) 0%, rgba(9,7,15,.78) 60%, rgba(9,7,15,0) 100%);
+  }
+  #hTop { display:flex; justify-content:space-between; align-items:baseline; gap:12px; margin-bottom:5px; }
+  #hName { color:#f0c75e; font-size:13px; font-weight:bold; letter-spacing:1px; }
+  #hDistrict { color:var(--muted); font-size:10px; letter-spacing:.5px; white-space:nowrap; }
+  #hHpbar { position:relative; height:16px; background:#3a2440; border:1px solid var(--line); overflow:hidden; max-width:340px; }
+  #hHpFill { height:100%; background:#9be05e; width:100%; transition:width .12s linear; }
+  #hHpLabel { position:absolute; inset:0; display:flex; align-items:center; padding-left:7px;
+              font-size:10px; font-weight:bold; color:#0d0a14; letter-spacing:.5px; }
+  #hCarry { color:#caa84a; font-size:10px; margin-top:4px; letter-spacing:.5px; }
+  #hDev { display:none; color:#5ec8f0; font-size:10px; margin-top:3px; }
+  #hMsg {
+    position:absolute; left:10px; right:10px; bottom:-4px; transform:translateY(100%);
+    background:rgba(9,7,15,.9); border-left:3px solid #f0c75e; padding:7px 9px;
+    font-size:12px; line-height:1.4; color:#e8e0f0; transition:opacity .2s; opacity:0;
+  }
+  body.reel #hud, body.reel #head, body.reel #ui, body.reel #touch, body.reel #util { display:none !important; }
+  body.reel { padding:0; overflow:hidden; }
+  body.reel #wrap { position:fixed; inset:0; width:auto; max-width:none; margin:0; background:#08060f; z-index:50; }
+  body.reel canvas { width:100%; height:100%; object-fit:contain; border:none; }
+
+  /* ---- touch shelf ---- */
+  #touch { display:none; position:fixed; left:0; right:0; bottom:0; height:var(--shelf);
+           background:#15111f; border-top:2px solid var(--rule); pointer-events:none; z-index:5; }
+  #joy { pointer-events:auto; position:absolute; left:20px; bottom:24px; width:130px; height:130px;
+         border-radius:50%; background:rgba(255,255,255,.07); border:2px solid var(--line); touch-action:none; }
+  #stick { position:absolute; left:50%; top:50%; width:56px; height:56px; margin:-28px 0 0 -28px;
+           border-radius:50%; background:rgba(240,199,94,.4); border:2px solid #f0c75e; }
+  #btns { position:absolute; right:20px; bottom:24px; width:196px; height:196px; }
+  #btns .tb { position:absolute; }
+  #tbFire { right:0; bottom:56px; width:92px; height:92px; font-size:14px;
+            border-color:#caa84a; color:#f0c75e; background:rgba(70,55,30,.72); }
+  #tbStrike { right:96px; bottom:0; width:78px; height:78px; }
+  #tbSpin { right:0; bottom:158px; width:64px; height:64px; font-size:11px; }
+  #left2 { position:absolute; left:22px; bottom:170px; display:flex; gap:12px; }
+  #left2 .tb { width:64px; height:64px; font-size:11px; }
+  @media (max-height: 720px) {
+    #joy { width:110px; height:110px; left:16px; bottom:18px; }
+    #stick { width:48px; height:48px; margin:-24px 0 0 -24px; }
+    #left2 { left:18px; bottom:142px; gap:10px; }
+    #left2 .tb { width:56px; height:56px; font-size:10px; }
+    #btns { right:16px; bottom:18px; width:176px; height:176px; }
+    #tbFire { width:80px; height:80px; bottom:46px; font-size:13px; }
+    #tbStrike { width:68px; height:68px; right:84px; }
+    #tbSpin { width:56px; height:56px; bottom:132px; }
+  }
+  .tb { pointer-events:auto; border-radius:50%; touch-action:none;
+        background:rgba(46,38,68,.92); border:2px solid var(--line); color:#e8e0f0;
+        font-family:inherit; font-size:12px; font-weight:bold; line-height:1.15;
+        box-shadow:0 3px 10px rgba(0,0,0,.45); }
+  .tb:active { border-color:#f0c75e; background:rgba(70,57,102,.98); transform:scale(.93); }
+  #util { display:none; position:absolute; top:8px; right:8px; gap:6px; z-index:6; }
+  body.touch #util { display:flex; }
+  #util .tb { width:36px; height:36px; border-radius:0; font-size:10px;
+              background:rgba(30,25,44,.82); color:var(--muted); box-shadow:none; }
+  body.touch #touch { display:block; }
+  body.touch { padding:6px; }
+  body.touch h1 { font-size:13px; letter-spacing:1px; }
+  body.touch .tagline, body.touch #ui { display:none; }
+  body.touch #wrap { overflow:hidden; border-radius:6px; }
+
+  /* ---- title / menu ---- */
+  #menu {
+    position:absolute; inset:0; background:rgba(10,8,16,.97); z-index:10;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px;
+    padding:20px; text-align:center;
+  }
+  #menu .kicker { color:var(--dim); font-size:12px; letter-spacing:4px; }
+  #menu h2 { color:#f0c75e; font-size:clamp(20px, 4.4vw, 34px); letter-spacing:3px; line-height:1.2; }
+  #menu .sub { color:var(--muted); font-size:13px; max-width:560px; line-height:1.6; }
+  #menu .row { display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin-top:6px; }
+  #menu button {
+    background:#f0c75e; color:#1a1626; font-family:inherit; font-weight:bold; font-size:15px;
+    padding:12px 26px; border:none; border-radius:8px; cursor:pointer; letter-spacing:2px;
+  }
+  #continueBtn { background:#9be05e; display:none; }
+  #menu button:hover { box-shadow:0 0 18px rgba(240,199,94,.6); }
+  .padsel { outline:3px solid #5ec8f0; outline-offset:2px; border-radius:8px; }
+
+  #ui { width:100%; max-width:966px; display:flex; justify-content:space-between; gap:16px;
+        margin-top:8px; padding-top:6px; border-top:2px solid var(--rule);
+        font-size:11px; color:var(--dim); letter-spacing:.3px; }
+  #ui b { color:#f0c75e; }
+  #ui button { background:none; border:1px solid var(--line); color:var(--muted);
+               font-family:inherit; font-size:11px; padding:1px 8px; cursor:pointer; margin-left:8px; }
+  #ui button:hover { color:#f0c75e; border-color:#f0c75e; }
+</style>
+</head>
+<body>
+<div id="head">
+  <h1>LEGAL EAGLES II: MOTION TO WITHDRAW</h1>
+  <span class="tagline">"A motion to withdraw shall state the reasons therefor, unless the reasons are obvious."</span>
+</div>
+
+<div id="wrap">
+  <canvas id="cv" width="960" height="600"></canvas>
+
+  <div id="util">
+    <button class="tb" id="tbZ" title="Zoom">2×</button>
+    <button class="tb" id="tbM">♪</button>
+  </div>
+
+  <div id="hud" style="display:none">
+    <div id="hTop"><span id="hName"></span><span id="hDistrict"></span></div>
+    <div id="hHpbar"><div id="hHpFill"></div><span id="hHpLabel"></span></div>
+    <div id="hCarry"></div>
+    <div id="hDev"></div>
+    <div id="hMsg"></div>
+  </div>
+
+  <div id="menu">
+    <div class="kicker">A SEQUEL TO RISE TO PARTNER</div>
+    <h2>MOTION TO WITHDRAW</h2>
+    <div class="sub">You made partner. You survived the building.<br>
+      It is 2:47 a.m. and you are writing a resignation letter.</div>
+    <div class="row">
+      <button id="continueBtn">RESUME REPRESENTATION</button>
+      <button id="startBtn">OPEN THE DRAFT</button>
+    </div>
+  </div>
+
+  <div id="touch">
+    <div id="joy"><div id="stick"></div></div>
+    <div id="left2">
+      <button class="tb" data-act="interact">USE</button>
+      <button class="tb" data-act="dash">DASH</button>
+    </div>
+    <div id="btns">
+      <button class="tb" id="tbSpin" data-act="spin">SPIN</button>
+      <button class="tb" id="tbStrike" data-act="strike">STRIKE</button>
+      <button class="tb" id="tbFire" data-act="fire">FIRE</button>
+    </div>
+  </div>
+</div>
+
+<div id="ui">
+  <span>WASD move &nbsp;·&nbsp; <b>E</b> use &nbsp;·&nbsp; <b>J</b>/Space strike &nbsp;·&nbsp; <b>Shift</b> dash &nbsp;·&nbsp; <b>M</b> mute</span>
+  <span style="white-space:nowrap">− / + zoom<button id="saveBtn">SAVE</button><button id="fsBtn" title="Fullscreen (F)">⛶ F</button></span>
+</div>
+
+<script type="module" src="game/main.js?v=1"></script>
+<script type="module" src="dev/editor.js?v=1"></script>
+</body>
+</html>

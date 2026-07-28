@@ -1,0 +1,145 @@
+#!/usr/bin/env node
+// ============================== BUNDLER ==============================
+// Emits dist/index.html: one self-contained file you can double-click, email,
+// or drop on itch.io. Development runs the ES modules straight off a local
+// server; this exists so LE1's best property — "open the file, play the game" —
+// survives the move to modules.
+//
+// Strategy: topologically order the import graph, strip the import/export
+// syntax, and concatenate into ONE module scope. That is only sound under two
+// constraints, so the script enforces both and fails loudly:
+//
+//   1. No circular imports.
+//   2. No duplicate top-level declaration names across modules.
+//
+// Namespace imports (`import * as X from …`) are rebuilt as an object literal
+// of that module's exported bindings after its body.
+//
+// Usage:  node tools/build.mjs
+
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { dirname, resolve, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const rel = p => relative(ROOT, p).split('\\').join('/');
+
+const RE_NAMED = /^\s*import\s*\{([^}]*)\}\s*from\s*['"]([^'"]+)['"]\s*;?\s*$/;
+const RE_NS = /^\s*import\s*\*\s*as\s+(\w+)\s+from\s*['"]([^'"]+)['"]\s*;?\s*$/;
+const RE_BARE = /^\s*import\s*['"]([^'"]+)['"]\s*;?\s*$/;
+const RE_EXPORT_DECL = /^(\s*)export\s+(const|let|var|function|class|async\s+function)\s+/;
+const RE_EXPORT_LIST = /^\s*export\s*\{[^}]*\}\s*;?\s*$/;
+
+const modules = new Map();   // abspath -> { src, deps:[abspath], ns:[{name,path}], exports:[] }
+
+function load(abs) {
+  if (modules.has(abs)) return modules.get(abs);
+  const src = readFileSync(abs, 'utf8');
+  const dir = dirname(abs);
+  const deps = [], ns = [], exports = [];
+  const out = [];
+
+  for (const line of src.split('\n')) {
+    let m;
+    if ((m = line.match(RE_NAMED))) { deps.push(resolve(dir, m[2])); continue; }
+    if ((m = line.match(RE_NS))) {
+      const p = resolve(dir, m[2]);
+      deps.push(p); ns.push({ name: m[1], path: p });
+      continue;
+    }
+    if ((m = line.match(RE_BARE))) { deps.push(resolve(dir, m[1])); continue; }
+    if (RE_EXPORT_LIST.test(line)) continue;
+    if ((m = line.match(RE_EXPORT_DECL))) {
+      const after = line.slice(m[0].length);
+      const name = (after.match(/^(\w+)/) || [])[1];
+      if (name) exports.push(name);
+      out.push(m[1] + m[2] + ' ' + after);
+      continue;
+    }
+    if (/^\s*["']use strict["'];\s*$/.test(line)) continue;
+    out.push(line);
+  }
+
+  const mod = { abs, src: out.join('\n'), deps, ns, exports };
+  modules.set(abs, mod);
+  for (const d of deps) load(d);
+  return mod;
+}
+
+function topo(entries) {
+  const order = [], state = new Map();
+  const visit = (abs, stack) => {
+    const s = state.get(abs);
+    if (s === 'done') return;
+    if (s === 'busy') {
+      throw new Error('circular import:\n  ' + [...stack, abs].map(rel).join('\n  -> '));
+    }
+    state.set(abs, 'busy');
+    for (const d of modules.get(abs).deps) visit(d, [...stack, abs]);
+    state.set(abs, 'done');
+    order.push(abs);
+  };
+  for (const e of entries) visit(e, []);
+  return order;
+}
+
+function checkDuplicates(order) {
+  const seen = new Map();
+  // anchored at column 0 on purpose: only MODULE-scope declarations collide
+  // when the modules are concatenated. Anything indented is inside a function
+  // or block and keeps its own scope.
+  const RE_DECL = /^(?:const|let|var|function|class|async\s+function)\s+(\w+)/;
+  const dupes = [];
+  for (const abs of order) {
+    for (const line of modules.get(abs).src.split('\n')) {
+      const m = line.match(RE_DECL);
+      if (!m) continue;
+      const name = m[1];
+      if (seen.has(name) && seen.get(name) !== abs)
+        dupes.push(`  ${name}  —  ${rel(seen.get(name))}  vs  ${rel(abs)}`);
+      else seen.set(name, abs);
+    }
+  }
+  if (dupes.length) {
+    throw new Error('duplicate top-level names (flat concat needs them unique):\n' + dupes.join('\n'));
+  }
+}
+
+// ---- go --------------------------------------------------------------------
+const htmlPath = resolve(ROOT, 'index.html');
+let html = readFileSync(htmlPath, 'utf8');
+
+const tagRe = /<script\s+type="module"\s+src="([^"?]+)(?:\?[^"]*)?"\s*><\/script>\s*/g;
+const entries = [...html.matchAll(tagRe)].map(m => resolve(ROOT, m[1]));
+if (!entries.length) throw new Error('no <script type="module" src=…> tags found in index.html');
+
+for (const e of entries) load(e);
+const order = topo(entries);
+checkDuplicates(order);
+
+// Emit each module in dependency order, and immediately after a module's body
+// emit any namespace alias (`import * as X`) that points at it — so the alias
+// exists before the first consumer runs.
+const parts = [];
+const aliased = new Set();
+for (const abs of order) {
+  parts.push(`\n/* ==== ${rel(abs)} ==== */`, modules.get(abs).src);
+  for (const other of order) {
+    for (const n of modules.get(other).ns) {
+      if (n.path !== abs || aliased.has(n.name)) continue;
+      aliased.add(n.name);
+      parts.push(`const ${n.name} = { ${modules.get(abs).exports.join(', ')} };`);
+    }
+  }
+}
+
+const bundle = '"use strict";\n' + parts.join('\n');
+html = html.replace(tagRe, '');
+html = html.replace('</body>', `<script>\n${bundle}\n</script>\n</body>`);
+
+mkdirSync(resolve(ROOT, 'dist'), { recursive: true });
+writeFileSync(resolve(ROOT, 'dist/index.html'), html);
+
+const kb = (Buffer.byteLength(html) / 1024).toFixed(1);
+console.log(`dist/index.html  ${kb} KB  (${order.length} modules)`);
+console.log('modules in order:\n  ' + order.map(rel).join('\n  '));
