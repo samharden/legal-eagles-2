@@ -299,6 +299,47 @@ SPR.paralegal = makeSprite([
   ".....kk..kk.....",
 ], { b: '#3a2a3e', f: '#c99a6e', k: K, t: '#3f4a5e', r: '#a8562c' });
 
+// Iris Nakamura — tenants' council, The Flats. Six weeks of clipboard, thirty
+// signatures, and the same cardigan on both layers, which is the point of her.
+SPR.iris = makeSprite([
+  "................",
+  ".....kkkkkk.....",
+  "....kkkkkkkk....",
+  "....kkffffkk....",
+  "....kffkffkf....",
+  "....kffffffk....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....gggggggg....",
+  "...ggppppppgg...",
+  "...ggpppppppg...",
+  "...gg.pppp.gg...",
+  "....gggggggg....",
+  ".....jj..jj.....",
+  ".....jj..jj.....",
+  ".....kk..kk.....",
+], { k: '#1c1c22', f: '#d9a97c', g: '#6b7f5a', p: '#e6e0cc', j: '#3a3a46' });
+
+// W. Halloran — the buyer's counsel. The coat cost more than your month.
+SPR.halloran = makeSprite([
+  "................",
+  "......cccc......",
+  ".....cccccc.....",
+  "....ccffffc.....",
+  "....cfkffkf.....",
+  "....cffffffc....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....CCCCCCCC....",
+  "...CCCwswCCCC...",
+  "...CCCwswCCCC...",
+  "...CC.CCCC.CC...",
+  "....CCCCCCCC....",
+  ".....CC..CC.....",
+  ".....CC..CC.....",
+  ".....kk..kk.....",
+], { c: '#6e6350', f: SKIN, k: K, C: '#2f3a34', w: '#f2f2f2', s: '#8c2f3a' });
+
 // ---- props ----------------------------------------------------------------
 SPR.dossier = makeSprite([
   "................",

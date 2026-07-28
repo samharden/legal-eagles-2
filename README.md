@@ -72,10 +72,10 @@ The six districts are allocated on the global tile grid **up front**, before any
 |  | `gx 0–35` | `gx 36–75` | `gx 76–111` |
 |---|---|---|---|
 | **`gy 0–29`** | — | THE TOWER DISTRICT | THE ANNEX |
-| **`gy 30–59`** | THE FLATS | **COURTHOUSE SQUARE** | **THE STRAND** |
+| **`gy 30–59`** | **THE FLATS** | **COURTHOUSE SQUARE** | **THE STRAND** |
 | **`gy 60–89`** | — | **MOTOR ROW** | — |
 
-Unbuilt space is solid, so a district whose neighbour does not exist yet simply has a wall there. The openings are cut on **both** sides in advance: Courthouse Square already has its road west to The Flats and its climb north to the Tower District, and they are walls until those regions land.
+Unbuilt space is solid, so a district whose neighbour does not exist yet simply has a wall there. The openings are cut on **both** sides in advance: Courthouse Square already has its climb north to the Tower District, and it is a wall until that region lands.
 
 **MOTOR ROW** (bold above = built) is reached down the alley on the courthouse's south side — no loading break, same as the seam east to The Strand. Tow yards, body shops, and a chain-link fence you can see through, which is the point of a fence.
 
@@ -83,6 +83,17 @@ Unbuilt space is solid, so a district whose neighbour does not exist yet simply 
 |---|---|---|
 | THE STREET | **The Kestenbaum Referral** | The chiropractor who refers, and what comes attached. Your first **contingency** — it pays nothing until it closes, which is a very different feeling once rent is weekly. Four resolutions; two of them need the ledger out of the alley. |
 | THE FLOOR | **The Impound** | Four rows of cars, every engine running, every ticket dated today. One car is not running and the ticket on it is dated tomorrow. Sign, count, or walk. |
+
+**RIVERSIDE / THE FLATS** is west along the same road. The river takes its whole west edge, and it is the one district that reads differently on the two layers in kind rather than in degree:
+
+> DESIGN §7 says The Flats is the only place on THE FLOOR with daylight. So it is — and it is also the only district there that costs **nothing** to light, because those are the same fact. The building never owned this one, so it has nothing to bill. There are no Unbilled in it. Standing in it lifts the vignette and stops the pulse, because the pulse is the building and the building is not here.
+
+| Path | Matter | Shape |
+|---|---|---|
+| THE STREET | **The Rivera Block** | Thirty three-day notices served on one Saturday to empty a building in escrow. The ethics engine: pro bono is mechanically the *worst* choice — it pays $0 during a week when rent is $1,100 — and the game does not quietly reimburse you for it. Opposing counsel's $4,000 is real money for doing nothing, and you take it from him, not from her. |
+| THE FLOOR | **In re: The Meeting** | Thirty chairs in a circle in a warm room, and a sign-in sheet with four blank lines at the bottom. The counterpart to the resignation letter: a piece of paper you *can* sign. |
+
+**Iris Nakamura exists on both layers** — same person, same cardigan, and she does not know you on the second one. `CASE_HOOKS.layer()` is how her tree finds out which Flats it is being asked for; quest state cannot answer it before either matter has opened.
 
 Reputation is no longer two hard-coded districts — `Practice.seedRep()` takes the city's own region list, so adding a district is a change to `game/city.js` and nowhere else.
 

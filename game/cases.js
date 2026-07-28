@@ -36,6 +36,19 @@ defineFacts([
   { id: 'kest_capping', case: 'ferraro', text: 'Kestenbaum\'s referrals come with an expectation: your clients treat with him, and he keeps sending.' },
   { id: 'kest_lien', case: 'ferraro', text: 'He bills the treatment on a lien at three times the going rate, and the lien comes out of the client\'s share, not yours.' },
 
+  // ---- The Rivera Block ----
+  { id: 'flats_notices', case: 'rivera', text: 'Thirty three-day notices, all served on a Saturday, none with a proof of service. A three-day notice served on a Saturday is not a three-day notice.' },
+  { id: 'flats_sale', case: 'rivera', text: 'The building is in escrow and the sale is contingent on it being delivered vacant. The eviction is not about the tenants at all.' },
+  { id: 'flats_relocation', case: 'rivera', text: 'City Ordinance 41-7: any tenant displaced by a sale is owed relocation assistance. Nobody in that glass case has been told.' },
+  { id: 'flats_iris', case: 'rivera', text: 'Iris Nakamura has been organising for six weeks and has all thirty signatures on one piece of paper.' },
+  { id: 'flats_halloran', case: 'rivera', text: 'Halloran will pay you $4,000 to consult on "tenant relations" — which is $4,000 for you to be unavailable.' },
+
+  // ---- In re: The Meeting ----
+  { id: 'flats_sun', case: 'meeting', text: 'There is daylight in The Flats and there is no sun. The river is the only thing in this city that has moved since you woke up.' },
+  { id: 'flats_chairs', case: 'meeting', text: 'Thirty chairs in a circle in a warm room, with the gap left at the near side for whoever is still coming.' },
+  { id: 'flats_sheet', case: 'meeting', text: 'A sign-in sheet, thirty-one names in thirty-one hands, not one of them struck out. Four blank lines at the bottom.' },
+  { id: 'flats_iris_b', case: 'meeting', text: 'Iris is not an echo and not a clerk. She is here, she has been here, and she is not billing anybody for it.' },
+
   // ---- The Impound ----
   { id: 'mr_running', case: 'impound', text: 'Every engine in the yard is running, every tank is full, and none of them are going anywhere.' },
   { id: 'mr_tickets', case: 'impound', text: 'Every windshield has an impound ticket and every ticket carries the same date — today\'s, which is the only date there is.' },
@@ -55,6 +68,11 @@ defineFacts([
 export const CASE_HOOKS = {
   say: () => {}, banner: () => {},
   fee: () => {}, retainer: () => {}, earn: () => {}, rep: () => {},
+  // Which layer we are standing on. Iris Nakamura exists on BOTH — she is the
+  // same person in the same cardigan in both versions of The Flats, and that is
+  // the whole point of her — so her tree has to know which one it is being
+  // asked for. Quest state cannot answer it before either matter has opened.
+  layer: () => 'street',
 };
 
 defineQuests([
@@ -171,6 +189,81 @@ defineQuests([
     },
   },
   {
+    id: 'rivera',
+    name: 'The Rivera Block',
+    layer: 'street',
+    blurb: 'Thirty units on The Flats got a three-day notice on the same Saturday. The building is in escrow and the buyer wants it empty. One of the thirty has a clipboard.',
+    auto: true,
+    prereq: () => isDone('ruiz') || isDone('coronado'),
+    // A three-day notice runs three days. The one matter in the game whose
+    // deadline is not a convention — it is the thing the notice says.
+    due: 3,
+    dueLabel: 'Rivera Block — the notices run out',
+    stages: [
+      { type: 'talk', npc: 'iris',
+        hint: 'The Flats, west along the road from Courthouse Square. Somebody outside the community centre has thirty signatures and no lawyer.' },
+      { type: 'learn', facts: ['flats_notices', 'flats_sale', 'flats_relocation'],
+        hint: 'Work it: the glass case at the centre, the board on the fence, and whatever is blowing around the vacant lot.' },
+      { type: 'talk', npc: 'iris',
+        hint: 'Back to Iris. Thirty people are waiting on one sentence from you.' },
+      { type: 'resolve',
+        hint: 'Decide who you work for this week.',
+        options: ['fight', 'settle', 'consult', 'refer'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        fight: 'You filed thirty answers in one afternoon and the clerk stopped stamping to look at you. It cost you the week, it paid nothing, and there are thirty people on The Flats who will say your name to anybody who asks and to several people who do not.',
+        settle: 'You got them relocation under 41-7 and a hundred and ten days, and you took your fee out of it, and every single one of them is still moving. It is the honest answer and it is not the one Iris wanted, and both of those are true at once.',
+        consult: 'You took the consulting fee. Nobody made you sign anything and nobody asked you to do anything, which is what the four thousand was for. The notices ran out on a Thursday.',
+        refer: 'Legal aid took nine of the thirty, which is what legal aid has capacity for. You did the arithmetic on the other twenty-one on the walk back and then stopped doing it.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 11);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE RIVERA BLOCK — ' + String(outcome).toUpperCase());
+      // Pro bono is pro bono. The game does not quietly reimburse you for it —
+      // that is the entire content of the choice, and softening it would be a
+      // lie about what the week costs.
+      CASE_HOOKS.fee({ consult: 4000, settle: 1800, refer: 200, fight: 0 }[outcome] || 0,
+        'Rivera Block');
+      CASE_HOOKS.rep('flats', { fight: 8, settle: 2, refer: 0, consult: -8 }[outcome] || 0);
+      CASE_HOOKS.rep('courthouse', { fight: 3, settle: 1, consult: -1 }[outcome] || 0);
+      CASE_HOOKS.rep('strand', { fight: 2, consult: -2 }[outcome] || 0);
+    },
+    onFail() {
+      CASE_HOOKS.say('The notices ran out. The sheriff posts on a Tuesday and the sheriff posted on a Tuesday, and the community centre had thirty chairs out that night and about nine people in them.', 11);
+      CASE_HOOKS.banner('THE NOTICES RAN OUT', 'THE RIVERA BLOCK');
+      CASE_HOOKS.rep('flats', -7);
+      CASE_HOOKS.rep('courthouse', -2);
+    },
+  },
+  {
+    id: 'meeting',
+    name: 'In re: The Meeting',
+    layer: 'floor',
+    blurb: 'There is daylight in The Flats and no sun to make it. In the community centre somebody has set out thirty chairs, and there is a sheet on the door with room at the bottom.',
+    auto: true,
+    prereq: () => isDone('unsent'),
+    stages: [
+      { type: 'learn', facts: ['flats_sun', 'flats_chairs'],
+        hint: 'West along the road, past the courthouse, as far as the river goes. Something down there is lit and it is not on your timesheet.' },
+      { type: 'learn', fact: 'flats_sheet',
+        hint: 'There is a sheet on the door of the big room.' },
+      { type: 'talk', npc: 'iris',
+        hint: 'Somebody is setting out chairs. Ask her how long she has been doing that.' },
+      { type: 'resolve',
+        hint: 'Decide what you do about the four blank lines.',
+        options: ['sign', 'stay', 'go'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        sign: 'You put your name on line thirty-two. It is the first thing you have signed in this building that was not a release, a release form, or a release of somebody else, and nothing whatsoever happens, and the room stays warm.',
+        stay: 'You take the chair in the gap and you do not sign anything, and at some point you notice you have stopped listening for the corridor. Nobody asks you for the sheet. That is how you know it was never the sheet.',
+        go: 'You leave before it starts. Out on the road the temperature drops about four degrees at the district line, exactly at the line, and behind you the light does not follow and does not go out either.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 11);
+      CASE_HOOKS.banner('MATTER CLOSED', 'IN RE: THE MEETING — ' + String(outcome).toUpperCase());
+    },
+  },
+  {
     id: 'impound',
     name: 'The Impound',
     layer: 'floor',
@@ -230,6 +323,82 @@ defineQuests([
 /* ============================== DIALOGUE =============================== */
 // Trees are rebuilt on every conversation so they can read live state; the
 // engine never caches a node.
+
+/**
+ * Iris on THE FLOOR. Split out rather than nested so the street version stays
+ * readable — they are two long trees for one person and neither is a variant
+ * of the other. She does not know you here. She is not surprised by you either.
+ */
+function irisFloor() {
+  const T = { who: 'Iris Nakamura', spr: 'iris', nodes: {} };
+
+  if (isDone('meeting')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        sign: 'Line thirty-two. — She has the sheet on the clipboard and she is not looking at it. — We start at seven. We have started at seven for a while.',
+        stay: 'You came back. — She sets out a thirty-first chair without being asked and without making anything of it.',
+        go: 'You came back. — She does not say it pointedly. That is the thing you keep failing to get used to about this district.',
+      }[outcomeOf('meeting')] || 'Evening.',
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'Grab that end. — She is carrying a stack of chairs and she has decided you are helping before establishing whether you are. — Circle, not rows. Rows is a presentation. Circle is a meeting.',
+    choices: [
+      { label: 'Help with the chairs.', to: 'chairs' },
+      { label: '"How long have you been doing this?"', to: 'long' },
+    ],
+  };
+  T.nodes.chairs = {
+    text: 'Thirty. Always thirty, and always the gap at that end, because somebody is always still coming and you do not make them ask you to move.',
+    choices: [{ label: '"How long have you been doing this?"', to: 'long' }],
+  };
+  T.nodes.long = {
+    text: 'Thursdays. — That is not — I know what you asked. — She straightens up. — I have been doing this on Thursdays. You want a number and I do not have one and I have stopped finding that frightening, which took a while.',
+    fx: () => { learn('flats_iris_b'); },
+    choices: [
+      { label: '"There is no sun. Where is the light coming from?"', to: 'light' },
+      { tag: 'THE SHEET', label: 'Ask about the four blank lines.',
+        if: () => knows('flats_sheet'), showLocked: true,
+        lockedNote: 'you have not read the sheet', to: 'sheet' },
+    ],
+  };
+  T.nodes.light = {
+    text: 'It was here when I got here. — Doesn\'t that— — She thinks about it properly, which nobody else in this building has done all night. — It is the only thing on this street nobody is paying for. I decided a long time ago that that was enough of an explanation to be getting on with.',
+    choices: [
+      { tag: 'THE SHEET', label: 'Ask about the four blank lines.',
+        if: () => knows('flats_sheet'), showLocked: true,
+        lockedNote: 'you have not read the sheet', to: 'sheet' },
+      { label: 'Say nothing.', to: null },
+    ],
+  };
+  T.nodes.sheet = {
+    text: 'Thirty-one. — And four spaces. — There are always four spaces. When it fills I get another sheet. — She holds the clipboard out and does not push it at you, and the pen is already unclipped, and she has clearly done this exact motion a great many times and has never once been rude about the answer.',
+    choices: [
+      { tag: 'SIGN', label: 'Put your name on line thirty-two.',
+        if: () => knows('flats_sheet', 'flats_iris_b'), to: 'do_sign' },
+      { label: 'Don\'t sign. Take the chair in the gap and stay.', to: 'do_stay' },
+      { label: 'Leave before it starts.', to: 'do_go' },
+      { label: 'Not yet.', to: null },
+    ],
+  };
+  T.nodes.do_sign = {
+    text: 'You write it out. Not the signature — the whole name, the way you write it on a form and not on a pleading. Nothing happens. No stamp, no light, nobody above you on any floor. She clips the pen back on and says: seven o\'clock, and puts the board back on the nail.',
+    fx: () => qResolve('meeting', 'sign'),
+  };
+  T.nodes.do_stay = {
+    text: 'You sit down in the gap. She does not comment on it and does not move the chair. Somewhere around the point where you stop listening for the corridor you notice you have stopped listening for the corridor.',
+    fx: () => qResolve('meeting', 'stay'),
+  };
+  T.nodes.do_go = {
+    text: 'Door\'s open Thursdays, she says, without turning round, and without the slightest edge on it. Out on the road the temperature drops about four degrees at the district line — exactly at the line — and behind you the light does not follow you and does not go out.',
+    fx: () => qResolve('meeting', 'go'),
+  };
+  return T;
+}
 
 const NPC_TREES = {
 
@@ -387,6 +556,169 @@ const NPC_TREES = {
     };
     T.nodes.no = {
       text: 'Yeah. Yeah, okay. — He folds the summons into a square small enough to stop being a summons.',
+    };
+    return T;
+  },
+
+  /* ----------------------------- IRIS NAKAMURA ----------------------------- */
+  // The same woman on both layers, deliberately. On THE STREET she is fighting
+  // an eviction. On THE FLOOR she is setting out chairs in the one district the
+  // building never owned. She does not recognise you on the second one, and she
+  // does not need to.
+  iris() {
+    if (CASE_HOOKS.layer() === 'floor') return irisFloor();
+
+    const stage = currentStage('rivera');
+    const phase = !started('rivera') || (stage && stage.type === 'talk' && !knows('flats_iris')) ? 'intake'
+      : isDone('rivera') ? 'after'
+        : (stage && stage.type === 'resolve') || knows('flats_notices', 'flats_sale', 'flats_relocation') ? 'report'
+          : 'working';
+
+    const T = { who: 'Iris Nakamura', spr: 'iris', nodes: {} };
+
+    if (phase === 'intake') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'You\'re the one from over the Wok. — She does not look up from the clipboard. — Don\'t be flattered, I asked. I have asked about every lawyer within a mile and you are the eleventh.',
+        to: 'b',
+      };
+      T.nodes.b = {
+        text: 'Thirty units. Everybody got the same paper on the same Saturday. Three days. Three days is Tuesday, and it is already Monday, and half this building works Tuesdays.',
+        choices: [
+          { label: 'How long have you been at this?', to: 'c' },
+          { label: 'Has anybody signed anything?', to: 'c' },
+        ],
+      };
+      T.nodes.c = {
+        text: 'Six weeks. I have all thirty on one sheet, which took four of those weeks, because the first thing everybody says is that it is only them. — She finally looks up. — Nobody has signed anything. I told them not to sign anything. Was that right?',
+        fx: () => { learn('flats_iris'); },
+        choices: [
+          { label: '"That was right. Keep telling them."', to: 'd' },
+          { label: '"Who is the buyer?"', to: 'd' },
+        ],
+      };
+      T.nodes.d = {
+        text: 'She writes something on the clipboard and does not tell you what. — I should say this now. There is no money. There was never going to be money. I am not going to pretend for two days and then apologise.',
+      };
+      return T;
+    }
+
+    if (phase === 'working') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'Tuesday is Tuesday whatever either of us does about it.',
+        choices: [
+          { label: 'Still working. I\'ll come back.', to: null },
+          { tag: 'PROGRESS', label: 'Tell her what you have so far.',
+            if: () => knowsAny('flats_notices', 'flats_sale', 'flats_relocation'), to: 'b' },
+        ],
+      };
+      T.nodes.b = { text: 'Write it down for me. Not for me — for the sheet. Everything goes on the sheet.' };
+      return T;
+    }
+
+    if (phase === 'report') {
+      T.start = 'a';
+      T.nodes.a = { text: 'Go on then. I have had eleven versions of this conversation and I can tell which one it is by about the fourth word, so you can skip to the fourth word.', to: 'b' };
+      T.nodes.b = {
+        text: 'The notices are bad. Served Saturday, no proof of service — that is not three days, that is nothing at all, and every one of the thirty is the same defect. The building is in escrow and the sale needs it empty, which is why it was thirty at once. And there is an ordinance nobody has read to any of you.',
+        choices: [
+          { tag: 'HONEST', label: 'Tell her about Halloran\'s four thousand.',
+            if: () => knows('flats_halloran'), to: 'honest' },
+          { label: 'Get to what happens now.', to: 'options' },
+        ],
+      };
+      T.nodes.honest = {
+        text: 'Four thousand. — She says the number back like she is checking it against something. — For nothing? — For nothing. For not being here. — And you are telling me. — I\'m telling you. — She writes that on the clipboard too.',
+        to: 'options',
+      };
+      T.nodes.options = {
+        text: 'So. What happens now.',
+        choices: [
+          { tag: 'PRO BONO', label: 'Thirty answers, filed tomorrow, for nothing.',
+            if: () => knows('flats_notices'), to: 'fight' },
+          { tag: '41-7', label: 'Trade the defect for relocation and time. Take a fee out of it.',
+            if: () => knows('flats_relocation', 'flats_sale'), to: 'settle' },
+          { label: 'Walk it down to legal aid.', to: 'refer' },
+          { label: 'Not today. You have a rent day of your own.', to: null },
+        ],
+      };
+      T.nodes.fight = {
+        text: 'She puts the clipboard down, which you have not seen her do. — All thirty. — All thirty. — And what does that cost me. — Nothing. That is the part I need you to hear, because in about a week somebody is going to tell you it cost you something.',
+        fx: () => qResolve('rivera', 'fight'),
+      };
+      T.nodes.settle = {
+        text: 'A hundred and ten days and the relocation money, and everybody still goes. — Everybody still goes. — She is quiet for a second. — I am going to take it, and I am going to be angry about it, and those are not connected. Write it up.',
+        fx: () => qResolve('rivera', 'settle'),
+      };
+      T.nodes.refer = {
+        text: 'Legal aid. — She nods slowly. — I called them in week two. They have nine slots. Do you want to pick the nine, or shall I? — She does not say it cruelly. That is somehow the worst available version of it.',
+        fx: () => qResolve('rivera', 'refer'),
+      };
+      return T;
+    }
+
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        fight: 'Twenty-two of the thirty are still in. The other eight took the money before you filed and I am not allowed to be angry about that, so I am angry about the eight who are allowed.',
+        settle: 'Everybody\'s out by the fourteenth. Everybody\'s got the relocation. The centre is doing a thing on the Sunday, which is not a party, but there will be food.',
+        refer: 'Nine got seen. — Iris — No, it is nine more than none. I am practising saying it like that.',
+        consult: 'She looks at you for about four seconds and goes back to the clipboard, and that is the entire conversation, and it is going to be the entire conversation every time.',
+        failed: 'The sheriff posted Tuesday. — I know. — Thirty chairs. Nine people. I had put out thirty.',
+      }[isFailedCase('rivera') ? 'failed' : outcomeOf('rivera')] || 'Busy. Always busy.',
+    };
+    return T;
+  },
+
+  /* ------------------------------- HALLORAN -------------------------------- */
+  halloran() {
+    const T = { who: 'W. Halloran', spr: 'halloran', nodes: {} };
+    if (isDone('rivera')) {
+      T.start = 'a';
+      T.nodes.a = {
+        text: {
+          consult: 'Pleasure doing nothing with you. — He means it warmly, which is the trouble with him.',
+          fight: 'Thirty answers. — He says it the way you\'d note the weather. — My client will spend more on the continuance than the offer was. You understand that is not a threat, it is just the arithmetic, and the arithmetic is why I made the offer.',
+          settle: 'Sensible. Everybody gets something and nobody gets to feel wonderful about it, which in my experience is what a deal is.',
+          refer: 'Legal aid. — He almost laughs and then does not, which you appreciate more than you want to.',
+        }[outcomeOf('rivera')] || 'Counsellor.',
+      };
+      return T;
+    }
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'You would be the eleventh lawyer. — He is standing on the good side of the road in a coat that has been rained on precisely never. — Halloran. I act for the buyer. I am not going to pretend I am not, because you will find out inside a day and then everything else I say gets discounted.',
+      choices: [
+        { label: 'What do you want?', to: 'offer' },
+        { label: 'Nothing to say to you.', to: null },
+      ],
+    };
+    T.nodes.offer = {
+      text: 'Four thousand, to consult on tenant relations. — On what? — On tenant relations. — He lets that sit exactly long enough. — There is no deliverable, counsellor. There is no report. You would not be asked to do anything at all, and that is not me being coy, that is the entire product.',
+      fx: () => { learn('flats_halloran'); },
+      choices: [
+        { tag: 'TAKE IT', label: 'Take the four thousand.',
+          if: () => isActive('rivera') && (currentStage('rivera') || {}).type === 'resolve',
+          showLocked: true, lockedNote: 'you have not heard Iris out yet',
+          to: 'take' },
+        { label: '"That is a conflict and you know it."', to: 'conflict' },
+        { label: 'Walk away.', to: null },
+      ],
+    };
+    T.nodes.conflict = {
+      text: 'It is not, and I do know it. — He is genuinely pleased to be arguing. — You have no client on that building. Retain nobody, and there is nothing to conflict with. The rule is about loyalty, and loyalty is a thing you have to have taken on first. That is not a loophole, counsellor, that is the actual shape of the rule, and you knew that before I said it.',
+      choices: [
+        { tag: 'TAKE IT', label: 'Take the four thousand.',
+          if: () => isActive('rivera') && (currentStage('rivera') || {}).type === 'resolve',
+          showLocked: true, lockedNote: 'you have not heard Iris out yet',
+          to: 'take' },
+        { label: 'Leave him on the good side of the road.', to: null },
+      ],
+    };
+    T.nodes.take = {
+      text: 'He does not shake your hand, which you notice and will keep noticing. The cheque is a firm cheque with a matter number on it and the matter number is not the Rivera Block, and by Thursday you could not tell anybody what you were paid for, because you were not paid for anything, and that was the arrangement and you understood it perfectly at the time.',
+      fx: () => qResolve('rivera', 'consult'),
     };
     return T;
   },

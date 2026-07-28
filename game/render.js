@@ -81,6 +81,14 @@ export function drawWorld(world, layer, player, fx, gameT, complaint, ally) {
         g.fillStyle = 'rgba(0,0,0,0.35)';
         g.fillRect(sx + 4, sy + 2, TILE - 8, TILE - 4);
       }
+      // the river: two slow highlights per tile, offset by position so the
+      // whole surface does not blink in unison
+      if (def.cls === 'water') {
+        const t = gameT * 0.6 + tx * 0.7 + ty * 0.3;
+        g.fillStyle = `rgba(255,255,255,${0.03 + Math.sin(t) * 0.025})`;
+        g.fillRect(sx, sy + TILE * 0.28, TILE, 2);
+        g.fillRect(sx, sy + TILE * 0.66, TILE, 1);
+      }
       // chain link: a barrier you can see through, which is the whole reason a
       // tow yard is a fence and not a wall — you are meant to look at what is
       // inside it and not be able to get to it.
@@ -154,7 +162,7 @@ export function drawWorld(world, layer, player, fx, gameT, complaint, ally) {
   // that is not on the lights should not show you what is on it. You get a
   // radius and your own footsteps. The player sits in the clear centre of the
   // gradient, so they are never the thing that disappears.
-  if (layer.dark) drawDark(g, world, player);
+  if (layer.dark) { drawDaylight(g, world); drawDark(g, world, player); }
 
   // ---- the grievance ----
   // Drawn after the player and tinted red underneath, because it should read as
@@ -174,7 +182,39 @@ export function drawWorld(world, layer, player, fx, gameT, complaint, ally) {
 
   g.restore();
 
-  drawLight(g, layer, gameT);
+  // Standing IN the daylight lifts the whole screen, not just the tiles under
+  // it. The world-space wash above draws the seam so you can see the boundary
+  // from outside; this is what it feels like once you have crossed it, and on a
+  // layer whose default mood is a 0.62 vignette that pulses, the lifting is the
+  // entire effect.
+  const here = world.regionAt(Math.floor(player.x / TILE), Math.floor(player.y / TILE));
+  drawLight(g, layer, gameT, !!(here && here.layerData && here.layerData.daylight));
+}
+
+/**
+ * The opposite of the dark, and it uses the same clip so it lands on the same
+ * seam. A region whose floor data says `daylight` gets a warm wash over its own
+ * rectangle — DESIGN §7 says The Flats is the only place on THE FLOOR with
+ * daylight, and the point of that is not that it is prettier. It is that the
+ * light there is not on anybody's timesheet.
+ */
+function drawDaylight(g, world) {
+  for (const b of world.builtRegions()) {
+    if (!b.layerData || !b.layerData.daylight) continue;
+    const rx = b.px - cam.x, ry = b.py - cam.y;
+    if (rx > W / view.zoom || ry > H / view.zoom || rx + b.pw < 0 || ry + b.ph < 0) continue;
+    g.save();
+    g.beginPath(); g.rect(rx, ry, b.pw, b.ph); g.clip();
+    g.fillStyle = 'rgba(255,236,196,0.20)';
+    g.fillRect(rx, ry, b.pw, b.ph);
+    // and it comes from somewhere, which is the part you are not going to like
+    const grad = g.createLinearGradient(rx, ry, rx + b.pw * 0.7, ry + b.ph);
+    grad.addColorStop(0, 'rgba(255,224,160,0.20)');
+    grad.addColorStop(1, 'rgba(255,224,160,0)');
+    g.fillStyle = grad;
+    g.fillRect(rx, ry, b.pw, b.ph);
+    g.restore();
+  }
 }
 
 /**
@@ -200,7 +240,7 @@ function drawDark(g, world, player) {
   }
 }
 
-function drawLight(g, layer, gameT) {
+function drawLight(g, layer, gameT, daylight) {
   if (moteLayer !== layer.id) seedMotes(layer);
 
   // ambient motes drift in screen space — they are air, not objects
@@ -212,13 +252,18 @@ function drawLight(g, layer, gameT) {
     g.beginPath(); g.arc(m.x, m.y, m.r, 0, 7); g.fill();
   }
 
-  if (layer.mood.tint) {
+  if (daylight) {
+    g.fillStyle = 'rgba(255,231,182,0.11)';
+    g.fillRect(0, 0, W, H);
+  } else if (layer.mood.tint) {
     g.fillStyle = layer.mood.tint;
     g.fillRect(0, 0, W, H);
   }
 
-  let v = layer.mood.vign;
-  if (layer.mood.pulse) v += Math.sin(gameT * 0.55) * layer.mood.pulse;
+  // In the daylight the building stops breathing — the pulse goes with the
+  // vignette, because the pulse is the building and the building is not here.
+  let v = daylight ? 0.14 : layer.mood.vign;
+  if (layer.mood.pulse && !daylight) v += Math.sin(gameT * 0.55) * layer.mood.pulse;
   if (v > 0.01) {
     const grad = g.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.max(W, H) * 0.72);
     grad.addColorStop(0, 'rgba(0,0,0,0)');

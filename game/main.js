@@ -111,6 +111,7 @@ Quests.questHooks.onFail = q => {
   refreshCasefile(); syncHud();
 };
 
+CASE_HOOKS.layer = () => G.layer;
 CASE_HOOKS.say = (t, d) => say(t, d);
 CASE_HOOKS.banner = (a, b) => showBanner(a, b);
 CASE_HOOKS.fee = (n, memo) => {
