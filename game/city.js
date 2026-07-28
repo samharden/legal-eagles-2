@@ -173,8 +173,8 @@ export const REGIONS = [
           { id: 'st_board', tx: 6, ty: 13, spr: 'board', label: '[E] corkboard',
             text: 'LAUNDROMAT CORKBOARD: a lost cat, a bass amp, three tabs torn off a card that reads EVICTION? KNOW YOUR RIGHTS — and four staples in a rectangle, holding nothing. Whatever was posted there was county-yellow; there is a strip of it still under the left staple, and the printed date on it has not come yet.',
             fact: 'wok_notice' },
-          { id: 'st_endday', tx: 20, ty: 18, spr: 'sign', repeat: true, endDay: true,
-            label: '[E] go up to Suite 2B — end the day',
+          { id: 'st_endday', tx: 20, ty: 18, spr: 'sign', repeat: true, office: true,
+            label: '[E] go up to Suite 2B',
             text: 'Up the stairs beside the Wok, past the smell, to a folding table and a cot you have decided not to describe as a cot.' },
         ],
         npcs: [

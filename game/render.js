@@ -20,7 +20,7 @@ function seedMotes(layer) {
   moteLayer = layer.id;
 }
 
-export function drawWorld(world, layer, player, fx, gameT, complaint) {
+export function drawWorld(world, layer, player, fx, gameT, complaint, ally) {
   const g = ctx;
   const Z = view.zoom;
 
@@ -140,6 +140,11 @@ export function drawWorld(world, layer, player, fx, gameT, complaint) {
     if (a.rig) a.rig.draw(g, SPR[d.spr], a.x - cam.x, a.y - cam.y, d.size, a.face < 0);
     else drawSprite(g, SPR[d.spr], a.x - cam.x, a.y - cam.y, d.size);
   }
+
+  // ---- the paralegal ----
+  // Drawn before the player so she reads as standing behind you, which is
+  // where she is and roughly what she is for.
+  if (ally) ally.rig.draw(g, SPR.paralegal, ally.x - cam.x, ally.y - cam.y, 34, ally.face < 0);
 
   // ---- player ----
   player.rig.draw(g, SPR[player.spr], player.x - cam.x, player.y - cam.y, 36, player.face.x < 0);

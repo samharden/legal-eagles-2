@@ -39,6 +39,7 @@ export const G = {
   carried: [],
   prompt: null,
   complaint: null,      // the Bar Complaint, once you have earned one
+  ally: null,           // the paralegal, if she is on the payroll
   dark: false,          // standing on an unlit floor
 };
 
@@ -189,14 +190,33 @@ hoursHooks.onPressure = step => {
 };
 
 const RENT = 1100, RENT_EVERY = 7;
+const ALLY_SPD = 190;
+// Her reach must comfortably EXCEED the distance she stands off at, or the one
+// thing she is paid to do — hit whatever has closed on you — is the one thing
+// she cannot reach. Station 44, reach 44 + the target's radius.
+const ALLY_STATION = 44, ALLY_REACH = 44;
 
 function scheduleRent() {
   for (let i = 1; i <= 12; i++)
     schedule({ day: 1 + i * RENT_EVERY, kind: 'rent', label: `Rent — Suite 2B ($${RENT})` });
 }
 
+/**
+ * Payroll is scheduled the day somebody is hired, not at the start of the game,
+ * so the docket never carries a line for an obligation you do not have. A week's
+ * wages, a week from now, and every week after that until there is nobody left
+ * to pay — which lands it off the rent's rhythm by however many days you took to
+ * decide, and that is the point: two squeezes a week, on days you chose.
+ */
+function schedulePayroll() {
+  if (allEntries().some(e => e.ref === 'payroll')) return;
+  for (let i = 1; i <= 14; i++)
+    schedule({ day: Cal.day + i * 7, ref: 'payroll', kind: 'payroll', label: 'Payroll — Suite 2B' });
+}
+
 clockHooks.onDue = e => {
   if (e.kind === 'rent') rentDay();
+  else if (e.kind === 'payroll') payrollDay();
   else if (e.kind === 'deadline') {
     // the entry fires ON the due date; the matter has this day to be resolved.
     // The check happens at the END of the day, in endDay() below.
@@ -227,6 +247,7 @@ function beginPath(layerId, path) {
   G.player = makePlayer(s.x, s.y);
   G.carried = [];
   G.complaint = null;
+  G.ally = null;
   resetClock();
   Practice.resetPractice();
   Practice.seedRep(REGIONS.map(r => r.id));
@@ -281,6 +302,11 @@ function continueGame() {
   G.world.update(G.player.x, G.player.y);
   camFollow(G.player.x, G.player.y);
   if (d.complaint) spawnComplaint();
+  // both are derived from the practice, never serialized separately — a save
+  // that disagreed with itself about who is on the payroll would be the worst
+  // kind of bug to reproduce
+  applyUpgrades();
+  syncAlly();
   syncHud();
   say(`Representation resumed. ${dateString()}.`, 4);
 }
@@ -366,6 +392,7 @@ function useProp(pr) {
   // stairs up to your office, the lighting panel. It must never be marked spent.
   if (!pr.repeat) { pr.used = true; G.world.markUsed(pr.region, pr.id); }
   if (pr.lights) { openPanel(pr); return; }
+  if (pr.office) { openOffice(pr); return; }
   say(pr.text, 9);
   SFX.door();
   Quests.questEvent('use', { prop: pr.id });
@@ -441,13 +468,23 @@ function endDay(forced) {
   for (const q of Quests.openQuests()) {
     if (!q.due) continue;
     const entry = allEntries().find(e => e.ref === q.id && e.kind === 'deadline');
-    if (entry && entry.day <= Cal.day) {
-      unschedule(q.id);
-      Quests.failQuest(q.id, 'the date passed');
+    if (!entry || entry.day > Cal.day) continue;
+    // A receptionist is somebody who was at a phone while you were not. She gets
+    // one day back per matter and no more — the grace is a person, not a rule,
+    // and a person can only call the same clerk about the same file once.
+    if (Practice.hasStaff('receptionist') && !entry.graced) {
+      entry.graced = true;
+      entry.day = Cal.day + 1;
+      showBanner('ONE DAY OF GRACE', q.name.toUpperCase());
+      say(`Perla got somebody on the phone about ${q.name} at ten to four. You have tomorrow. You do not have the day after.`, 9);
+      continue;
     }
+    unschedule(q.id);
+    Quests.failQuest(q.id, 'the date passed');
   }
 
   advanceDay();
+  if (Practice.hasStaff('associate')) associateWorks();
 
   // Evicted, you can still end the day — blocking it would soft-lock the game,
   // since ending days is how you get to the work that pays the arrears. You
@@ -463,6 +500,23 @@ function endDay(forced) {
   SFX.district();
   syncHud();
   refreshCasefile();
+}
+
+/**
+ * An associate is a second case in flight. Overnight he establishes one thing
+ * on one open matter — the oldest hole on the earliest matter, so he is
+ * predictable and you can plan around him, which is what having staff is for.
+ * He never resolves anything. Deciding is still the job.
+ */
+function associateWorks() {
+  for (const q of Quests.openQuests()) {
+    if (q.layer && q.layer !== G.layer) continue;
+    const holes = Facts.openFacts(q.id);
+    if (!holes.length) continue;
+    Facts.learn(holes[0].id);
+    say(`A note on the folding table in handwriting that is not yours: Desmond sat with ${q.name} until two. — ${holes[0].text}`, 10);
+    return;
+  }
 }
 
 /** Rent day. The Wok bills weekly, in cash, which is its own answer. */
@@ -501,6 +555,159 @@ function rentDay() {
   };
   openDialogue(T);
 }
+
+/**
+ * Payroll. The rent man at least comes to the bottom of the stairs; these three
+ * are upstairs, in the room, and they have arranged their week around this.
+ */
+function payrollDay() {
+  const owed = Practice.payrollTotal();
+  if (!owed) return;
+  const who = Practice.Firm.staff.map(id => Practice.STAFF[id].name).join(', ');
+  const T = { who: 'PAYROLL', spr: 'sign', start: 'a', nodes: {} };
+  T.nodes.a = {
+    text: `Friday, near enough. ${who} — $${owed} between them, and not one of them has asked you about it, which is worse than if they had.\n\nOperating account: $${Practice.Books.operating}.   Trust: $${Practice.Books.trust}.`,
+    choices: () => [
+      { label: `Pay the $${owed}.`,
+        if: () => Practice.canPay(owed),
+        showLocked: true, lockedNote: 'not enough in operating',
+        fx: () => Practice.expense(owed, 'Payroll — Suite 2B', Cal.day),
+        to: 'paid' },
+      { tag: 'TRUST', label: `Make payroll out of the trust account.`,
+        if: () => Practice.Books.trust > 0, to: 'trustWarn' },
+      { label: 'Tell them it will be Monday.', to: 'miss' },
+    ],
+  };
+  T.nodes.paid = { text: 'Nobody says thank you and nobody should. It is a wage.' };
+  T.nodes.trustWarn = {
+    text: 'The same button as last time, and it is easier this time, and it will be easier again. The money in that account belongs to people who are not in this room and cannot see it going.',
+    choices: [
+      { label: 'Do it.', fx: () => doCommingle(owed), to: 'didIt' },
+      { label: 'Don\'t. Tell them Monday.', to: 'miss' },
+    ],
+  };
+  T.nodes.didIt = { text: 'Payroll is made. Three people go home able to make their own rent, on money that was never yours to make it with.' };
+  T.nodes.miss = {
+    text: 'They take it well, which is how you know how many times it has happened to them before. By the end of the week the desks are clear and the redweld is gone off the second chair.',
+    fx: () => {
+      const gone = Practice.loseStaff(Cal.day);
+      CASE_HOOKS.rep('strand', -2);
+      CASE_HOOKS.rep('courthouse', -1);
+      say(`${gone.map(s => s.name).join(' and ')} did not come back Monday.`, 9);
+    },
+  };
+  openDialogue(T);
+}
+
+/* ------------------------------ the practice ---------------------------- */
+
+/**
+ * Suite 2B. The only room in the game that is yours, so it is the only place
+ * that sells you anything — the day ends here, the hiring happens here, and the
+ * office gets better here, in that order of how often you will use it.
+ */
+function openOffice(pr) {
+  const T = { who: 'SUITE 2B', spr: 'sign', start: 'a', nodes: {} };
+
+  // Both of these are FUNCTIONS on purpose. You can buy the second chair and
+  // then hire somebody without leaving the room, so every gate and every line
+  // in here has to read live state — the dialogue engine re-evaluates `text`
+  // and `choices` on each render specifically so this works. Hoisting either
+  // one into a const at tree-build time silently freezes the room.
+  T.nodes.a = {
+    text: () => pr.text + (Practice.Firm.staff.length
+      ? `\n\nOn the payroll: ${Practice.Firm.staff.map(id => `${Practice.STAFF[id].name} (${Practice.STAFF[id].role}, $${Practice.STAFF[id].wage}/wk)`).join('; ')}.`
+      : ''),
+    choices: () => [
+      { label: 'Put the day down. Sleep.', fx: () => endDay(), to: null },
+      { tag: 'HIRE', label: 'Take somebody on.',
+        if: () => Practice.hasUpgrade('chair'), showLocked: true,
+        lockedNote: 'there is one chair, and you are in it',
+        to: 'hire' },
+      { label: 'The office itself.', to: 'office' },
+      { label: 'Back down the stairs.', to: null },
+    ],
+  };
+
+  T.nodes.hire = {
+    text: 'Three names, and all three of them are somebody\'s whole month.',
+    choices: () => {
+      const out = Object.values(Practice.STAFF).map(s => ({
+        label: `${s.name} — ${s.role}. $${s.hire} now, $${s.wage} a week. ${s.effect}`,
+        if: () => !Practice.hasStaff(s.id) && Practice.canPay(s.hire),
+        showLocked: true,
+        lockedNote: Practice.hasStaff(s.id) ? 'already on the payroll' : `you do not have $${s.hire}`,
+        fx: () => { if (Practice.hire(s.id, Cal.day)) SFX.send(); },
+        to: 'hire',
+      }));
+      out.push({ label: 'Not this week.', to: 'a' });
+      return out;
+    },
+  };
+
+  T.nodes.office = {
+    text: 'The room, itemised. None of it is necessary. All of it is the difference between an office and a place you happen to be.',
+    choices: () => {
+      const out = Object.values(Practice.UPGRADES).map(u => ({
+        label: `${u.name} — $${u.cost}. ${u.effect}`,
+        if: () => !Practice.hasUpgrade(u.id) && Practice.canPay(u.cost),
+        showLocked: true,
+        lockedNote: Practice.hasUpgrade(u.id) ? 'done' : `you do not have $${u.cost}`,
+        fx: () => { if (Practice.buyUpgrade(u.id, Cal.day)) SFX.send(); },
+        to: 'office',
+      }));
+      out.push({ label: 'Leave it as it is.', to: 'a' });
+      return out;
+    },
+  };
+  openDialogue(T);
+}
+
+/** The upgrades that change a number rather than firing once. */
+function applyUpgrades() {
+  if (!G.player) return;
+  const want = 100 + (Practice.hasUpgrade('bed') ? 12 : 0);
+  if (G.player.maxhp === want) return;
+  const gained = want - G.player.maxhp;
+  G.player.maxhp = want;
+  if (gained > 0) G.player.hp += gained;
+  G.player.hp = Math.min(G.player.hp, want);
+}
+
+/** The paralegal exists in the world or she does not. Derived, never saved. */
+function syncAlly() {
+  const want = Practice.hasStaff('paralegal') && G.player;
+  if (want && !G.ally) {
+    const p = G.player;
+    G.ally = { x: p.x - 44, y: p.y + 28, rig: new Rig(), cd: 0, face: 1 };
+    G.ally.rig.spawn();
+  } else if (!want) G.ally = null;
+}
+
+Practice.practiceHooks.onHire = s => {
+  schedulePayroll();
+  syncAlly();
+  showBanner('ENGAGED', `${s.name.toUpperCase()} — ${s.role.toUpperCase()}`);
+  say(`${s.name} starts Monday and will want paying every week after that, which is the part nobody puts in the fantasy.`, 8);
+  syncHud(); refreshCasefile();
+};
+Practice.practiceHooks.onLoseStaff = gone => {
+  unschedule('payroll');
+  syncAlly();
+  showBanner('PAYROLL NOT MADE', gone.map(s => s.name.toUpperCase()).join(' · '));
+  G.fx.addTrauma(0.5); SFX.del();
+  syncHud(); refreshCasefile();
+};
+Practice.practiceHooks.onUpgrade = u => {
+  showBanner('SUITE 2B', u.name.toUpperCase());
+  say(u.blurb, 8);
+  if (u.id === 'door') {
+    for (const r of REGIONS) Practice.bumpRep(r.id, 2);
+    say('The vinyl went on at eight in the morning and by lunchtime three people had used your name without being told it.', 8);
+  }
+  applyUpgrades();
+  syncHud(); refreshCasefile();
+};
 
 function doCommingle(amount) {
   const n = Practice.commingle(amount, 'Rent — Suite 2B', Cal.day);
@@ -577,6 +784,24 @@ function clearComplaint() {
   say('The trust account is whole. The grievance closes without a finding, which is the best result there is.', 8);
 }
 
+/**
+ * One actor, off the board. Everything that follows from a thing going down
+ * lives here and nowhere else, because there are two callers now — you and the
+ * paralegal — and a quest stage that only counted YOUR kills would be a bug
+ * nobody would find until the district that needs a kill stage.
+ */
+function downActor(a, d) {
+  G.fx.stamp(a.x, a.y - 10, d.harmless ? 'EXCUSED' : 'DISMISSED', d.harmless ? '#9be05e' : C.red);
+  SFX.die();
+  G.world.killActor(a);              // <- the delta: this one stays gone
+  Quests.questEvent('kill', { enemy: a.type });
+  // The Unbilled are your own hours, itemized. Putting one down is the only way
+  // to get time back rather than earn it, and it is why the dark has anything
+  // in it worth walking into.
+  if (d.hours && HAS_HOURS())
+    bill(d.hours, `${fmtHours(d.hours)} — time recovered (previously written off)`);
+}
+
 /* ------------------------------- update -------------------------------- */
 function updatePlay(dt) {
   const p = G.player, world = G.world, fx = G.fx;
@@ -632,6 +857,11 @@ function updatePlay(dt) {
     if (p.hp <= 0) collapse();
   }
 
+  // --- actor hp, filled from the table the first frame we see one ---
+  // The region builder cannot know what a `server` is worth, so this is where
+  // an actor stops being coordinates and becomes a thing with a health bar.
+  for (const a of world.allActors()) if (a.hp == null) a.hp = actorDef(a.type).hp;
+
   // --- strike ---
   if (Input.pressed('strike') && p.meleeCd <= 0) {
     p.meleeCd = 0.36; p.rig.strike();
@@ -645,17 +875,7 @@ function updatePlay(dt) {
         moveEntity(world, a, p.face.x * 240 * 0.06, p.face.y * 240 * 0.06, d.r);
         fx.number(a.x, a.y - d.r - 6, 18, '#fff');
         fx.spark(a.x, a.y, 3);
-        if (a.hp <= 0) {
-          fx.stamp(a.x, a.y - 10, d.harmless ? 'EXCUSED' : 'DISMISSED', d.harmless ? '#9be05e' : C.red);
-          SFX.die();
-          world.killActor(a);          // <- the delta: this one stays gone
-          Quests.questEvent('kill', { enemy: a.type });
-          // The Unbilled are your own hours, itemized. Putting one down is the
-          // only way to get time back rather than earn it, and it is why the
-          // dark has anything in it worth walking into.
-          if (d.hours && HAS_HOURS())
-            bill(d.hours, `${fmtHours(d.hours)} — time recovered (previously written off)`);
-        }
+        if (a.hp <= 0) downActor(a, d);
       }
     }
     SFX.melee();
@@ -715,6 +935,40 @@ function updatePlay(dt) {
       fx.bark(a.x, a.y - d.r - 20, d.barks[(Math.random() * d.barks.length) | 0], '#bcb0d4', 2.6);
     }
     a.rig.step(dt, { moving, speed: spd, faceX: a.face || 0 });
+  }
+
+  // --- the paralegal ---
+  // She keeps station off your shoulder and swings at whatever is on you. She
+  // cannot be hurt and does not need managing — a companion you have to babysit
+  // would be a worse deal than the $420 a week, and the $420 a week is the
+  // mechanic. If geometry loses her, she catches up off-screen, because a
+  // paralegal stuck behind a bollard is a bug and not a characterisation.
+  if (G.ally) {
+    const al = G.ally;
+    const ax = p.x - al.x, ay = p.y - al.y, am = Math.hypot(ax, ay) || 1;
+    let alMoving = false;
+    if (am > 560) { al.x = p.x - 40; al.y = p.y + 26; }
+    else if (am > ALLY_STATION) {
+      moveEntity(world, al, (ax / am) * ALLY_SPD * dt, (ay / am) * ALLY_SPD * dt, 13);
+      al.face = ax; alMoving = true;
+    }
+    al.cd -= dt;
+    if (al.cd <= 0) {
+      for (const t of [...world.allActors()]) {
+        const td = actorDef(t.type);
+        if (td.harmless) continue;
+        if (Math.hypot(t.x - al.x, t.y - al.y) > td.r + ALLY_REACH) continue;
+        t.hp -= 14; al.cd = 1.05;
+        al.rig.strike();
+        (t.rig || (t.rig = new Rig())).hurt(Math.sign(t.x - al.x), Math.sign(t.y - al.y));
+        fx.number(t.x, t.y - td.r - 6, 14, '#c9a2e0');
+        fx.spark(t.x, t.y, 2);
+        SFX.melee();
+        if (t.hp <= 0) downActor(t, td);
+        break;
+      }
+    }
+    al.rig.step(dt, { moving: alMoving, speed: ALLY_SPD, faceX: al.face || 0 });
   }
 
   // --- the Bar Complaint ---
@@ -888,18 +1142,18 @@ function step(now) {
     // the world holds still behind the conversation, but keeps drawing
     G.fx.step(dt);
     G.player.rig.step(dt, { moving: false });
-    drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint);
+    drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint, G.ally);
     stepDialogueInput();
     musicTick(layerOf(G.layer).music);
   } else if (G.state === 'play') {
     if (Casefile.open) {
       // the casefile is a reading screen; freeze play under it
-      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint);
+      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint, G.ally);
       if (Input.pressed('casefile') || Input.pressed('cancel')) { Casefile.hide(); Input.clearHeld(); }
     } else {
       if (G.fx.hitStop > 0) G.fx.hitStop -= dt;
       else updatePlay(dt);
-      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint);
+      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint, G.ally);
       if (G.prompt) drawPrompt(G.prompt);
       drawBanner();
       if (Input.pressed('casefile')) { Casefile.show(G.layer, HAS_CLOCK()); Input.clearHeld(); }

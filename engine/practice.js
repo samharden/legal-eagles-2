@@ -29,9 +29,101 @@ export function seedRep(ids) {
   for (const id of ids) if (!(id in Rep)) Rep[id] = 0;
 }
 
-export const Office = { held: true };
+export const Office = { held: true, upgrades: [] };
 
-export const practiceHooks = { onPost: null, onCommingle: null, onEvict: null };
+/* ================================ THE FIRM =============================== */
+// Staff and office upgrades — the growth half of DESIGN §3, and the reason
+// this file is called `practice` and not `wallet`.
+//
+// The important thing about hiring is NOT the hire fee. It is that a person is
+// a WEEKLY EXPENSE, forever, arriving on a different day from the rent so that
+// a solo practice gets squeezed twice a week instead of once. You buy capability
+// with a lump sum and pay for it with a standing obligation, which is exactly
+// the trade a real practice makes and exactly the pressure that makes the trust
+// account look like an account rather than a rule.
+//
+// Miss a payroll and everybody goes. Not one of them — all of them. A firm that
+// cannot make payroll does not get to keep half its people, and the street finds
+// out the same afternoon.
+
+export const STAFF = {
+  receptionist: {
+    id: 'receptionist', name: 'Perla Ocampo', role: 'Receptionist',
+    hire: 500, wage: 280,
+    blurb: 'Answers the phone you are never at. Knows every clerk in the building by their first name and which of them means it.',
+    effect: 'A lapsed deadline gets one day of grace — she gets somebody on the phone before the file closes. Once per matter.',
+  },
+  paralegal: {
+    id: 'paralegal', name: 'Renata Vosloo', role: 'Paralegal',
+    hire: 900, wage: 420,
+    blurb: 'Fifteen years of other people\'s filings. Carries a redweld the way other people carry a weapon, which is a coincidence.',
+    effect: 'Walks with you and does not stand there while something is happening to you.',
+  },
+  associate: {
+    id: 'associate', name: 'Desmond Achebe', role: 'Associate',
+    hire: 1600, wage: 900,
+    blurb: 'Two years out, one year in a job he could describe to his parents. Wants the work. Will take the work.',
+    effect: 'Works a second matter overnight — you wake up to a fact you did not go and get.',
+  },
+};
+
+export const UPGRADES = {
+  bed: {
+    id: 'bed', name: 'A bed, and the cot goes out', cost: 650,
+    blurb: 'You have been calling it a cot to make it sound temporary. A bed is an admission and also a night\'s sleep.',
+    effect: '+12 energy, permanently.',
+  },
+  chair: {
+    id: 'chair', name: 'A second chair and a phone that rings', cost: 900,
+    blurb: 'One chair is an office where you work. Two chairs is an office where somebody else can be.',
+    effect: 'You cannot hire anybody until there is somewhere to put them.',
+  },
+  door: {
+    id: 'door', name: 'Your name on the door, in vinyl', cost: 1400,
+    blurb: 'Not the masking tape. The tape has been on that buzzer since the first week and everybody on this street has watched it curl.',
+    effect: '+2 standing in every district, once and for good.',
+  },
+};
+
+export const Firm = { staff: [] };
+
+export const hasStaff = id => Firm.staff.includes(id);
+export const hasUpgrade = id => Office.upgrades.includes(id);
+export function payrollTotal() { return Firm.staff.reduce((n, id) => n + (STAFF[id] ? STAFF[id].wage : 0), 0); }
+
+/** Take somebody on. Costs the hire fee now and the wage every week after. */
+export function hire(id, day = 0) {
+  const s = STAFF[id];
+  if (!s || hasStaff(id) || !canPay(s.hire)) return false;
+  expense(s.hire, `${s.role} — ${s.name}, engaged`, day);
+  Firm.staff.push(id);
+  if (practiceHooks.onHire) practiceHooks.onHire(s);
+  return true;
+}
+
+/** Everybody leaves. The only caller is a payroll you did not make. */
+export function loseStaff(day = 0) {
+  if (!Firm.staff.length) return [];
+  const gone = Firm.staff.map(id => STAFF[id]);
+  Firm.staff = [];
+  Books.entries.push({ day, amount: 0, memo: 'PAYROLL NOT MADE — staff released', account: 'operating' });
+  if (practiceHooks.onLoseStaff) practiceHooks.onLoseStaff(gone);
+  return gone;
+}
+
+export function buyUpgrade(id, day = 0) {
+  const u = UPGRADES[id];
+  if (!u || hasUpgrade(id) || !canPay(u.cost)) return false;
+  expense(u.cost, `Suite 2B — ${u.name}`, day);
+  Office.upgrades.push(id);
+  if (practiceHooks.onUpgrade) practiceHooks.onUpgrade(u);
+  return true;
+}
+
+export const practiceHooks = {
+  onPost: null, onCommingle: null, onEvict: null,
+  onHire: null, onLoseStaff: null, onUpgrade: null,
+};
 
 const pclamp = (v, a, b) => v < a ? a : v > b ? b : v;
 
@@ -111,16 +203,24 @@ export function repLabel(n) {
 }
 
 export function savePractice() {
-  return { books: { ...Books, entries: Books.entries.slice(-120) }, rep: { ...Rep }, office: { ...Office } };
+  return {
+    books: { ...Books, entries: Books.entries.slice(-120) },
+    rep: { ...Rep },
+    office: { held: Office.held, upgrades: [...Office.upgrades] },
+    firm: { staff: [...Firm.staff] },
+  };
 }
 export function loadPractice(o) {
   Object.assign(Books, { operating: 0, trust: 0, entries: [], commingled: 0, arrears: 0 }, (o && o.books) || {});
   for (const k in Rep) delete Rep[k];
   Object.assign(Rep, (o && o.rep) || {});
-  Object.assign(Office, { held: true }, (o && o.office) || {});
+  Office.held = (o && o.office) ? o.office.held !== false : true;
+  Office.upgrades = (o && o.office && o.office.upgrades) ? [...o.office.upgrades] : [];
+  Firm.staff = (o && o.firm && o.firm.staff) ? [...o.firm.staff] : [];
 }
 export function resetPractice() {
   Books.operating = 0; Books.trust = 0; Books.entries = []; Books.commingled = 0; Books.arrears = 0;
   for (const k in Rep) delete Rep[k];
-  Office.held = true;
+  Office.held = true; Office.upgrades = [];
+  Firm.staff = [];
 }

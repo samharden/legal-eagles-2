@@ -43,6 +43,15 @@ The two cases:
 - **Reputation** per district, moved by how you close matters — and by how you lose them.
 - **Collapse instead of death.** Energy zero is not a game-over screen. You lose the rest of the day, which is worse, because the docket does not care why you were unconscious.
 - **The Casefile gained tabs** — MATTERS · DOCKET · ACCOUNTS, including a real double-entry ledger.
+- **The practice** — three hires and three office upgrades, bought at Suite 2B. The hire fee is not the mechanic; **payroll** is. A person is a standing weekly obligation scheduled from the day you take them on, so it lands off the rent's rhythm and the week has two squeezes in it instead of one. Miss one and *everybody* goes — a firm that cannot make payroll does not get to keep half its people.
+
+  | | Costs | Does |
+  |---|---|---|
+  | **Perla Ocampo**, receptionist | $500 + $280/wk | A lapsed deadline gets one day of grace. Once per matter — the grace is a person, not a rule |
+  | **Renata Vosloo**, paralegal | $900 + $420/wk | Walks with you and swings at whatever has closed on you |
+  | **Desmond Achebe**, associate | $1,600 + $900/wk | Establishes one fact overnight on an open matter. Never resolves anything — deciding is still the job |
+
+  Office upgrades: a bed (+12 energy), a second chair (you cannot hire anybody until there is somewhere to put them), and your name on the door in vinyl (+2 standing everywhere, once).
 
 **Phase 3a** closed the one place the two paths weren't at parity: THE FLOOR now has its own resource, and it is the structural inverse of THE STREET's.
 
@@ -77,7 +86,7 @@ Unbuilt space is solid, so a district whose neighbour does not exist yet simply 
 
 Reputation is no longer two hard-coded districts — `Practice.seedRep()` takes the city's own region list, so adding a district is a change to `game/city.js` and nowhere else.
 
-Not built yet: staff and office upgrades, combat beyond a briefcase swing, the other three districts, the full enemy roster and bosses, the crossover. See DESIGN.md §8.
+Not built yet: combat beyond a briefcase swing, the other three districts, the full enemy roster and bosses, LE1 save import, the crossover. See DESIGN.md §8.
 
 ---
 

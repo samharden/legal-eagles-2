@@ -278,6 +278,27 @@ SPR.yardman = makeSprite([
   ".....kk..kk.....",
 ], { k: '#161520', s: '#b9b2a4', j: '#31382c', o: '#4d5546', i: '#d8d2c0' });
 
+// Renata Vosloo, paralegal. Fifteen years of other people's filings, and a
+// redweld she carries the way other people carry a weapon.
+SPR.paralegal = makeSprite([
+  "................",
+  "......bbbb......",
+  ".....bbbbbb.....",
+  "....bbffffbb....",
+  "....bfkffkfb....",
+  "....bffffffb....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....tttttttt....",
+  "...rrtttttttt...",
+  "...rrttttttttt..",
+  "...rr.tttttt.t..",
+  "....tttttttt....",
+  ".....tt..tt.....",
+  ".....tt..tt.....",
+  ".....kk..kk.....",
+], { b: '#3a2a3e', f: '#c99a6e', k: K, t: '#3f4a5e', r: '#a8562c' });
+
 // ---- props ----------------------------------------------------------------
 SPR.dossier = makeSprite([
   "................",

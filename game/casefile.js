@@ -17,7 +17,7 @@
 import { allQuests, isDone, isFailed, started, currentStage, outcomeOf, qstate } from '../engine/quests.js';
 import { knownFacts, openFacts, factCount } from '../engine/facts.js';
 import { Cal, dateString, relative, allEntries } from '../engine/clock.js';
-import { Books, Rep, Office, repLabel } from '../engine/practice.js';
+import { Books, Rep, Office, repLabel, Firm, STAFF, UPGRADES, payrollTotal, hasUpgrade } from '../engine/practice.js';
 import { Hours, fmtHours, isLit, pressureStep } from '../engine/hours.js';
 import { REGIONS } from './city.js';
 
@@ -225,6 +225,25 @@ function renderAccounts() {
   }
   if (!Office.held) html += `<p class="cfWarn">Evicted from Suite 2B. There is nowhere to end the day.</p>`;
   else if (Books.arrears) html += `<p class="cfWarn">Rent in arrears: ${Books.arrears} week${Books.arrears > 1 ? 's' : ''}. Two and the lock changes.</p>`;
+
+  // The firm. Wages are shown as a weekly number rather than a headcount,
+  // because the headcount is not the thing that will get you — the standing
+  // obligation is, and it should be legible next to the balance it comes out of.
+  const wages = payrollTotal();
+  html += `<h4>THE FIRM</h4>`;
+  if (Firm.staff.length) {
+    html += `<ul class="cfFacts">`;
+    for (const id of Firm.staff) {
+      const s = STAFF[id];
+      html += `<li>${s.name} — <b>${s.role}</b> <span class="cfDim">$${s.wage}/wk</span><br><span class="cfDim">${s.effect}</span></li>`;
+    }
+    html += `</ul><p class="cfFoot">Payroll runs $${wages} a week, on top of $1,100 rent. That is $${wages + 1100} a week before you have eaten.</p>`;
+  } else {
+    html += `<p class="cfFoot">Nobody but you. Nothing to make on a Friday, and nobody to answer the phone on a Tuesday.</p>`;
+  }
+
+  const bought = Object.values(UPGRADES).filter(u => hasUpgrade(u.id));
+  if (bought.length) html += `<p class="cfFoot">Suite 2B: ${bought.map(u => u.name).join(' · ')}.</p>`;
 
   html += `<h4>STANDING</h4><ul class="cfFacts">`;
   for (const r of REGIONS) {

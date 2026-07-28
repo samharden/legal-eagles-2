@@ -79,7 +79,11 @@ export class World {
       .map(p => ({ ...p, region: id, x: gx(p.tx), y: gy(p.ty), bob: Math.random() * 6 }));
     const actors = (L.actors || [])
       .filter(a => !d.killed.has(a.id))
-      .map(a => ({ ...a, region: id, x: gx(a.tx), y: gy(a.ty), hp: a.hp || 20, rig: null }));
+      // hp is left UNSET unless the region overrides it. The engine has no idea
+      // what a `server` is worth; the host fills it from the actor table on the
+      // first frame it sees one. Defaulting it here quietly made every enemy in
+      // the game 20hp and every number in game/actors.js dead code.
+      .map(a => ({ ...a, region: id, x: gx(a.tx), y: gy(a.ty), hp: a.hp ?? null, rig: null }));
     // NPCs are not actors: they never fight, never die, and are the only things
     // in the world that can hand you a fact.
     const npcs = (L.npcs || []).map(n => ({ ...n, region: id, x: gx(n.tx), y: gy(n.ty), rig: null }));
