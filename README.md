@@ -15,7 +15,7 @@ Design doc: [DESIGN.md](DESIGN.md).
 
 ---
 
-## Status: Phase 3 (content) — complete. Six districts, twelve matters a path, two bosses.
+## Status: Phase 4 (crossover) — complete. The layers bleed, you can walk between them, and there are seven endings.
 
 **Phase 0** built the engine: the opening reel and the **SEND / DELETE** fork; a **seamless two-region city** (Courthouse Square gx 0–39, The Strand gx 40–75) on one global tile grid, crossed on foot with no loading break; **region streaming with persistent deltas**; **two layers over one geometry**; movement, dash, melee, pickups; one input layer over keyboard/mouse/touch/gamepad; ASCII tilemaps and the `?edit=1` editor; and a bundler emitting a self-contained `dist/index.html`.
 
@@ -160,7 +160,49 @@ Two bosses, both gated by `needs` so they are not scenery — neither is on the 
 - **THE NON-COMPETE** (street) — DESIGN §3's finale opposition, a contract-golem cousin to LE1's Founding Agreement. The argument that beats it is posted on DC&H's own front door, and Hargrove hands it to you from the other table.
 - **THE FIRM** (floor) — what has been running the copier in Sublevel C. Not a person and not pretending to be: the going concern, with four hundred people's work in it.
 
-Not built yet: Phase 4 (layer bleed, cross-layer traversal, *In re Yourself*, the seven endings) and Phase 5 (audio, cinematics, mobile/gamepad parity, NG+). See DESIGN.md §8.
+---
+
+**Phase 4** is the payoff the one-city-two-layers structure was built for, and it is one number.
+
+The whole of Phase 3 depended on the two layers being sealed from each other — separate deltas, separate dockets, `layerOk` keeping a floor matter shut while you are walking around in daylight. So the crossover could not be a second world model. It is a dial on the one that already exists:
+
+|  | | |
+|---|---|---|
+| **0** | SEALED | the game as Phase 3 shipped it |
+| **1** | SEEPAGE | the other layer's colour is in this one, and the things that stand still over there are faintly here |
+| **2** | THE SEAM | props authored `bleed: 2` come into being — the door that shouldn't exist, the window with traffic |
+| **3** | TRAVERSAL | the crossings open |
+
+The level is **derived from matters closed**, never stored as a story flag, so a save cannot disagree with the docket about how far in you are. The gates are the same two buildings on both paths — the Tower (`retrieval` / `reviews`), then the Annex (`sealed` / `sublevel`), then your own finale (`withdrawal` / `thefirm`) — so a player on either path meets the bleed in the same place at the same depth.
+
+- **The level is global; the intensity is local.** Every district holds a piece of evidence on each layer, and reading it *witnesses* that district, which roughly triples how far through it renders. The bleed is something you find, not something done to you on a schedule — and a district you finished with in Phase 3 becomes worth walking back into.
+- **Rendering is one draw with different constants.** Palette, solid edge, page colour, tint, motes and vignette all lerp along the district's own number; the tile scan is region-first so a dressing is resolved when the scan crosses a district line rather than once per tile. The two moods are drawn over each other at complementary opacity rather than averaged — two atmospheres in one room is the effect, and an average would be a third atmosphere belonging to neither.
+- **Ghosts.** Where the other layer's furniture stands, drawn under everything real and never interactive. The vending machine from DESIGN §2, still there, unplugged.
+- **Three crossings**, each one physical thing seen from either side: the door four feet left of the courthouse steps in eleven feet of granite; the fire door in the plaza retaining wall, with the push bar on the side people were getting out from; the doorway at the end of run L with the brass threshold worn through in the middle. They exist a level before they open, so you find them and cannot use them.
+
+> Crossing over keeps your position, energy, what you are carrying, the grievance and the paralegal. The world does not come with you. Everything else that had to be true was already true: deltas are keyed by layer, `layerOk` opens the other docket no further than its prereqs allow, and `HAS_CLOCK` / `HAS_HOURS` are one-line predicates on `G.layer` — so the day stops and the timesheet starts without a single system being told about it. A street player who crosses finds exactly one matter open over there, because every floor matter after *In re: The Unsent* has a prereq. One letter, in one drawer, on a floor that is dark.
+
+**IN RE YOURSELF** is the only quest in the game with no `layer`. It opens on your first crossing — not on the bleed level, because standing next to an open door is not the same as having gone through one.
+
+**Hon. M. Bane** has been named in five places since Phase 1 and never appeared. He is on the steps now, on both layers at the same tile, because Department 13 is one room and has been in session throughout. **THE PARTY OF THE SECOND PART** fights with *your* practice area, the way the Past Selves do, and is deliberately not `scales` — pressure is a floor-only quantity and this is the one fight that has to be the same fight from both sides of the door.
+
+All seven endings are offered to everybody and gated on what you **did**:
+
+| | Wants |
+|---|---|
+| **WIN** | *In re Withdrawal* behind you, and not lost |
+| **SETTLE** | nothing. It is always there |
+| **COUNTERSUE** | the internal billing summary you kept at *Retrieval* |
+| **GO BACK** | a room somebody offered you — Grabbit's folder, or DC&H's release |
+| **WAKE** | nothing. It is always there |
+| **FILE** | to know whose hand the letter is in |
+| **DISSOLVE** | the going concern already down |
+
+Which list you can reach is never decided by the key you pressed in the reel; by the time that screen runs you have been through a door. **SETTLE** and **WAKE** are the two ungated ones, one per list, and both of them are surrender.
+
+The ending reel is the opening reel's own presentation — same typewriter, same slate, same stamp. Its last scene is not written: it is read off the save. DESIGN §5 says which of you is real depends on what you did with the trust account, the letters and the four hundred who did not leave, so those are what the game says back to you.
+
+Not built yet: Phase 5 (audio, LEAnim cinematics, mobile/gamepad parity, NG+, run summary). See DESIGN.md §8.
 
 ---
 
@@ -183,6 +225,10 @@ Useful URLs:
 | `/?touch=1` | Force the mobile layout on desktop |
 
 Dev keys (`?dev=1` only): `P` swap layer · `O` save · `U` load.
+
+`P` is a raw layer swap and always has been — it is not the crossover. The real
+one is `window.LE2.Bld`: `setBleed(3)` opens the crossings, `witness('strand')`
+marks a district found, and `cross()` walks you through from wherever you are.
 
 ## Build the single file
 
@@ -216,11 +262,12 @@ Writes `dist/index.html` — one file, no external references, double-clickable 
 
 ```
 engine/     reusable — stage, sprites, anim (LEAnim), audio, input,
-            tilemap, region streaming, save, facts, quests, dialogue
+            tilemap, region streaming, save, facts, quests, dialogue,
+            clock, practice, hours, bleed
 game/       content — city regions, layers, actors, cases, casefile,
-            render, intro, main
+            render, intro, ending, main
 dev/        editor.js — the ?edit=1 map painter
-tools/      serve.mjs (dev server), build.mjs (bundler)
+tools/      serve.mjs (dev server), check.mjs (city validation), build.mjs
 ```
 
 `engine/` never imports `game/`. Where the engine needs to ask the game a
@@ -259,7 +306,27 @@ region rather than naming a district, so this stays true at six districts.
 **A quest with a `layer` only exists on that layer.** THE STREET and THE FLOOR
 share one quest registry, so `layer: 'floor'` keeps a floor matter from opening
 while you are walking around in daylight. Omit `layer` only for something that
-genuinely belongs to both.
+genuinely belongs to both — *In re Yourself* is the one thing that does, and it
+should stay the one thing.
+
+**Anything with a `bleed: n` does not exist below bleed level n.** The gate runs
+at BUILD time (`World.gate`), so whatever changes it must be followed by
+`world.rebuild()` — otherwise the new content appears the next time you happen
+to walk far enough away to evict the district, which is nowhere. Reading a
+`bleed` prop witnesses its district; that is the only way a district's intensity
+goes up.
+
+**A crossing is authored twice.** It is one physical thing seen from both sides,
+so it needs a `cross: true, repeat: true` prop at the *same tile* on both layers
+of its region. `tools/check.mjs` enforces the pairing: a one-sided crossing is a
+one-way trip into a district with no way back out, and it is the only bug here a
+player cannot work around.
+
+**A dialogue's close handler only owns the conversation's state.** A choice's
+`fx` can move the game somewhere else entirely — picking an ending does exactly
+that from inside a conversation — so both close handlers restore `'play'` only
+if the state is still `'dialog'`. Restoring it unconditionally silently stomps
+whatever the choice just did.
 
 ### The bundler's rules
 
