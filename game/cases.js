@@ -50,6 +50,37 @@ defineFacts([
   { id: 'dch_hargrove', case: 'retrieval', text: 'Hargrove signed the retrieval authorisation. He did not write it and he did not refuse it.' },
   { id: 'dch_list', case: 'retrieval', text: 'You did not take a document. You took a memory, and the firm has worked out that it cannot send three men to retrieve one.' },
 
+  // ---- Department 13 ----
+  { id: 'd13_session', case: 'dept13', text: 'Department 13 has been in session since 1959. The session has never been adjourned, which is not the same as it never having ended.' },
+  { id: 'd13_caption', case: 'dept13', text: 'The caption on the matter before the court is your name, on both sides of the v.' },
+  { id: 'd13_bane', case: 'dept13', text: 'Hon. M. Bane is on the bench and has been throughout. He is not waiting for anything. He is presiding.' },
+
+  // ---- Every Storefront a Different Year ----
+  { id: 'yr_first', case: 'years', text: 'The first storefront is a travel agency whose fare board stopped being prices in 1981. The kettle is warm.' },
+  { id: 'yr_next', case: 'years', text: 'Four doors down is eleven years later — and through its stockroom you can see the travel agency again, from behind.' },
+  { id: 'yr_yours', case: 'years', text: 'The last one on the row is Suite 2B at street level, which it has never been, with a calendar four years ahead of the last time you were in it.' },
+
+  // ---- The Ones Who Stayed ----
+  { id: 'ok_name', case: 'stayed', text: 'A. Okonkwo. Corporate. Started the same year you did and is at the same desk, and answers to her name.' },
+  { id: 'ok_three', case: 'stayed', text: 'She has three more and then she is going. She has had three more for a very long time.' },
+  { id: 'ok_choice', case: 'stayed', text: 'Nobody made her stay. She says that first, before you ask, and she is correct, and it is the worst sentence in the building.' },
+
+  // ---- The Night Clerk's Ledger ----
+  { id: 'nc_ledger', case: 'ledger', text: 'The Night Clerk has been keeping a ledger. Not of filings — of the people who came to the window and did not file.' },
+  { id: 'nc_short', case: 'ledger', text: 'The entries are all short. The longest is four words. There are four hundred of them.' },
+
+  // ---- The Warm Room ----
+  { id: 'warm_room', case: 'warm', text: 'Behind the big room at the centre is a smaller one, warmer, with a used kettle and thirty-one mugs on the rack.' },
+  { id: 'warm_mugs', case: 'warm', text: 'Thirty-one mugs, thirty-one names on the sheet. Somebody washes them.' },
+
+  // ---- The Copier ----
+  { id: 'cop_sound', case: 'copier', text: 'The copier at the bottom of the sublevel stair has not stopped. It is running a job that has four hundred pages left and has had four hundred pages left the whole time.' },
+  { id: 'cop_pages', case: 'copier', text: 'What it is copying is the letters. One per box, over and over, and the copies are going into the boxes.' },
+
+  // ---- The Firm ----
+  { id: 'tf_going', case: 'thefirm', text: 'It is not a person and is not pretending to be one. It is the going concern: four hundred people\'s work, still going.' },
+  { id: 'tf_nobody', case: 'thefirm', text: 'Nobody asked anybody to stay. That is true, and it is the whole of its defence, and it is not a defence.' },
+
   // ---- The Bondsman's Cousin ----
   { id: 'bail_cousin', case: 'bail', text: 'Ace Bail Bonds has a cousin in custody on a bench warrant for a hearing nobody told him about. It is a walk-in and it is worth $600.' },
 
@@ -319,6 +350,152 @@ defineQuests([
       CASE_HOOKS.rep('courthouse', { keep: 2 }[outcome] || 0);
     },
   },
+  /* ------------------------------ THE FLOOR ------------------------------- */
+  {
+    id: 'dept13',
+    name: 'Department 13',
+    layer: 'floor',
+    blurb: 'The court has been in session since 1959 and has never adjourned, which is not the same as never having ended. The caption is your name on both sides of the v.',
+    auto: true,
+    prereq: () => isDone('unsent'),
+    stages: [
+      { type: 'learn', facts: ['d13_session', 'd13_caption', 'd13_bane'],
+        hint: 'Go into Department 13 rather than reading the docket outside it.' },
+      { type: 'resolve',
+        hint: 'You are counsel and you are the party. Decide which one stands up.',
+        options: ['appear', 'move', 'sit'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        appear: 'You entered an appearance. Bane wrote it down without looking up, which is what a court does, and you are now formally on the record in a matter that has been running since 1959 and in which you are also the respondent.',
+        move: 'You moved to adjourn. He heard it properly — the whole motion, all of it, without interrupting once, which nobody in this building has ever done — and then denied it, and the reason he gave was that nobody had asked before.',
+        sit: 'You sat at the back. It went on. It is going on. At some point you noticed you had been following the argument and could have told somebody where it had got to.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 12);
+      CASE_HOOKS.banner('MATTER CLOSED', 'DEPARTMENT 13 — ' + String(outcome).toUpperCase());
+    },
+  },
+  {
+    id: 'years',
+    name: 'Every Storefront a Different Year',
+    layer: 'floor',
+    blurb: 'The Strand is lit end to end and no two windows are in the same decade. Three of them are worth going into.',
+    auto: true,
+    prereq: () => isDone('unsent'),
+    // No decision. Some matters are just three rooms and what is in them.
+    stages: [
+      { type: 'learn', facts: ['yr_first', 'yr_next', 'yr_yours'],
+        hint: 'The Strand. Look in the windows — the far end of the row first, and then your own.' },
+    ],
+    onComplete() {
+      CASE_HOOKS.say('Three windows, three decades, one street, and the last one is yours with a calendar four years past the last time you stood in it. Nothing happens. Nothing was going to happen. You have simply now seen the shape of the thing, which is a corridor and not a hallway, and which does not have an end so much as a fold.', 13);
+      CASE_HOOKS.banner('MATTER CLOSED', 'EVERY STOREFRONT A DIFFERENT YEAR');
+    },
+  },
+  {
+    id: 'stayed',
+    name: 'The Ones Who Stayed',
+    layer: 'floor',
+    blurb: 'One of them is at a desk by a window on The Strand, and she answers to her name, and she started the same year you did.',
+    auto: true,
+    prereq: () => isDone('years') || isDone('dept13'),
+    stages: [
+      { type: 'talk', npc: 'okonkwo',
+        hint: 'The Strand. There is one at a desk by the window who is not walking at you.' },
+      { type: 'resolve',
+        hint: 'Decide what you do with somebody who is not asking to be rescued.',
+        options: ['ask', 'tell', 'leave'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        ask: 'You asked her what she was working on and she told you, in detail, for eleven minutes, and it was interesting, and she was good at it. That is the part nobody warns you about.',
+        tell: 'You told her about the letters in the sublevel and the four hundred boxes. She listened all the way through and said: I know. And then, after a while: I have three more and then I am going.',
+        leave: 'You left her at the desk by the window. She did not ask you to stay and did not ask you to go and did not, at any point, stop working.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 12);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE ONES WHO STAYED — ' + String(outcome).toUpperCase());
+    },
+  },
+  {
+    id: 'ledger',
+    name: 'The Night Clerk\'s Ledger',
+    layer: 'floor',
+    blurb: 'He writes something down every time. It is not a filing log — it is a log of the people who came to the window and did not file.',
+    auto: true,
+    prereq: () => isDone('unsent'),
+    // A `learn` stage rather than a `talk` one, deliberately: talkTo() emits on
+    // OPEN, so a matter whose only stage is a talk would close itself the
+    // instant the conversation appeared and banner over the thing you came to
+    // read. Completing on the facts means it closes when you have actually read
+    // the ledger, which is the whole matter.
+    stages: [
+      { type: 'learn', facts: ['nc_ledger', 'nc_short'],
+        hint: 'Ask the Night Clerk what he has been writing down all this time.' },
+    ],
+    onComplete() {
+      CASE_HOOKS.say('Four hundred entries and the longest is four words. He turns it round so you can read it and does not comment on any of them, and the last line is today\'s and it has your name on it and a space after it that he has not filled in.', 12);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE NIGHT CLERK\'S LEDGER');
+    },
+  },
+  {
+    id: 'warm',
+    name: 'The Warm Room',
+    layer: 'floor',
+    blurb: 'Behind the big room at the community centre is a smaller one that is warmer than the big room, with a kettle somebody has used.',
+    auto: true,
+    prereq: () => isDone('meeting'),
+    stages: [
+      { type: 'learn', facts: ['warm_room', 'warm_mugs'],
+        hint: 'The Flats. Go through the big room, not into it.' },
+    ],
+    onComplete() {
+      CASE_HOOKS.say('Thirty-one mugs on the rack, washed, and thirty-one names on the sheet, and one kettle that is warm. Nobody is in here. Somebody has been in here. Those are two different facts and this building has spent the entire night teaching you that the second one is the rarer.', 12);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE WARM ROOM');
+    },
+  },
+  {
+    id: 'copier',
+    name: 'The Copier',
+    layer: 'floor',
+    blurb: 'Something at the bottom of the sublevel stair has been running a copy job with four hundred pages left on it for as long as you have been awake.',
+    auto: true,
+    prereq: () => isDone('sublevel'),
+    stages: [
+      { type: 'learn', facts: ['cop_sound', 'cop_pages'],
+        hint: 'The Annex. Go down the stair the chain has been off since 1994.' },
+      { type: 'resolve',
+        hint: 'Decide what you do about a machine that has not stopped in forty years.',
+        options: ['stop', 'read', 'refill'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        stop: 'You pressed the button. It stopped. The silence lasts about four seconds and is the loudest thing that has happened to you all night, and then the display clears itself and the job restarts at page one of four hundred.',
+        read: 'You took a copy off the tray. It is a resignation letter — not one of the four hundred, a COPY of one of the four hundred, and the copy has been signed, in the same hand, again, in ink that is still wet.',
+        refill: 'The tray was low. You filled it. You did this without deciding to and you were most of the way through before you noticed, and the noticing is the part you are going to keep.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 13);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE COPIER — ' + String(outcome).toUpperCase());
+    },
+  },
+  {
+    id: 'thefirm',
+    name: 'The Firm',
+    layer: 'floor',
+    blurb: 'It is not a person and it is not pretending to be one. It is the going concern — four hundred people\'s work, still going — and it is on the stair.',
+    auto: true,
+    prereq: () => isDone('copier') && isDone('reviews'),
+    stages: [
+      { type: 'learn', facts: ['tf_going', 'tf_nobody'],
+        hint: 'Back to the sublevel stair in the Annex. It is not running a copier any more.' },
+      { type: 'kill', enemy: 'thefirm',
+        hint: 'It is between you and the stair, and it has four hundred people in it, and every hour you have ever billed.' },
+    ],
+    onComplete() {
+      CASE_HOOKS.say('It comes apart the way a going concern comes apart, which is slowly and into constituent parts, and every one of the parts is somebody\'s work and none of them stop being good work on the way down. Nobody asked anybody to stay. That was true the whole time. It is still not a defence, and it is still true.', 14);
+      CASE_HOOKS.banner('DISSOLVED', 'THE FIRM');
+    },
+  },
+
   // A docket of twelve identical matters would be a chore. These are the small
   // ones: two or three stages, a fact or two, sometimes no decision at all —
   // because most of a practice is not an ethical crisis, it is a walk-in worth
@@ -1158,8 +1335,147 @@ function grabbitTree() {
   return T;
 }
 
+/* ---------------------- the floor's counters and rooms -------------------- */
+
+function dept13Tree() {
+  const T = { who: 'DEPARTMENT 13 — IN SESSION', spr: 'sign', nodes: {} };
+  const stage = currentStage('dept13');
+
+  if (isDone('dept13')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        appear: 'You are on the record. The matter is called at the top of every session and your name is read out twice, once for each side, and nobody in the room finds that odd.',
+        move: 'Denied, on the ground that nobody had asked before. He wrote the motion up properly. It is in the file. It is the only thing in the file with a date on it.',
+        sit: 'Still going. You know roughly where it has got to now, which you did not want and cannot put down.',
+      }[outcomeOf('dept13')] || 'The court is in session.',
+    };
+    return T;
+  }
+
+  if (!stage || stage.type !== 'resolve') {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'You go in rather than reading the glass. It is warm and full and entirely silent and every seat is taken, and at the front a man in his eighties is presiding over an argument that is being made competently and at length by nobody at all. The clock above him says ten past nine.',
+      fx: () => { learn('d13_session'); learn('d13_bane'); },
+      choices: [
+        { label: 'Read the caption on the file in front of the bench.', to: 'caption' },
+        { label: 'Go back out.', to: null },
+      ],
+    };
+    T.nodes.caption = {
+      text: 'It is your name. On both sides of the v — as the party, and, in the same typeface on the same line, as counsel for the other one. The file is four inches thick and the top sheet is dated 1959 and the paper is not old.',
+      fx: () => learn('d13_caption'),
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'Bane looks up. He has been waiting for somebody to be counsel in this matter for sixty-six years, and the person he is looking at is also the respondent, and he does not appear to consider that a difficulty.',
+    choices: [
+      { tag: 'APPEAR', label: 'Enter an appearance. Go on the record.', to: 'do_appear' },
+      { label: 'Move to adjourn. Say the whole motion.', to: 'do_move' },
+      { label: 'Sit at the back and listen.', to: 'do_sit' },
+      { label: 'Leave the room.', to: null },
+    ],
+  };
+  T.nodes.do_appear = {
+    text: 'He writes it down without looking up, which is what a court does and is somehow the most frightening thing that has happened to you tonight. You are formally on the record in a matter running since 1959 in which you are also the respondent, and the clock above him still says ten past nine.',
+    fx: () => qResolve('dept13', 'appear'),
+  };
+  T.nodes.do_move = {
+    text: 'You make the whole motion. He lets you finish — all of it, without interrupting once, which nobody in this building has done for you in nine years — and then denies it, and the reason he gives is that nobody has asked before.',
+    fx: () => qResolve('dept13', 'move'),
+  };
+  T.nodes.do_sit = {
+    text: 'You take a seat at the back. It goes on. At some point you realise you have been following the argument closely enough that you could tell somebody where it has got to, and shortly after that you realise you have an opinion about it.',
+    fx: () => qResolve('dept13', 'sit'),
+  };
+  return T;
+}
+
+function warmTree() {
+  const T = { who: 'THE BACK ROOM', spr: 'sign', nodes: {} };
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'Warmer than the big room, which should not be possible in a building with no heating and no people. A kettle, recently boiled. A draining rack.',
+    fx: () => learn('warm_room'),
+    choices: [
+      { label: 'Count the mugs.', to: 'mugs' },
+      { label: 'Leave it alone.', to: null },
+    ],
+  };
+  T.nodes.mugs = {
+    text: 'Thirty-one. Washed, upended, dried — which means somebody used them and then somebody washed them, and those are two separate acts and this building has spent all night teaching you how rare the second one is.',
+    fx: () => learn('warm_mugs'),
+  };
+  return T;
+}
+
+function copierTree() {
+  const T = { who: 'SUBLEVEL C', spr: 'sign', nodes: {} };
+  const stage = currentStage('copier');
+
+  if (isDone('copier')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        stop: 'Page eleven of four hundred. It restarted while you were on the stair and it will restart again.',
+        read: 'The copy is in your jacket next to whatever else you are carrying out of this building, and the ink on the signature has still not dried.',
+        refill: 'The tray is full. You filled it. That is going to sit with you for a while.',
+      }[outcomeOf('copier')] || 'It is running.',
+    };
+    return T;
+  }
+
+  if (!stage || stage.type !== 'resolve') {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'Three flights down and the air gets warmer rather than colder. At the bottom, in a room the size of the building above it, one copier, running, with a display that reads 400 REMAINING and has read 400 REMAINING for the entire time you have been able to hear it.',
+      fx: () => learn('cop_sound'),
+      choices: [
+        { label: 'Look at what it is copying.', to: 'what' },
+        { label: 'Go back up.', to: null },
+      ],
+    };
+    T.nodes.what = {
+      text: 'It is copying the letters. One box at a time, original in, copy out, copy into the box — so that the four hundred are being replenished, continuously, by a machine, in a room nobody has been in since 1994, against the possibility that somebody one day takes one out.',
+      fx: () => learn('cop_pages'),
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'There is a button on the front of it. There is paper in the tray, and less of it than there was.',
+    choices: [
+      { tag: 'STOP', label: 'Press the button.', to: 'do_stop' },
+      { label: 'Take a copy off the tray and read it.', to: 'do_read' },
+      { label: 'Fill the tray.', to: 'do_refill' },
+      { label: 'Stand there.', to: null },
+    ],
+  };
+  T.nodes.do_stop = {
+    text: 'It stops. Four seconds of silence, and they are the loudest four seconds of the entire night — and then the display clears itself, and the counter resets, and it begins again at page one of four hundred.',
+    fx: () => qResolve('copier', 'stop'),
+  };
+  T.nodes.do_read = {
+    text: 'You take one off the tray. It is a resignation letter — not one of the four hundred, a COPY of one of the four hundred — and the copy has been signed. In the same hand. Again. In ink that is still wet.',
+    fx: () => qResolve('copier', 'read'),
+  };
+  T.nodes.do_refill = {
+    text: 'The tray was low. You filled it from the boxes against the wall. You were most of the way through before you noticed you had decided to, and the noticing is the part you are going to keep, and it is going to keep.',
+    fx: () => qResolve('copier', 'refill'),
+  };
+  return T;
+}
+
 const NPC_TREES = {
   annexboxes: annexBoxes,
+  dept13: dept13Tree,
+  warm: warmTree,
+  copier: copierTree,
   bonds: bondsTree,
   lease: leaseTree,
   lien: lienTree,
@@ -1979,9 +2295,88 @@ const NPC_TREES = {
     return T;
   },
 
+  /* ------------------------------- A. OKONKWO ------------------------------ */
+  // One of The Ones Who Stayed, at a desk, who does not chase you and is not
+  // asking to be rescued. The whole matter is that she is good at her job.
+  okonkwo() {
+    const T = { who: 'A. Okonkwo', spr: 'stayed', nodes: {} };
+    if (isDone('stayed')) {
+      T.start = 'a';
+      T.nodes.a = {
+        text: {
+          ask: 'She is on the schedules now. She turns the screen so you can see the bit she is pleased with.',
+          tell: 'Three more. — You said that before. — I did. — She goes back to it, and it is not a rebuke, and you wish it were.',
+          leave: 'She does not look up, and she has not stopped, and she was not going to.',
+        }[outcomeOf('stayed')] || 'Working.',
+      };
+      return T;
+    }
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'She says your name before you say anything. Not the way the building says things — the way somebody says the name of a person they started the same year as. — Corporate. Fourth floor. We were in the same intake.',
+      fx: () => learn('ok_name'),
+      choices: [
+        { label: '"How long have you been at this desk?"', to: 'long' },
+        { label: '"You need to come with me."', to: 'no' },
+      ],
+    };
+    T.nodes.no = {
+      text: 'She looks up properly, and she is not frightened and she is not grateful, and she is a little bit amused. — Nobody made me stay. — I know how that sounds — You do not, actually, or you would not have said it in that voice. Nobody made me stay. Start from there.',
+      fx: () => { learn('ok_choice'); },
+      to: 'long',
+    };
+    T.nodes.long = {
+      text: 'I have three more and then I am going. — She indicates the stack, which is three deep, and which is a real stack of three real matters and not a metaphor. — I have had three more for a while. That is the bit you want, is it not. That is the bit everybody wants.',
+      fx: () => { learn('ok_three'); learn('ok_choice'); },
+      choices: [
+        { tag: 'ASK', label: 'Ask what she is working on.',
+          if: () => knows('ok_three'), to: 'do_ask' },
+        { tag: 'TELL', label: 'Tell her about the four hundred boxes in the Annex.',
+          if: () => knows('an_boxes'), showLocked: true,
+          lockedNote: 'you have not been down there', to: 'do_tell' },
+        { label: 'Leave her at the desk.', to: 'do_leave' },
+        { label: 'Say nothing yet.', to: null },
+      ],
+    };
+    T.nodes.do_ask = {
+      text: 'She tells you. In detail, for eleven minutes, about a schedule to an agreement, and about halfway through she stops explaining it to you and starts thinking about it out loud in front of you — and she is good, she is genuinely good, and that is the part nobody warns you about and the part the building is actually made of.',
+      fx: () => qResolve('stayed', 'ask'),
+    };
+    T.nodes.do_tell = {
+      text: 'You tell her about the boxes. All four hundred, lids off, one letter each, filed. She listens to the whole thing without interrupting and then says: I know. — And after a while, in exactly the same voice as before: I have three more and then I am going.',
+      fx: () => qResolve('stayed', 'tell'),
+    };
+    T.nodes.do_leave = {
+      text: 'You leave her at the desk by the window. She did not ask you to stay and she did not ask you to go and at no point in the entire conversation did she stop working.',
+      fx: () => qResolve('stayed', 'leave'),
+    };
+    return T;
+  },
+
   /* ------------------------------ NIGHT CLERK ------------------------------ */
   clerk() {
     const T = { who: 'The Night Clerk', spr: 'clerk', nodes: {} };
+    // Once The Unsent is closed he has one more thing, which is the thing he
+    // has been doing in the background of every conversation you have had.
+    if (isActive('ledger')) {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'Good evening. — He writes something down. He has written something down every single time you have walked away from this window and you have finally asked yourself what.',
+        choices: [
+          { label: '"What is it you keep writing?"', to: 'what' },
+        ],
+      };
+      T.nodes.what = {
+        text: 'A ledger. — Of filings? — He turns it round without being asked, which he has plainly been waiting a very long time to do. — No. Of the people who came to this window and did not file.',
+        fx: () => learn('nc_ledger'),
+        choices: [{ label: 'Read it.', to: 'read' }],
+      };
+      T.nodes.read = {
+        text: 'Four hundred entries. The longest is four words. WOULD NOT LET GO. CAME BACK TWICE. SAID TOMORROW. HAD THE PEN. He does not comment on any of them and does not stop you reading all four hundred, and the last line is today\'s, and it has your name on it, and the space after it has not been filled in.',
+        fx: () => learn('nc_short'),
+      };
+      return T;
+    }
     T.start = 'a';
     T.nodes.a = {
       text: 'Good evening. Department 13 is open. Department 13 is always open — that is not a boast, it is a filing status.',

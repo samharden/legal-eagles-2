@@ -15,7 +15,7 @@ Design doc: [DESIGN.md](DESIGN.md).
 
 ---
 
-## Status: Phase 3 (content) — in progress. Both paths now have a resource loop.
+## Status: Phase 3 (content) — complete. Six districts, twelve matters a path, two bosses.
 
 **Phase 0** built the engine: the opening reel and the **SEND / DELETE** fork; a **seamless two-region city** (Courthouse Square gx 0–39, The Strand gx 40–75) on one global tile grid, crossed on foot with no loading break; **region streaming with persistent deltas**; **two layers over one geometry**; movement, dash, melee, pickups; one input layer over keyboard/mouse/touch/gamepad; ASCII tilemaps and the `?edit=1` editor; and a bundler emitting a self-contained `dist/index.html`.
 
@@ -144,7 +144,23 @@ Melee is 18 a swing and requires standing next to a Collections Agent while it t
   > `localStorage` is scoped to the **origin**, not the path. On GitHub Pages both games sit under `samharden.github.io`, so the import works. Running LE1 off `file://` and LE2 off `localhost:8142` are two different origins and it will never find the save — that is not a bug, and the no-save path is the designed one.
 - **Past Selves fight with your attack** (§4) — they literally do now. A litigator's past selves object at them constantly; a tax lawyer's arrive slowly and hit like a filing deadline.
 
-Not built yet: The Annex, the rest of the ~12 cases per path, bosses, the crossover. See DESIGN.md §8.
+**Phase 3 is closed.** Both dockets run twelve matters, and both are reachable end to end from a fresh start:
+
+```
+STREET  ruiz → coronado → ferraro → rivera → bail → lease
+        → retrieval → lien → centre → grabbit → sealed → withdrawal
+FLOOR   unsent → dept13 → years → ledger → meeting → impound
+        → stayed → warm → reviews → sublevel → copier → thefirm
+```
+
+They are deliberately not twelve of the same shape. A docket of twelve identical five-fact four-resolution investigations would be a chore, and most of a practice is not an ethical crisis — it is a walk-in worth six hundred dollars that has to be at the window by Thursday. So they run from two stages and no decision at all up to the finale, and about half of them resolve at a **prop** rather than a person: a bail bondsman behind glass, your own lease, a tow-yard gate, a personnel file, a copier. A district reads better when not everything that talks to you has a face.
+
+Two bosses, both gated by `needs` so they are not scenery — neither is on the board until the matter that summons it is open:
+
+- **THE NON-COMPETE** (street) — DESIGN §3's finale opposition, a contract-golem cousin to LE1's Founding Agreement. The argument that beats it is posted on DC&H's own front door, and Hargrove hands it to you from the other table.
+- **THE FIRM** (floor) — what has been running the copier in Sublevel C. Not a person and not pretending to be: the going concern, with four hundred people's work in it.
+
+Not built yet: Phase 4 (layer bleed, cross-layer traversal, *In re Yourself*, the seven endings) and Phase 5 (audio, cinematics, mobile/gamepad parity, NG+). See DESIGN.md §8.
 
 ---
 
