@@ -120,7 +120,24 @@ Unbuilt space is solid, so a district whose neighbour does not exist yet simply 
 
 Reputation is no longer two hard-coded districts — `Practice.seedRep()` takes the city's own region list, so adding a district is a change to `game/city.js` and nowhere else.
 
-Not built yet: The Annex, the rest of the ~12 cases per path, bosses, LE1 save import, the crossover. See DESIGN.md §8.
+**The ranged weapon** is LE1's, ported whole — and in LE1 it was never a weapon, it was your **practice area**. You did not pick a gun, you picked what kind of lawyer you were, and what came out when you pressed the button was the argument that area actually makes.
+
+| | Attack | Shape |
+|---|---|---|
+| **LITIGATION** | OBJECTION! | Fast, loud, constant. 1-in-4 shots shout |
+| **CORPORATE M&A** | Hostile Takeover | One slow enormous non-negotiable point |
+| **CRIMINAL DEFENSE** | Cross-Examination | Three of something; only needs one to land |
+| **INTELLECTUAL PROPERTY** | Cease & Desist | A letter that turns and finds you |
+| **TAX** | Surprise Audit | Ten shots, every direction, at once |
+
+Melee is 18 a swing and requires standing next to a Collections Agent while it takes $140 off you, so ranged is deliberately a little weaker per second and much safer. That is the trade.
+
+`game/areas.js` is also the answer to two other things DESIGN asked for:
+
+- **LE1 save import** (§6) — LE2 reads `legalEagles.save.v1` and takes your `classId` and `genderId`, so your practice area *and your face* carry over from the first game. No save is not an error; it is the common case, and it means litigation.
+- **Past Selves fight with your attack** (§4) — they literally do now. A litigator's past selves object at them constantly; a tax lawyer's arrive slowly and hit like a filing deadline.
+
+Not built yet: The Annex, the rest of the ~12 cases per path, bosses, character creation when there is no LE1 save, the crossover. See DESIGN.md §8.
 
 ---
 
@@ -163,7 +180,7 @@ Writes `dist/index.html` — one file, no external references, double-clickable 
 | `C` / `Tab` | The Casefile |
 | `1`–`9` | Pick a dialogue choice |
 | `J` / `Space` | Briefcase strike |
-| `K` / click | Fire *(reserved)* |
+| `K` / click | **Fire** — your practice area's attack. Held, not tapped; aims at the cursor |
 | `L` | Spin *(reserved)* |
 | `Shift` | Dash |
 | `M` · `F` | Mute · fullscreen |

@@ -27,7 +27,7 @@ function seedMotes(layer) {
  * render.js, and the bundler forbids the cycle).
  */
 export function drawWorld(world, layer, player, fx, gameT, ent = {}) {
-  const { complaint, ally, shots } = ent;
+  const { complaint, ally, incoming, shots } = ent;
   const g = ctx;
   const Z = view.zoom;
 
@@ -157,8 +157,25 @@ export function drawWorld(world, layer, player, fx, gameT, ent = {}) {
     else drawSprite(g, SPR[d.spr], a.x - cam.x, a.y - cam.y, d.size);
   }
 
-  // ---- paper in the air ----
+  // ---- your argument, in the air ----
+  // A disc with a soft glow behind it, coloured by practice area — the shot
+  // colour is the only thing on screen that says which lawyer you are.
   if (shots) for (const s of shots) {
+    const sx = s.x - cam.x, sy = s.y - cam.y;
+    g.save();
+    g.globalAlpha = 0.28;
+    g.fillStyle = s.color;
+    g.beginPath(); g.arc(sx, sy, s.r * 2.1, 0, 7); g.fill();
+    g.globalAlpha = 1;
+    g.fillStyle = s.color;
+    g.beginPath(); g.arc(sx, sy, s.r, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,0.75)';
+    g.beginPath(); g.arc(sx - s.vx * 0.004, sy - s.vy * 0.004, Math.max(1, s.r * 0.42), 0, 7); g.fill();
+    g.restore();
+  }
+
+  // ---- paper in the air ----
+  if (incoming) for (const s of incoming) {
     const sx = s.x - cam.x, sy = s.y - cam.y;
     g.save();
     g.translate(sx, sy);

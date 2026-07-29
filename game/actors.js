@@ -17,6 +17,8 @@
 //   poach      ignores you entirely and walks at the nearest client
 //   steal      takes something you are carrying
 //   ranged     fires; {dmg, speed, every, life}
+//   past       a Past Self: fires YOUR practice area's attack back at you,
+//              which is DESIGN §4's whole idea and is now a lookup
 //   scales     THE FLOOR's pressure multiplies its speed and damage
 //   hours      tenths recovered when it goes down (floor only)
 //   needs      a predicate name the host checks before spawning it at all
@@ -106,26 +108,26 @@ export const ACTOR_TYPES = {
     onTouch: 'STAYED',
   },
 
-  // Past Selves. Each one fights the way you fought at that rank — DESIGN §4
-  // wants the practice area from the LE1 save here, and until that import
-  // exists they carry the shape of the attack without the specialisation.
+  // Past Selves. Each one fights the way you fought at that rank, and `past`
+  // means the projectile is YOUR practice area's attack aimed back at you —
+  // DESIGN §4's requirement, satisfied literally now that the LE1 save import
+  // decides which area that is. A litigator's past selves object at them
+  // constantly; a tax lawyer's arrive slowly and hit like a filing deadline.
   past_junior: {
     spr: 'past_junior', size: 34, r: 14, hp: 70, speed: 132, dmg: 10, chase: 620,
-    scales: true, hours: 14,
+    scales: true, hours: 14, past: true,
     barks: ['I can take that.', 'No, I can take it.', 'What time do people go home?'],
     onTouch: 'OVERRULED',
   },
   past_counsel: {
     spr: 'past_counsel', size: 34, r: 14, hp: 96, speed: 74, dmg: 13, chase: 560,
-    scales: true, hours: 18,
-    ranged: { dmg: 12, speed: 190, every: 1.9, life: 3.0, label: 'CITATION' },
+    scales: true, hours: 18, past: true,
     barks: ['I have seen this argument before.', 'It did not work then either.', 'You will want to sit down for the cross.'],
     onTouch: 'DISTINGUISHED',
   },
   past_partner: {
     spr: 'past_partner', size: 38, r: 16, hp: 150, speed: 92, dmg: 18, chase: 800,
-    scales: true, hours: 26,
-    ranged: { dmg: 14, speed: 240, every: 1.5, life: 3.4, label: 'ENGAGEMENT' },
+    scales: true, hours: 26, past: true,
     barks: ['You made the same call I did.', 'Say the part about the trust account again.', 'I am what happened. I am not a warning.'],
     onTouch: 'PARTNER',
   },

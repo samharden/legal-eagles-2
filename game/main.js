@@ -19,6 +19,7 @@ import { Hours, hoursHooks, bill, lightUp, lightFree, isLit, writeDown, fmtHours
 import { Dialogue } from '../engine/dialogue.js';
 import { REGIONS, SPAWN } from './city.js';
 import { LAYERS, layerOf } from './layers.js';
+import { AREAS, DEFAULT_AREA, areaOf, importLE1 } from './areas.js';
 import { actorDef } from './actors.js';
 import { drawWorld, drawPrompt } from './render.js';
 import { Intro } from './intro.js';
@@ -41,7 +42,9 @@ export const G = {
   complaint: null,      // the Bar Complaint, once you have earned one
   ally: null,           // the paralegal, if she is on the payroll
   dark: false,          // standing on an unlit floor
-  shots: [],            // paper in the air
+  shots: [],            // your argument, in the air
+  incoming: [],         // theirs
+  area: DEFAULT_AREA,   // your practice area — the ranged attack IS the area
   served: 0,            // stacking, and it does not come off until you sleep
 };
 
@@ -60,7 +63,7 @@ function makePlayer(x, y) {
   return {
     x, y, spr: 'p_f', face: { x: 0, y: 1 }, r: 14,
     hp: 100, maxhp: 100, moving: false,
-    dashT: 0, dashCd: 0, meleeCd: 0, hurtCd: 0,
+    dashT: 0, dashCd: 0, meleeCd: 0, hurtCd: 0, fireCd: 0,
     rig: new Rig(),
   };
 }
@@ -246,11 +249,21 @@ function beginPath(layerId, path) {
     SFX.district();
     Quests.questEvent('reach', { region: def.id });
   };
+  // DESIGN §6: read the LE1 save, and let it decide what kind of lawyer you
+  // are and what you look like. No save is not an error — it is the common
+  // case, and it means litigation.
+  const le1 = importLE1();
+  G.area = le1 ? le1.area : DEFAULT_AREA;
   const s = SPAWN[layerId];
   G.player = makePlayer(s.x, s.y);
+  if (le1) {
+    G.player.spr = le1.spr;
+    say(`Your bar card, your practice area and your face all came out of the last one. ${areaOf(G.area).name}. ${areaOf(G.area).attack}.`, 8);
+  }
   G.carried = [];
   G.complaint = null;
   G.ally = null;
+  G.incoming = [];
   G.shots = [];
   G.served = 0;
   resetClock();
@@ -292,6 +305,7 @@ function continueGame() {
   G.player.x = d.x; G.player.y = d.y;
   G.player.hp = d.hp ?? 100;
   G.carried = d.carried || [];
+  if (d.area && AREAS[d.area]) G.area = d.area;
   // restore knowledge, matters, the docket and the books BEFORE residency, so
   // quest markers and already-read props come back in the right state
   Facts.loadFacts(d.facts);
@@ -322,6 +336,7 @@ export function doSave() {
     layer: G.layer, path: G.path,
     x: G.player.x, y: G.player.y, hp: G.player.hp,
     carried: G.carried,
+    area: G.area,
     facts: Facts.saveFacts(),
     quests: Quests.saveQuests(),
     clock: saveClock(),
@@ -508,7 +523,7 @@ function endDay(forced) {
   advanceDay();
   // Sleeping is the only thing that gets the paper off you.
   if (G.served) { say(`You went through what you were handed. ${G.served} of them, and none of them were about anything you did.`, 6); G.served = 0; }
-  G.shots.length = 0;
+  G.incoming.length = 0; G.shots.length = 0;
   if (Practice.hasStaff('associate')) associateWorks();
 
   // Evicted, you can still end the day — blocking it would soft-lock the game,
@@ -950,15 +965,126 @@ function poached(a, obj) {
   refreshCasefile(); syncHud();
 }
 
+/**
+ * What a Past Self throws. It is your own attack, aimed back at you, at about
+ * two-thirds the damage and half the rate — the point is recognition, not a
+ * mirror match. A litigator's Past Selves object at them constantly; a tax
+ * lawyer's arrive slowly and hit like a filing deadline.
+ */
+function pastAttack() {
+  const A = areaOf(G.area);
+  return {
+    dmg: Math.max(6, Math.round(A.dmg * 0.7)),
+    speed: A.speed * 0.55,
+    every: Math.max(0.9, A.cd * 3.4),
+    life: 3.0,
+    label: A.attack.toUpperCase(),
+  };
+}
+
+/* ------------------------------ THE ARGUMENT ---------------------------- */
+// LE1's ranged weapon was never a weapon — it was your PRACTICE AREA, and what
+// came out when you pressed the button was the argument that area actually
+// makes. That is ported whole. `game/areas.js` holds the five.
+
+/**
+ * Fire. Aims at the cursor on desktop when the mouse is over the board, and
+ * otherwise along the way you are facing, which is what makes this playable on
+ * a pad and a phone as well as with a mouse — the same call LE1 made.
+ */
+function fire() {
+  const p = G.player;
+  if (p.fireCd > 0) return;
+  const A = areaOf(G.area);
+  p.fireCd = A.cd;
+
+  // Mouse aim wins and turns you into the shot. Keyboard and pad keep the
+  // facing they already had, so the same button is a twin-stick trigger, an
+  // aim-at-cursor click and an 8-way key depending on what you are holding.
+  if (Input.mouse.down && Input.mouse.over && !IS_TOUCH) {
+    const w = Input.mouseWorld();
+    if (Math.hypot(w.x - p.x, w.y - p.y) > 4) {
+      const a = Math.atan2(w.y - p.y, w.x - p.x);
+      p.face = { x: Math.cos(a), y: Math.sin(a) };
+    }
+  }
+
+  const ang = Math.atan2(p.face.y, p.face.x);
+  G.fx.muzzle(p.x + p.face.x * 18, p.y + p.face.y * 18, ang, A.color);
+  SFX.shoot(A.id);
+  p.rig.strike();
+
+  const mk = a => G.shots.push({
+    x: p.x, y: p.y, vx: Math.cos(a) * A.speed, vy: Math.sin(a) * A.speed,
+    dmg: A.dmg, r: A.size, color: A.color, homing: A.special === 'homing',
+    life: 1.6, hit: new Set(),
+  });
+
+  if (A.special === 'nova') for (let i = 0; i < A.count; i++) mk(i / A.count * Math.PI * 2);
+  else if (A.special === 'spread') for (let i = 0; i < A.count; i++) mk(ang + (i - (A.count - 1) / 2) * 0.16);
+  else mk(ang);
+
+  if (A.shout && (A.special === 'nova' || Math.random() < 0.25))
+    G.fx.number(p.x, p.y - 26, A.shout, A.color);
+}
+
+/** Your shots. Pierce is off, so each one stops on the first thing it convinces. */
+function updateFired(dt) {
+  const world = G.world;
+  for (let i = G.shots.length - 1; i >= 0; i--) {
+    const s = G.shots[i];
+    // Cease & Desist finds you. A gentle steer, not a lock — it should feel
+    // like a letter that knows your address, not a missile.
+    if (s.homing) {
+      let best = null, bd = 260;
+      for (const a of world.allActors()) {
+        if (a.asleep || actorDef(a.type).harmless) continue;
+        const d = Math.hypot(a.x - s.x, a.y - s.y);
+        if (d < bd) { bd = d; best = a; }
+      }
+      if (best) {
+        const want = Math.atan2(best.y - s.y, best.x - s.x);
+        const cur = Math.atan2(s.vy, s.vx);
+        let dA = want - cur;
+        while (dA > Math.PI) dA -= Math.PI * 2;
+        while (dA < -Math.PI) dA += Math.PI * 2;
+        const na = cur + Math.max(-3.2 * dt, Math.min(3.2 * dt, dA));
+        const sp = Math.hypot(s.vx, s.vy);
+        s.vx = Math.cos(na) * sp; s.vy = Math.sin(na) * sp;
+      }
+    }
+    s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
+    if (s.life <= 0 || world.solidAtPx(s.x, s.y)) {
+      if (s.life > 0) G.fx.spark(s.x, s.y, 2);
+      G.shots.splice(i, 1); continue;
+    }
+    let done = false;
+    for (const a of [...world.allActors()]) {
+      if (a.asleep) continue;
+      const d = actorDef(a.type);
+      if (Math.hypot(a.x - s.x, a.y - s.y) > d.r + s.r) continue;
+      if (a.hp == null) a.hp = d.hp;
+      a.hp -= s.dmg;
+      (a.rig || (a.rig = new Rig())).hurt(Math.sign(s.vx), Math.sign(s.vy));
+      G.fx.number(a.x, a.y - d.r - 6, s.dmg, s.color);
+      G.fx.spark(a.x, a.y, 3);
+      SFX.hit();
+      if (a.hp <= 0) downActor(a, d);
+      done = true; break;
+    }
+    if (done) G.shots.splice(i, 1);
+  }
+}
+
 /** Paper in the air. Expires on its own; nothing here needs a pool. */
 function updateShots(dt) {
   const p = G.player;
-  for (let i = G.shots.length - 1; i >= 0; i--) {
-    const s = G.shots[i];
+  for (let i = G.incoming.length - 1; i >= 0; i--) {
+    const s = G.incoming[i];
     s.x += s.vx * dt; s.y += s.vy * dt; s.t -= dt;
-    if (s.t <= 0 || G.world.solidAtPx(s.x, s.y)) { G.shots.splice(i, 1); continue; }
+    if (s.t <= 0 || G.world.solidAtPx(s.x, s.y)) { G.incoming.splice(i, 1); continue; }
     if (Math.hypot(s.x - p.x, s.y - p.y) < p.r + 10) {
-      G.shots.splice(i, 1);
+      G.incoming.splice(i, 1);
       if (p.hurtCd > 0 || p.dashT > 0) continue;
       p.hurtCd = 0.7;
       p.hp -= s.dmg;
@@ -984,6 +1110,7 @@ function updatePlay(dt) {
 
   if (p.dashCd > 0) p.dashCd -= dt;
   if (p.meleeCd > 0) p.meleeCd -= dt;
+  if (p.fireCd > 0) p.fireCd -= dt;
   if (p.hurtCd > 0) p.hurtCd -= dt;
 
   // dashing from a standstill is allowed — it lunges along the way you face
@@ -1034,6 +1161,12 @@ function updatePlay(dt) {
   // an actor stops being coordinates and becomes a thing with a health bar.
   for (const a of world.allActors()) if (a.hp == null) a.hp = actorDef(a.type).hp;
 
+  // --- fire ---
+  // Held, not tapped: LE1's attacks are all automatic and the cooldown IS the
+  // rate of fire. Tapping a 0.26s litigation attack would be miserable.
+  if (Input.down('fire')) fire();
+  updateFired(dt);
+
   // --- strike ---
   if (Input.pressed('strike') && p.meleeCd <= 0) {
     p.meleeCd = 0.36; p.rig.strike();
@@ -1082,16 +1215,19 @@ function updatePlay(dt) {
     if (d.poach) { updateChaser(a, d, dt); continue; }
 
     // Anything with `ranged` throws from where it stands, on its own cadence,
-    // whether or not it also closes.
-    if (d.ranged && dist < d.chase) {
-      a.fireT = (a.fireT ?? d.ranged.every) - dt;
+    // whether or not it also closes. A Past Self uses YOUR practice area's
+    // attack — DESIGN §4 asks for exactly that, and now that the areas are
+    // real data it is a lookup rather than an aspiration.
+    const R = d.past ? pastAttack() : d.ranged;
+    if (R && dist < d.chase) {
+      a.fireT = (a.fireT ?? R.every) - dt;
       if (a.fireT <= 0) {
-        a.fireT = d.ranged.every;
+        a.fireT = R.every;
         const ux = (p.x - a.x) / (dist || 1), uy = (p.y - a.y) / (dist || 1);
-        G.shots.push({
-          x: a.x, y: a.y, vx: ux * d.ranged.speed, vy: uy * d.ranged.speed,
-          t: d.ranged.life, dmg: Math.round(d.ranged.dmg * (d.scales ? PRESS : 1)),
-          label: d.ranged.label,
+        G.incoming.push({
+          x: a.x, y: a.y, vx: ux * R.speed, vy: uy * R.speed,
+          t: R.life, dmg: Math.round(R.dmg * (d.scales ? PRESS : 1)),
+          label: R.label,
         });
         a.rig.strike();
         SFX.page();
@@ -1268,7 +1404,8 @@ function updatePlay(dt) {
 const el = id => document.getElementById(id);
 
 function syncHud() {
-  el('hName').textContent = G.path === 'delete' ? 'THE FLOOR' : 'ATTORNEY AT LAW';
+  el('hName').innerHTML = (G.path === 'delete' ? 'THE FLOOR' : 'ATTORNEY AT LAW')
+    + ` <span class="cfDim">${areaOf(G.area).name} · ${areaOf(G.area).attack}</span>`;
   // The books only exist on the street. Showing a $0 balance on THE FLOOR
   // would imply an economy that floor has no business having.
   const money = el('hMoney');
@@ -1415,5 +1552,6 @@ window.LE2 = {
   G, Input, LAYERS, doSave, beginPath, loadGame, Facts, Quests, Practice,
   Dialogue, Casefile, talkTo, useProp, endDay,
   Hrs: { Hours, bill, lightUp, isLit, fmtHours, pressure },
+  Areas: { AREAS, areaOf, importLE1, set: id => { if (AREAS[id]) G.area = id; return G.area; } },
   Clock: { Cal, dateString, allEntries, advanceDay, schedule, unschedule, resetClock },
 };

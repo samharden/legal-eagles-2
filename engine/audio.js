@@ -69,6 +69,18 @@ export const SFX = {
   // crossing a district line: a short establishing sting, not a fanfare
   district() { tone({ f: 294, t: 0.16, vol: 0.09 }); tone({ f: 440, t: 0.2, vol: 0.09, when: 0.13 }); tone({ f: 587, t: 0.26, vol: 0.07, when: 0.28 }); },
   boom() { noiseHit({ t: 0.5, vol: 0.28, fc: 500 }); tone({ f: 150, f2: 40, type: 'sawtooth', t: 0.5, vol: 0.18 }); },
+  // One per practice area, because the five attacks should not sound alike —
+  // a Hostile Takeover and an OBJECTION! are not the same noise and the player
+  // should be able to tell which one they picked with their eyes shut.
+  shoot(area) {
+    switch (area) {
+      case 'corp': tone({ f: 150, f2: 70, type: 'sawtooth', t: 0.22, vol: 0.14 }); noiseHit({ t: 0.12, vol: 0.09, fc: 700 }); break;
+      case 'crim': for (let i = 0; i < 3; i++) tone({ f: 820, f2: 520, t: 0.05, vol: 0.06, when: i * 0.03 }); break;
+      case 'ip': tone({ f: 620, f2: 1180, type: 'triangle', t: 0.16, vol: 0.08 }); break;
+      case 'tax': [392, 494, 587, 740].forEach((f, i) => tone({ f, t: 0.16, vol: 0.09, when: i * 0.035 })); noiseHit({ t: 0.2, vol: 0.08, fc: 1800 }); break;
+      default: tone({ f: 960, f2: 620, type: 'square', t: 0.06, vol: 0.09 }); noiseHit({ t: 0.04, vol: 0.05, fc: 3200 });
+    }
+  },
 };
 
 // ---- music ----------------------------------------------------------------
