@@ -71,11 +71,11 @@ The six districts are allocated on the global tile grid **up front**, before any
 
 |  | `gx 0–35` | `gx 36–75` | `gx 76–111` |
 |---|---|---|---|
-| **`gy 0–29`** | — | **THE TOWER DISTRICT** | THE ANNEX |
+| **`gy 0–29`** | — | **THE TOWER DISTRICT** | **THE ANNEX** |
 | **`gy 30–59`** | **THE FLATS** | **COURTHOUSE SQUARE** | **THE STRAND** |
 | **`gy 60–89`** | — | **MOTOR ROW** | — |
 
-Unbuilt space is solid, so a district whose neighbour does not exist yet simply has a wall there. The openings are cut on **both** sides in advance — The Strand already has its way north into The Annex, and it is a wall until that region lands.
+All six are built. Unbuilt space is solid, so a district whose neighbour did not exist yet simply had a wall there; the openings were cut on **both** sides in advance and became doors the day the neighbour landed.
 
 `node tools/check.mjs` validates the city statically and runs automatically before every build: anything authored where it cannot be used (an NPC inside a wall, a prop with no open tile beside it), duplicate ids within a region+layer, unknown actor types, and any floor district that can never be lit because it has a `lightCost` and no panel.
 

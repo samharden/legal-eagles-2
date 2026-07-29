@@ -50,6 +50,19 @@ defineFacts([
   { id: 'dch_hargrove', case: 'retrieval', text: 'Hargrove signed the retrieval authorisation. He did not write it and he did not refuse it.' },
   { id: 'dch_list', case: 'retrieval', text: 'You did not take a document. You took a memory, and the firm has worked out that it cannot send three men to retrieve one.' },
 
+  // ---- The Sealed File ----
+  { id: 'an_index', case: 'sealed', text: 'The card index cross-references the firm to ANNEX, CONSTRUCTION OF — which is a file, in a building the firm paid for.' },
+  { id: 'an_gift', case: 'sealed', text: 'DC&H gifted the Annex to the county in 1971, in perpetuity, subject to Clause 9.' },
+  { id: 'an_log', case: 'sealed', text: 'The request log runs to date. The WENT BACK column is almost entirely empty, and the entries that are filled in are all in one hand.' },
+  { id: 'an_ferris', case: 'sealed', text: 'Ferris has been behind that counter thirty-one years and knew which file you wanted before you said it.' },
+  { id: 'an_sealed', case: 'sealed', text: 'The file is sealed, and the seal was applied by the firm rather than by any court. Nobody has ever asked whether it could do that.' },
+
+  // ---- Sublevel C ----
+  { id: 'an_sublevel', case: 'sublevel', text: 'The chain across the sublevel stair is on the floor. The air coming up is warm and somewhere down there a copier is running.' },
+  { id: 'an_cards', case: 'sublevel', text: 'Four hundred index cards, one per name, each with a date of joining and a blank where a leaving date goes. Yours is filed under the year you were born.' },
+  { id: 'an_boxes', case: 'sublevel', text: 'Four hundred banker\'s boxes at the end of the run, lids off. One resignation letter in each. This is where they were archived.' },
+  { id: 'an_ferris_b', case: 'sublevel', text: 'Ferris is on the counter on this layer too, and has not been relieved, and is not waiting to be.' },
+
   // ---- The Reviews ----
   { id: 'tw_desk', case: 'reviews', text: 'The desk you woke at is out in the plaza at the correct angle to a window eleven floors up. The ring under the coffee is forty years deep.' },
   { id: 'tw_reviews', case: 'reviews', text: 'Your personnel file holds three annual reviews, one per rank, and all three are in the same hand and all three are signed by you.' },
@@ -281,6 +294,65 @@ defineQuests([
     },
   },
   {
+    id: 'sealed',
+    name: 'The Sealed File',
+    layer: 'street',
+    blurb: 'The Annex holds a file called ANNEX, CONSTRUCTION OF. The building was a gift from the firm, the gift was subject to Clause 9, and the file about it is sealed by the donor.',
+    auto: true,
+    prereq: () => isDone('retrieval'),
+    stages: [
+      { type: 'talk', npc: 'ferris',
+        hint: 'The Annex, up the stair at the north end of The Strand or across from the Tower. Somebody has been on that counter thirty-one years.' },
+      { type: 'learn', facts: ['an_index', 'an_gift', 'an_log'],
+        hint: 'Work the room: the index under D, the dedication in the corridor, and whatever is at the end of the last run.' },
+      { type: 'talk', npc: 'ferris',
+        hint: 'Back to Ferris with the cross-reference, the dedication and the log.' },
+      { type: 'resolve',
+        hint: 'Decide how you get at a file the firm sealed in a public building.',
+        options: ['request', 'pull', 'leave'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        request: 'You filed the request properly, on the form, in the log, in front of him. It will not be granted. That was never the point — the point is that there is now a line in a public register with a date on it and your name, and a refusal has to be a refusal OF something.',
+        pull: 'You went down and took it. Ferris did not stop you and did not look away either, which was worse, and the walk back up took a very long time. You have the file. Everybody in that building knows who has it.',
+        leave: 'You left it sealed. It is still there, it will be there next year, and the thing you have instead of the file is the knowledge that the firm can seal a record in a building it gave away.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 11);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE SEALED FILE — ' + String(outcome).toUpperCase());
+      CASE_HOOKS.rep('annex', { request: 3, pull: -5, leave: 0 }[outcome] || 0);
+      CASE_HOOKS.rep('courthouse', { request: 2, pull: 1 }[outcome] || 0);
+      CASE_HOOKS.rep('tower', { request: -2, pull: -3 }[outcome] || 0);
+    },
+  },
+  {
+    id: 'sublevel',
+    name: 'Sublevel C',
+    layer: 'floor',
+    blurb: 'The chain across the sublevel stair is on the floor and something down there is running a copier. DESIGN said there were four hundred of them. They are filed.',
+    auto: true,
+    prereq: () => isDone('reviews'),
+    stages: [
+      { type: 'learn', facts: ['an_sublevel', 'an_cards'],
+        hint: 'The Annex. Find the stair everybody has walked past, and then look at what is in the index under your own name.' },
+      { type: 'talk', npc: 'ferris',
+        hint: 'The counter is staffed. It has been staffed the whole time.' },
+      { type: 'learn', fact: 'an_boxes',
+        hint: 'The end of the last run in the stacks. The lids are already off.' },
+      { type: 'resolve',
+        hint: 'Four hundred boxes. Decide what you do about that.',
+        options: ['count', 'take', 'close'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        count: 'You count them. It takes most of what you have and the number is four hundred exactly, which is worse than four hundred and six or three hundred and ninety would have been, because four hundred exactly is a number somebody chose.',
+        take: 'You pull your own card out of the index and put it in your jacket. The drawer does not close any better for the gap. Somewhere below you the copier stops, for the first time since you woke up, and then starts again.',
+        close: 'You go down the run putting the lids back on. Four hundred of them. It takes hours and it changes nothing and it is the only thing anybody has done for these people in forty years.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 12);
+      CASE_HOOKS.banner('MATTER CLOSED', 'SUBLEVEL C — ' + String(outcome).toUpperCase());
+    },
+  },
+  {
     id: 'reviews',
     name: 'The Reviews',
     layer: 'floor',
@@ -475,7 +547,107 @@ function irisFloor() {
   return T;
 }
 
+/** Ferris on THE FLOOR. Same counter, same man, and he has not been relieved. */
+function ferrisFloor() {
+  const T = { who: 'Ferris', spr: 'ferris', nodes: {} };
+  if (isDone('sublevel')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        count: 'Four hundred. — You counted too. — I counted in 1974, counsellor. It was four hundred then.',
+        take: 'The drawer will not shut. — No. — He does not ask you to put it back.',
+        close: 'You did the lids. — Somebody had to. — He looks down the run for a while. — Yes. For about forty years, somebody had to.',
+      }[outcomeOf('sublevel')] || 'Counter is open.',
+    };
+    return T;
+  }
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'Counter is open. — He is exactly where he was in the other version of this, in the same cardigan, holding the same pen, and he does not appear to have noticed that anything is different, which is the thing you cannot get past.',
+    choices: [
+      { label: '"How long have you been on this counter?"', to: 'long' },
+      { tag: 'THE STAIR', label: 'Ask about the chain being down.',
+        if: () => knows('an_sublevel'), showLocked: true,
+        lockedNote: 'you have not been to the stair', to: 'stair' },
+    ],
+  };
+  T.nodes.long = {
+    text: 'Thirty-one years. — He says it without any of the weight you were braced for. — I have been asked that a great many times and the number has not changed, and I would like you to sit with why that is rather than have me say it.',
+    fx: () => { learn('an_ferris_b'); },
+    choices: [
+      { tag: 'THE STAIR', label: 'Ask about the chain being down.',
+        if: () => knows('an_sublevel'), showLocked: true,
+        lockedNote: 'you have not been to the stair', to: 'stair' },
+      { label: 'Say nothing.', to: null },
+    ],
+  };
+  T.nodes.stair = {
+    text: 'The chain has been down since 1994. — Somebody took it down? — Somebody unlocked it and did not take it off and did not put it back, and I wrote that in the log every year for thirty-one years, and every year the log went into the sublevel with everything else.',
+    choices: [
+      { label: '"What is down there?"', to: 'what' },
+    ],
+  };
+  T.nodes.what = {
+    text: 'Four hundred boxes. — Of? — Of the same thing. — He finally puts the pen down. — Every one of them wrote it, counsellor. Every single one. That is not the sad part and I want to be precise with you about which part is the sad part: they all wrote it, and then they all filed it here, and filing is not sending.',
+  };
+  return T;
+}
+
+/**
+ * The boxes at the end of the last run — a prop with a `tree`, because the
+ * thing you have the conversation with is four hundred cardboard boxes.
+ */
+function annexBoxes() {
+  const T = { who: 'FOUR HUNDRED BOXES', spr: 'dossier', nodes: {} };
+  const stage = currentStage('sublevel');
+
+  if (isDone('sublevel')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        count: 'Four hundred. You have checked. You will check again.',
+        take: 'Three hundred and ninety-nine cards in the drawer, four hundred boxes on the shelf, and the discrepancy is in your jacket.',
+        close: 'Four hundred lids, on. It looks like a records store now instead of an accusation, and you are not sure that is an improvement.',
+      }[outcomeOf('sublevel')] || 'The boxes are where they were.',
+    };
+    return T;
+  }
+
+  if (!stage || stage.type !== 'resolve') {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'Banker\'s boxes, end to end, the whole length of the run and round the corner. The lids are off and stacked separately, tidily, by somebody who intended to come back. In the nearest one, a single sheet of paper, folded once. You do not need to open it to know what it is, and you open it anyway, and you are right.',
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'One letter per box. Every one of them written, and signed, and folded once, and filed. Not sent. Filed — which is a thing you do with a document you have decided to keep rather than use, and which four hundred people independently decided was the correct disposition.',
+    choices: [
+      { tag: 'COUNT', label: 'Count them. All of them. Get the actual number.', to: 'do_count' },
+      { label: 'Take your own card out of the index and keep it.', to: 'do_take' },
+      { label: 'Put the lids back on. All four hundred.', to: 'do_close' },
+      { label: 'Step back.', to: null },
+    ],
+  };
+  T.nodes.do_count = {
+    text: 'It takes most of what you have. Four hundred exactly — not three hundred and ninety-one, not four hundred and six. Exactly four hundred, which is a number somebody chose, which means somebody stopped.',
+    fx: () => qResolve('sublevel', 'count'),
+  };
+  T.nodes.do_take = {
+    text: 'You go back to the index and pull your own card and put it in your jacket. The drawer does not close any better for the gap. Somewhere below you the copier stops for the first time since you woke up — and then, after about four seconds, starts again.',
+    fx: () => qResolve('sublevel', 'take'),
+  };
+  T.nodes.do_close = {
+    text: 'You work down the run putting the lids back on. It takes hours. It changes nothing, it proves nothing, and nobody will ever know it happened — and it is the only thing anybody has done for any of these people in forty years.',
+    fx: () => qResolve('sublevel', 'close'),
+  };
+  return T;
+}
+
 const NPC_TREES = {
+  annexboxes: annexBoxes,
 
   /* ------------------------------ MARISOL RUIZ ------------------------------ */
   ruiz() {
@@ -631,6 +803,98 @@ const NPC_TREES = {
     };
     T.nodes.no = {
       text: 'Yeah. Yeah, okay. — He folds the summons into a square small enough to stop being a summons.',
+    };
+    return T;
+  },
+
+  /* -------------------------------- FERRIS --------------------------------- */
+  // The second person who exists on both layers, and the opposite of Iris about
+  // it: she is unchanged because the building never owned her, he is unchanged
+  // because he was never going anywhere. Thirty-one years either way.
+  ferris() {
+    if (CASE_HOOKS.layer() === 'floor') return ferrisFloor();
+
+    const stage = currentStage('sealed');
+    const phase = !started('sealed') || (stage && stage.type === 'talk' && !knows('an_ferris')) ? 'intake'
+      : isDone('sealed') ? 'after'
+        : (stage && stage.type === 'resolve') || knows('an_index', 'an_gift', 'an_log') ? 'report'
+          : 'working';
+
+    const T = { who: 'Ferris', spr: 'ferris', nodes: {} };
+
+    if (phase === 'intake') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'ANNEX, CONSTRUCTION OF. — You have not said anything yet. — No. — He turns a page. — Thirty-one years, counsellor. There are four files in this building anybody comes in here for and three of them are divorces.',
+        fx: () => { learn('an_ferris'); },
+        choices: [
+          { label: '"Can I see it?"', to: 'no' },
+          { label: '"Who else has asked?"', to: 'who' },
+        ],
+      };
+      T.nodes.who = {
+        text: 'Six. Over thirty-one years. — And? — And the log is on the shelf at the end of the last run and I am not going to stop you reading it, which is a different sentence from me handing it to you and I would like you to notice that it is.',
+        to: 'no',
+      };
+      T.nodes.no = {
+        text: 'You cannot see it. It is sealed. — By the court? — He looks up properly for the first time. — No.',
+      };
+      return T;
+    }
+
+    if (phase === 'working') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'Still here. Still sealed.',
+        choices: [
+          { label: 'Keep looking.', to: null },
+          { tag: 'PROGRESS', label: 'Tell him what you have.',
+            if: () => knowsAny('an_index', 'an_gift', 'an_log'), to: 'b' },
+        ],
+      };
+      T.nodes.b = { text: 'Mm. — That is the whole response, and it is not dismissive, it is a man confirming a total.' };
+      return T;
+    }
+
+    if (phase === 'report') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'The firm built this building and gave it to the county in 1971, in perpetuity, subject to Clause 9. The file about that gift is in the sublevels. And the seal on it was applied by the donor.',
+        to: 'b',
+      };
+      T.nodes.b = {
+        text: 'That is right. — Can they do that? — He puts the pen down. — Nobody has ever asked. In thirty-one years, counsellor, six people have requested that file and not one of them has asked me whether the seal was lawful, and I have had a very long time to notice that.',
+        fx: () => { learn('an_sealed'); },
+        choices: [
+          { tag: 'ON THE RECORD', label: 'File the request properly. Make them refuse it in writing.',
+            if: () => knows('an_log', 'an_gift'), to: 'request' },
+          { label: 'Walk down and take it.', to: 'pull' },
+          { label: 'Leave it sealed.', to: 'leave' },
+          { label: 'Think about it.', to: null },
+        ],
+      };
+      T.nodes.request = {
+        text: 'He gives you the form without being asked, which means it was already under the counter, which means he has been keeping one there. — It will be refused. — I know. — He stamps the log. — Then you have understood the form.',
+        fx: () => qResolve('sealed', 'request'),
+      };
+      T.nodes.pull = {
+        text: 'He does not move and he does not look away, and the second of those is the one that stays with you. When you come back up he has already written the entry, and the column marked WENT BACK is blank, and he has ruled a line through it rather than leaving it empty.',
+        fx: () => qResolve('sealed', 'pull'),
+      };
+      T.nodes.leave = {
+        text: 'Sensible. — He does not mean it as a compliment and does not mean it as an insult. — It will be here. That is the one thing I can absolutely promise you about it.',
+        fx: () => qResolve('sealed', 'leave'),
+      };
+      return T;
+    }
+
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        request: 'The refusal came back Tuesday. Two lines. I have put it in the log next to the request, which is where a refusal goes, and which is the first time in thirty-one years I have had a pair.',
+        pull: 'The county sent somebody to ask me about it. — What did you say? — That the chain has been down since 1994 and I have written that in the log every year. — Ferris — I have written it every year, counsellor.',
+        leave: 'Still sealed. — He nods at the stair. — Still down there.',
+      }[outcomeOf('sealed')] || 'Counter closes at four.',
     };
     return T;
   },

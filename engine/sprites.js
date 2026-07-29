@@ -543,6 +543,27 @@ SPR.hargrove = makeSprite([
   ".....kk..kk.....",
 ], { g: '#a8a49c', f: '#d8b48c', k: K, n: '#2b3040', w: '#eceff2', r: '#7a2f3a' });
 
+// Ferris — thirty-one years behind the records counter. Knows which file you
+// want before you say it, and has decided that is not the same as helping.
+SPR.ferris = makeSprite([
+  "................",
+  "......gggg......",
+  ".....gggggg.....",
+  "....ggffffg.....",
+  "....gfyffyf.....",
+  "....gffffffg....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....tttttttt....",
+  "...ttcccccctt...",
+  "...ttttttttttt..",
+  "...tt.tttt.tt...",
+  "....tttttttt....",
+  ".....tt..tt.....",
+  ".....tt..tt.....",
+  ".....kk..kk.....",
+], { g: '#9c9a90', f: '#c9a884', k: K, t: '#4a4a3e', c: '#d8d4c4', y: '#2b2b33' });
+
 // ---- props ----------------------------------------------------------------
 SPR.dossier = makeSprite([
   "................",
