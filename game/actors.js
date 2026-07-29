@@ -131,6 +131,41 @@ export const ACTOR_TYPES = {
     barks: ['You made the same call I did.', 'Say the part about the trust account again.', 'I am what happened. I am not a warning.'],
     onTouch: 'PARTNER',
   },
+  /* -------------------------------- BOSSES -------------------------------- */
+  // `boss` does three things: names it in the HUD with a bar, keeps it asleep
+  // until the matter that summons it is live, and makes it worth the walk.
+  // Neither of these is a puzzle — LE1's bosses were endurance and pattern, and
+  // so are these. The writing does the rest.
+
+  // DESIGN §3's finale opposition: the covenant itself, cousin to LE1's
+  // Founding Agreement. Two years, fifty miles, and a definition of CLIENT
+  // that covers everyone the firm ever opened a file on — walking.
+  noncompete: {
+    spr: 'noncompete', size: 52, r: 24, hp: 340, speed: 62, dmg: 21, chase: 900,
+    boss: true, title: 'THE NON-COMPETE', needs: 'sued',
+    ranged: { dmg: 13, speed: 250, every: 1.25, life: 3.6, label: 'PARA. 41' },
+    barks: [
+      'Two years.', 'Fifty miles.',
+      'CLIENT OF THE FIRM is defined at paragraph forty-one.',
+      'You signed this.', 'You did not read it. That is not a defence.',
+    ],
+    onTouch: 'ENJOINED',
+  },
+
+  // What is running the copier in Sublevel C. Not a person and not pretending
+  // to be — it is the going concern, and it has four hundred people's work in
+  // it, and it is still going.
+  thefirm: {
+    spr: 'thefirm', size: 54, r: 25, hp: 420, speed: 54, dmg: 22, chase: 1000,
+    boss: true, title: 'THE FIRM', scales: true, hours: 60, needs: 'sublevelopen',
+    ranged: { dmg: 14, speed: 210, every: 1.05, life: 4.0, label: '0.1' },
+    barks: [
+      'It is not a bad firm.', 'Four hundred people chose this.',
+      'You are still here.', 'Somebody has to keep the lights on.',
+      'I did not ask anybody to stay.',
+    ],
+    onTouch: 'RETAINED',
+  },
 };
 
 export function actorDef(type) { return ACTOR_TYPES[type] || ACTOR_TYPES.civ; }

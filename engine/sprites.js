@@ -564,6 +564,49 @@ SPR.ferris = makeSprite([
   ".....kk..kk.....",
 ], { g: '#9c9a90', f: '#c9a884', k: K, t: '#4a4a3e', c: '#d8d4c4', y: '#2b2b33' });
 
+// ---- bosses ---------------------------------------------------------------
+// THE NON-COMPETE. A contract-golem: a stack of executed paper with a seal for
+// a face and two clauses for arms. Cousin to LE1's Founding Agreement.
+SPR.noncompete = makeSprite([
+  "....pppppppp....",
+  "...pppppppppp...",
+  "...pkkppppkkp...",
+  "...pppppppppp...",
+  "...ppkkkkkkpp...",
+  "...pppppppppp...",
+  "..spppppppppps..",
+  "..sppprrrpppps..",
+  "..spppprrppppp..",
+  "...pppppppppp...",
+  "...pkkkkkkkkp...",
+  "...pppppppppp...",
+  "...pppppppppp...",
+  "....pp....pp....",
+  "....pp....pp....",
+  "....kk....kk....",
+], { p: '#e6dfcc', k: '#4a4436', r: '#8c2f3a', s: '#b8ab8e' });
+
+// THE FIRM. The going concern. A tower with the windows lit, on legs, and the
+// glow underneath it is a copier that has not stopped in forty years.
+SPR.thefirm = makeSprite([
+  "...tttttttttt...",
+  "...tggttggttt...",
+  "...tttttttttt...",
+  "...tggttggttt...",
+  "...tttttttttt...",
+  "...tggttggttt...",
+  "...tttttttttt...",
+  "..ttttttttttttt.",
+  "..tggttggttggtt.",
+  "..ttttttttttttt.",
+  "...tttttttttt...",
+  "...tggggggggt...",
+  "...tttttttttt...",
+  "....tt....tt....",
+  "....tt....tt....",
+  "....kk....kk....",
+], { t: '#241f33', g: '#f0c75e', k: '#0c0b10' });
+
 // ---- props ----------------------------------------------------------------
 SPR.dossier = makeSprite([
   "................",

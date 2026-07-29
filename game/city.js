@@ -70,7 +70,8 @@ export const REGIONS = [
           { id: 'ch_window', tx: 22, ty: 12, spr: 'sign', label: '[E] the clerk\'s filing window',
             repeat: true,
             text: 'A slot, a bell, and a laminated sign reading NO EXCEPTIONS that has been laminated twice. Everything that is going to happen to anybody here goes through this slot first.' },
-          { id: 'ch_bonds', tx: 8, ty: 27, spr: 'sign', label: '[E] Ace Bail Bonds — 24 HRS',
+          { id: 'ch_bonds', tx: 8, ty: 27, spr: 'sign', repeat: true, tree: 'bonds',
+            label: '[E] Ace Bail Bonds — 24 HRS',
             text: 'ACE BAIL BONDS — 24 HRS — SE HABLA ESPAÑOL. A hand-lettered addition: AND WE MEAN 24.' },
         ],
         pickups: [
@@ -176,6 +177,10 @@ export const REGIONS = [
           { id: 'st_board', tx: 6, ty: 13, spr: 'board', label: '[E] corkboard',
             text: 'LAUNDROMAT CORKBOARD: a lost cat, a bass amp, three tabs torn off a card that reads EVICTION? KNOW YOUR RIGHTS — and four staples in a rectangle, holding nothing. Whatever was posted there was county-yellow; there is a strip of it still under the left staple, and the printed date on it has not come yet.',
             fact: 'wok_notice' },
+          { id: 'st_lease', tx: 26, ty: 18, spr: 'board', repeat: true, tree: 'lease',
+            label: '[E] the lease, in the glass',
+            text: 'Your own lease, posted in the glass by the stairwell because the code says it has to be. Eleven hundred a week for a room over a kitchen, on a form nobody drafted so much as assembled.',
+            fact: 'lease_terms' },
           { id: 'st_endday', tx: 20, ty: 18, spr: 'sign', repeat: true, office: true,
             label: '[E] go up to Suite 2B',
             text: 'Up the stairs beside the Wok, past the smell, to a folding table and a cot you have decided not to describe as a cot.' },
@@ -270,7 +275,8 @@ export const REGIONS = [
             fact: 'dch_noncompete' },
           { id: 'tw_plaque', tx: 23, ty: 13, spr: 'sign', label: '[E] the plaza plaque',
             text: 'DEWEY PLAZA — DEDICATED 1971 — A PLACE FOR THE PUBLIC. It is a place for the public in the sense that the public may cross it.' },
-          { id: 'tw_grabbit', tx: 31, ty: 12, spr: 'sign', label: '[E] GRABBIT & RUNN — reception',
+          { id: 'tw_grabbit', tx: 31, ty: 12, spr: 'sign', repeat: true, tree: 'grabbit',
+            label: '[E] GRABBIT & RUNN — reception',
             text: 'The other one. Identical inside, apparently, down to the carpet, which people say the way you\'d mention a coincidence and not a supplier.' },
           { id: 'tw_dock', tx: 7, ty: 28, spr: 'board', label: '[E] the loading dock',
             text: 'A grey van with the rear doors open and nothing written on it. Inside, four banker\'s boxes and a clipboard, and on the clipboard a list of names with tick-boxes, and one of the names is yours and the box beside it is not ticked.' },
@@ -296,6 +302,7 @@ export const REGIONS = [
           { id: 'tw_srv1', type: 'server', tx: 30, ty: 20 },
           { id: 'tw_coll1', type: 'collections', tx: 33, ty: 17 },
           { id: 'tw_depo1', type: 'depo', tx: 20, ty: 20 },
+          { id: 'tw_boss', type: 'noncompete', tx: 19, ty: 17 },
         ],
       },
       floor: {
@@ -482,7 +489,8 @@ export const REGIONS = [
       street: {
         greet: 'RIVERSIDE. Everybody calls it The Flats and nobody calls it Riverside, including the river.',
         props: [
-          { id: 'fl_centre', tx: 12, ty: 11, spr: 'sign', label: '[E] the community centre — notices',
+          { id: 'fl_centre', tx: 12, ty: 11, spr: 'sign', repeat: true, tree: 'centre',
+            label: '[E] the community centre — notices',
             text: 'A glass case by the doors, and behind the glass, thirty photocopies of the same three-day notice with thirty different apartment numbers written in by hand. Served Saturday. There is no proof of service on any of them and a three-day notice served on a Saturday is not a three-day notice.',
             fact: 'flats_notices' },
           { id: 'fl_sale', tx: 27, ty: 10, spr: 'board', label: '[E] the sign on the fence',
@@ -584,7 +592,8 @@ export const REGIONS = [
       street: {
         greet: 'MOTOR ROW. Tow yards, body shops, and the only chiropractor in this city who returns a lawyer\'s call inside the hour.',
         props: [
-          { id: 'mr_gate', tx: 15, ty: 8, spr: 'sign', label: '[E] BONILLA TOWING — gate',
+          { id: 'mr_gate', tx: 15, ty: 8, spr: 'sign', repeat: true, tree: 'lien',
+            label: '[E] BONILLA TOWING — gate',
             text: 'BONILLA TOWING & RECOVERY. STORAGE $65/DAY. LIEN SALE AFTER 30. The lien-sale line is the only one on the board that has been repainted, and it has been repainted recently.' },
           { id: 'mr_impound', tx: 8, ty: 8, spr: 'sign', label: '[E] the impound rows',
             text: 'Four rows of cars that stopped being transport and became collateral. Every one of them has a windshield ticket and a story, and in about a third of them the story is that somebody could not find eleven hundred dollars in a week. You know that number.' },

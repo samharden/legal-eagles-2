@@ -135,6 +135,15 @@ CASE_HOOKS.earn = (n, memo) => {
   if (got) say(`$${got} earned and moved from trust to operating. That one is yours.`, 6);
   syncHud();
 };
+CASE_HOOKS.rent = n => {
+  if (!HAS_CLOCK() || n === RENT) return;
+  const was = RENT;
+  RENT = n;
+  scheduleRent();          // relabel every future rent day with the new figure
+  showBanner(n < was ? 'RENT REDUCED' : 'RENT SET', `$${was} → $${n} A WEEK`);
+  say(`Rent on Suite 2B is $${n} a week from now on. That is $${Math.abs(was - n) * 52} a year, in the direction it is going.`, 9);
+  refreshCasefile(); syncHud();
+};
 CASE_HOOKS.rep = (d, n) => {
   if (!n) return;
   Practice.bumpRep(d, n);
@@ -195,7 +204,11 @@ hoursHooks.onPressure = step => {
   SFX.del();
 };
 
-const RENT = 1100, RENT_EVERY = 7;
+// Rent is a LET. Winning The Lease actually moves it — a matter whose reward
+// is a permanent change to your overhead is worth more than any fee in the
+// game, and it should be the number on the docket that changes, not a coupon.
+let RENT = 1100;
+const RENT_EVERY = 7;
 const ALLY_SPD = 190;
 // Her reach must comfortably EXCEED the distance she stands off at, or the one
 // thing she is paid to do — hit whatever has closed on you — is the one thing
@@ -203,8 +216,9 @@ const ALLY_SPD = 190;
 const ALLY_STATION = 44, ALLY_REACH = 44;
 
 function scheduleRent() {
+  unschedule('rent');
   for (let i = 1; i <= 12; i++)
-    schedule({ day: 1 + i * RENT_EVERY, kind: 'rent', label: `Rent — Suite 2B ($${RENT})` });
+    schedule({ day: Cal.day + i * RENT_EVERY, ref: 'rent', kind: 'rent', label: `Rent — Suite 2B ($${RENT})` });
 }
 
 /**
@@ -849,6 +863,10 @@ function downActor(a, d) {
 // `needs` string on the actor type, so the table stays data.
 const ACTOR_NEEDS = {
   arrears: () => Practice.Books.arrears > 0 || !Practice.Office.held,
+  // a boss is not scenery — it is not in the plaza until the matter that
+  // summons it is open, and it is gone the moment that matter closes
+  sued: () => Quests.isActive('withdrawal'),
+  sublevelopen: () => Quests.isActive('thefirm'),
 };
 const actorAwake = d => !d.needs || !ACTOR_NEEDS[d.needs] || ACTOR_NEEDS[d.needs]();
 
@@ -1097,6 +1115,16 @@ function updateShots(dt) {
       syncHud();
     }
   }
+}
+
+/** The nearest awake boss, if one is on the board. Drives the HUD bar. */
+function bossInPlay() {
+  if (!G.world || !G.player) return null;
+  for (const a of G.world.allActors()) {
+    const d = actorDef(a.type);
+    if (d.boss && !a.asleep && a.hp != null) return a;
+  }
+  return null;
 }
 
 /* ------------------------------- update -------------------------------- */
@@ -1441,8 +1469,18 @@ function syncHudLight() {
     + (G.dark ? ' · UNLIT' : '');
   // the active stage's hint IS the objective — one source, never restated
   const obj = Quests.objective();
-  el('hObjective').textContent = obj ? obj.text : '';
-  el('hMatter').textContent = obj ? obj.quest.name : '';
+  // A live boss takes over the objective line. Everything else you are doing
+  // can wait, and a 340hp fight with no readout is just a long silence.
+  const boss = bossInPlay();
+  if (boss) {
+    const d = actorDef(boss.type);
+    const pct = Math.max(0, Math.round((boss.hp / d.hp) * 100));
+    el('hMatter').textContent = d.title;
+    el('hObjective').innerHTML = `<span style="color:#e05e5e">${'█'.repeat(Math.round(pct / 5)).padEnd(20, '░')}</span> <span style="color:#f0c75e">${pct}%</span>`;
+  } else {
+    el('hObjective').textContent = obj ? obj.text : '';
+    el('hMatter').textContent = obj ? obj.quest.name : '';
+  }
   const m = el('hMsg');
   m.textContent = G.msg.t > 0 ? G.msg.text : '';
   m.style.opacity = G.msg.t > 0 ? Math.min(1, G.msg.t) : 0;

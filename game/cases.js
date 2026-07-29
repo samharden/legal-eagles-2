@@ -50,6 +50,32 @@ defineFacts([
   { id: 'dch_hargrove', case: 'retrieval', text: 'Hargrove signed the retrieval authorisation. He did not write it and he did not refuse it.' },
   { id: 'dch_list', case: 'retrieval', text: 'You did not take a document. You took a memory, and the firm has worked out that it cannot send three men to retrieve one.' },
 
+  // ---- The Bondsman's Cousin ----
+  { id: 'bail_cousin', case: 'bail', text: 'Ace Bail Bonds has a cousin in custody on a bench warrant for a hearing nobody told him about. It is a walk-in and it is worth $600.' },
+
+  // ---- The Lease ----
+  { id: 'lease_terms', case: 'lease', text: 'Your own lease: $1,100 a week for a room over a kitchen, on a form nobody drafted so much as assembled.' },
+  { id: 'lease_cap', case: 'lease', text: 'Suite 2B is a converted residential unit. The rent is above the stabilised cap and has been since the conversion was never registered.' },
+  { id: 'lease_wok', case: 'lease', text: 'Golden Wok Holdings owns three buildings on The Strand and has never registered a conversion on any of them.' },
+
+  // ---- The Lien ----
+  { id: 'lien_storage', case: 'lien', text: 'Bonilla is holding a client\'s truck on $65-a-day storage that has run past the value of the truck.' },
+  { id: 'lien_notice', case: 'lien', text: 'A lien sale needs notice to the registered owner thirty days out. Bonilla sent it to the address on the tow slip, which is where the truck was, not where the owner is.' },
+
+  // ---- The Center ----
+  { id: 'centre_lease', case: 'centre', text: 'The community centre is on a peppercorn lease from the county that renews on silence and expires on a letter.' },
+  { id: 'centre_letter', case: 'centre', text: 'A letter has been sent. It is in the glass case with the eviction notices, which is why nobody has read it as being about the building itself.' },
+  { id: 'centre_board', case: 'centre', text: 'The centre has no board and no filing. Thirty years of running on Iris and two folding tables.' },
+
+  // ---- Grabbit & Runn ----
+  { id: 'gr_offer', case: 'grabbit', text: 'Grabbit & Runn will take you on as of counsel: a floor, a salary, and the covenant bought out on your first day.' },
+  { id: 'gr_carpet', case: 'grabbit', text: 'The carpet is the same as DC&H\'s. So is the layout. So is the form of the engagement letter, down to the clause numbering.' },
+
+  // ---- In re Withdrawal ----
+  { id: 'iw_served', case: 'withdrawal', text: 'DC&H have filed: breach of covenant, client poaching, breach of the partnership agreement. You have twenty days and they know exactly what twenty days costs a solo.' },
+  { id: 'iw_bane', case: 'withdrawal', text: 'It is in front of Hon. M. Bane, Department 13, who has been presiding since before you were born.' },
+  { id: 'iw_para41', case: 'withdrawal', text: 'Paragraph 41 defines CLIENT OF THE FIRM so broadly that enforcing it would bar you from practising at all — which is the argument against it, and it is on their own front door.' },
+
   // ---- The Sealed File ----
   { id: 'an_index', case: 'sealed', text: 'The card index cross-references the firm to ANNEX, CONSTRUCTION OF — which is a file, in a building the firm paid for.' },
   { id: 'an_gift', case: 'sealed', text: 'DC&H gifted the Annex to the county in 1971, in perpetuity, subject to Clause 9.' },
@@ -92,7 +118,7 @@ defineFacts([
 
 export const CASE_HOOKS = {
   say: () => {}, banner: () => {},
-  fee: () => {}, retainer: () => {}, earn: () => {}, rep: () => {},
+  fee: () => {}, retainer: () => {}, earn: () => {}, rep: () => {}, rent: () => {},
   // Which layer we are standing on. Iris Nakamura exists on BOTH — she is the
   // same person in the same cardigan in both versions of The Flats, and that is
   // the whole point of her — so her tree has to know which one it is being
@@ -291,6 +317,173 @@ defineQuests([
       CASE_HOOKS.fee({ sign: 2500, return: 600, keep: 0 }[outcome] || 0, 'DC&H — release');
       CASE_HOOKS.rep('tower', { sign: 2, return: 1, keep: -3 }[outcome] || 0);
       CASE_HOOKS.rep('courthouse', { keep: 2 }[outcome] || 0);
+    },
+  },
+  // A docket of twelve identical matters would be a chore. These are the small
+  // ones: two or three stages, a fact or two, sometimes no decision at all —
+  // because most of a practice is not an ethical crisis, it is a walk-in worth
+  // six hundred dollars that has to be at the window by Thursday.
+  {
+    id: 'bail',
+    name: 'The Bondsman\'s Cousin',
+    layer: 'street',
+    blurb: 'Ace Bail Bonds has a cousin in custody on a bench warrant for a hearing nobody told him about. It is a walk-in, it is two days, and it is six hundred dollars.',
+    auto: true,
+    prereq: () => isDone('ruiz') || isDone('coronado'),
+    due: 2,
+    dueLabel: 'Ace Bail — the bench warrant hearing',
+    stages: [
+      { type: 'use', prop: 'ch_bonds',
+        hint: 'Ace Bail Bonds, south side of Courthouse Square. They have been trying the number on your card.' },
+      { type: 'use', prop: 'ch_window',
+        hint: 'File the motion to quash at the window. It is one page and it is worth six hundred dollars.' },
+    ],
+    onComplete() {
+      CASE_HOOKS.say('One page, one stamp, one man out by Thursday afternoon who did not know there was a warrant. Ace pays in cash, on the step, and counts it wrong in your favour and does not correct it.', 9);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE BONDSMAN\'S COUSIN — QUASHED');
+      CASE_HOOKS.fee(600, 'Ace Bail — motion to quash');
+      CASE_HOOKS.rep('courthouse', 2);
+    },
+    onFail() {
+      CASE_HOOKS.say('The hearing went ahead without anybody in the room for him. Ace does not call again, and Ace talks to everybody.', 9);
+      CASE_HOOKS.banner('HEARING PASSED', 'THE BONDSMAN\'S COUSIN');
+      CASE_HOOKS.rep('courthouse', -3);
+    },
+  },
+  {
+    id: 'lease',
+    name: 'The Lease',
+    layer: 'street',
+    blurb: 'Eleven hundred a week for a room over a kitchen. You have read every lease but this one, which is the oldest joke in the profession and it is on you.',
+    auto: true,
+    prereq: () => isDone('ruiz'),
+    stages: [
+      { type: 'learn', facts: ['lease_terms', 'lease_cap', 'lease_wok'],
+        hint: 'Read your own lease in the glass by the stairs. Then find out what the Wok has and has not registered.' },
+      { type: 'resolve',
+        hint: 'Decide what you do about your own landlord.',
+        options: ['sue', 'negotiate', 'pay'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        sue: 'You filed it against your own landlord from your own landlord\'s building. The rent is frozen at the stabilised figure pending the hearing, which is four hundred a week less, and the man who collects it now stands further from the bottom of the stairs.',
+        negotiate: 'You showed them the registration they never filed and did not file anything yourself, and the rent came down two hundred a week without a word said about why. Nobody at the county learns anything. Neither does anybody else on this street.',
+        pay: 'You put the lease back in the glass. Eleven hundred a week. You know exactly what it should be now, which is worse than not knowing, and every single Monday it will be worse than not knowing.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 11);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE LEASE — ' + String(outcome).toUpperCase());
+      CASE_HOOKS.rent({ sue: 700, negotiate: 900, pay: 1100 }[outcome] || 1100);
+      CASE_HOOKS.rep('strand', { sue: 4, negotiate: 1, pay: 0 }[outcome] || 0);
+    },
+  },
+  {
+    id: 'lien',
+    name: 'The Lien',
+    layer: 'street',
+    blurb: 'Bonilla Towing is thirty days from selling a man\'s truck to cover storage that has already run past what the truck is worth.',
+    auto: true,
+    prereq: () => isDone('ferraro'),
+    stages: [
+      { type: 'learn', facts: ['lien_storage', 'lien_notice'],
+        hint: 'The gate at Bonilla Towing on Motor Row. Ask what they sent, and where they sent it.' },
+      { type: 'resolve',
+        hint: 'Decide how the truck comes out of that yard.',
+        options: ['void', 'settle'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        void: 'The notice went to the address the truck was towed from, which is not the registered owner\'s address, which voids the sale. Bonilla releases it the same afternoon and is extremely polite about it, and will be extremely polite about it every time you walk past that gate for the rest of your life.',
+        settle: 'You got the storage knocked to a third and the man paid it and drove out, and everybody involved kept a relationship they are going to need, and the notice defect is still sitting in a drawer at that yard waiting for somebody with less to lose.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 10);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE LIEN — ' + String(outcome).toUpperCase());
+      CASE_HOOKS.fee({ void: 400, settle: 750 }[outcome] || 0, 'Bonilla — lien');
+      CASE_HOOKS.rep('motor', { void: -2, settle: 3 }[outcome] || 0);
+    },
+  },
+  {
+    id: 'centre',
+    name: 'The Center',
+    layer: 'street',
+    blurb: 'The community centre has run for thirty years on a peppercorn lease that renews on silence. Somebody has written a letter.',
+    auto: true,
+    prereq: () => isDone('rivera'),
+    stages: [
+      { type: 'learn', facts: ['centre_lease', 'centre_letter', 'centre_board'],
+        hint: 'The community centre on The Flats. Read what is in the glass case that is not an eviction notice.' },
+      { type: 'resolve',
+        hint: 'Decide what the centre is, on paper, by Friday.',
+        options: ['incorporate', 'answer', 'nothing'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        incorporate: 'You incorporated it. A board of five, articles, a filing number, and a lease that now runs to an entity instead of to a woman with a clipboard. It took a week you did not have and it means the centre outlives Iris, which she did not thank you for and which is the point.',
+        answer: 'You answered the letter inside the window and the lease renewed by silence for another year, the way it has for thirty. It works. It will need doing again next year, and the year after, and it will need doing by whoever is holding the clipboard then.',
+        nothing: 'The letter went unanswered. The lease did not renew. The county has not done anything about it yet and there is no reason to think it will, and that is now the whole of the centre\'s security.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 11);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE CENTER — ' + String(outcome).toUpperCase());
+      CASE_HOOKS.rep('flats', { incorporate: 6, answer: 2, nothing: -4 }[outcome] || 0);
+    },
+  },
+  {
+    id: 'grabbit',
+    name: 'Grabbit & Runn',
+    layer: 'street',
+    blurb: 'The other tower would like a word. A floor, a salary, and the covenant bought out on your first day.',
+    auto: true,
+    prereq: () => isDone('retrieval'),
+    stages: [
+      { type: 'learn', facts: ['gr_offer', 'gr_carpet'],
+        hint: 'Grabbit & Runn reception, across the plaza. They have been expecting you for about a week.' },
+      { type: 'resolve',
+        hint: 'Decide whether the shingle comes down.',
+        options: ['decline', 'consider'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        decline: 'You said no in the lobby, standing up, which is the only way it can be said. The carpet is the same as the other one. That is the entire reason and it is enough of one.',
+        consider: 'You took the folder and did not sign it and did not give it back, and it is in the bottom drawer of a folding table above a kitchen, and you know exactly which drawer.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 11);
+      CASE_HOOKS.banner('MATTER CLOSED', 'GRABBIT & RUNN — ' + String(outcome).toUpperCase());
+      CASE_HOOKS.rep('tower', { decline: -1, consider: 2 }[outcome] || 0);
+      CASE_HOOKS.rep('strand', { decline: 3 }[outcome] || 0);
+    },
+  },
+  {
+    id: 'withdrawal',
+    name: 'In re Withdrawal',
+    layer: 'street',
+    blurb: 'Dewey, Cheatham & Howe v. You. Breach of covenant, client poaching, breach of the partnership agreement. Twenty days, and they know what twenty days costs a solo.',
+    auto: true,
+    // The last matter on the street. It needs the covenant read, the billing
+    // summary in hand, and the practice standing on its own feet first.
+    prereq: () => isDone('retrieval') && isDone('sealed'),
+    due: 20,
+    dueLabel: 'In re Withdrawal — response due',
+    stages: [
+      { type: 'talk', npc: 'hargrove',
+        hint: 'They have filed. Hargrove is in the plaza and did not have to be.' },
+      { type: 'learn', facts: ['iw_bane', 'iw_para41'],
+        hint: 'Find out who is hearing it, and read paragraph 41 on their own front door one more time.' },
+      { type: 'kill', enemy: 'noncompete',
+        hint: 'The covenant is in the plaza. It is two years, fifty miles, and a definition of CLIENT that covers everyone they ever opened a file on, and it is walking.' },
+      { type: 'talk', npc: 'hargrove',
+        hint: 'It is on the ground. Go and tell him what happens now.' },
+    ],
+    onComplete() {
+      CASE_HOOKS.say('Paragraph 41 was always the argument against itself: a covenant that would bar you from practising at all is a covenant no court will enforce, and it was posted on their own door the entire time. Bane took eleven minutes. The rest of it — the poaching, the partnership agreement — is still live, and will be live for a long time, and is now a case rather than a foregone conclusion.', 13);
+      CASE_HOOKS.banner('COVENANT UNENFORCEABLE', 'IN RE WITHDRAWAL — PARA. 41 STRUCK');
+      CASE_HOOKS.rep('courthouse', 6);
+      CASE_HOOKS.rep('tower', -4);
+      CASE_HOOKS.rep('strand', 3);
+    },
+    onFail() {
+      CASE_HOOKS.say('Twenty days went by. Default. The covenant stands as pleaded — two years, fifty miles, and every person the firm ever opened a file on — and there is no version of a practice left inside those lines.', 13);
+      CASE_HOOKS.banner('DEFAULT — COVENANT ENFORCED', 'IN RE WITHDRAWAL');
+      CASE_HOOKS.rep('courthouse', -6);
+      CASE_HOOKS.rep('strand', -4);
     },
   },
   {
@@ -547,6 +740,73 @@ function irisFloor() {
   return T;
 }
 
+/**
+ * Hargrove once DC&H have filed. He signed the retrieval authorisation and he
+ * is on the other side of this too, and the only decent thing available to him
+ * is not pretending he is anywhere else — which he manages, at some cost.
+ */
+function hargroveSuit() {
+  const T = { who: 'Emmett Hargrove', spr: 'hargrove', nodes: {} };
+
+  if (isDone('withdrawal')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: isFailedCase('withdrawal')
+        ? 'You did not respond. — I know. — Twenty days, counsellor. I have watched this firm win nine cases in twenty days against people who had a better argument than you did and less time to make it. — He does not say the rest of it. — I am sorry. That is not worth anything. I am aware it is not worth anything.'
+        : 'Eleven minutes. — He is holding a copy of the order and has clearly read it more than once. — Bane struck paragraph 41 in eleven minutes, on the ground that it was written on our own front door, where I have walked past it twice a day for nineteen years. — He folds it. — The rest of it is still live. I will be sitting at the other table for that, and I would like you to expect me to be good at it.',
+    };
+    return T;
+  }
+
+  const stage = currentStage('withdrawal');
+  const phase = (stage && stage.type === 'talk' && !knows('iw_served')) ? 'served'
+    : (stage && stage.type === 'kill') ? 'waiting'
+      : 'after_boss';
+
+  if (phase === 'served') {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'They filed this morning. — He is in the plaza with no coat again, and he did not have to come out here, and both of you know that he did not have to come out here. — Breach of covenant, client poaching, breach of the partnership agreement. Twenty days.',
+      fx: () => learn('iw_served'),
+      choices: [
+        { label: '"Who is hearing it?"', to: 'bane' },
+        { label: '"You could have told me yesterday."', to: 'yesterday' },
+      ],
+    };
+    T.nodes.yesterday = {
+      text: 'I could have. — He does not offer a reason, which you eventually work out is the reason. — I am going to be at the other table. I would rather you heard the date from me than from a man in a windbreaker on the steps, and that is the entire extent of what I am able to do for you, and I am aware of the size of it.',
+      to: 'bane',
+    };
+    T.nodes.bane = {
+      text: 'Department 13. Bane. — Bane has been presiding since before I was born. — Since before I was born, counsellor, and he has read paragraph 41 before, in 1988, and he did not like it then either and the firm settled that one on the courthouse steps at ten past nine.',
+      fx: () => learn('iw_bane'),
+      choices: [
+        { label: '"Why are you telling me that?"', to: 'why' },
+      ],
+    };
+    T.nodes.why = {
+      text: 'He looks at the doors for a while. — Because it is on the door. Read it again. Read what CLIENT OF THE FIRM is defined to include and then ask yourself what is left that you are permitted to do for a living, and then ask yourself what a court does with a covenant whose answer to that question is NOTHING.',
+      // the argument that wins it, handed to you by the man on the other side
+      fx: () => learn('iw_para41'),
+    };
+    return T;
+  }
+
+  if (phase === 'waiting') {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'It is in the plaza. — He does not turn round to look at it. — It has been in the plaza since about eleven. Nobody else can see it, which I have decided not to think about, and I would ask you to go and deal with it rather than stand here asking me what it is.',
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'It is on the ground. — Yes. — He looks at it for a long moment, the way you look at a thing you have been carrying. — Then say the part about paragraph 41 to Bane exactly as you said it to me, and do not improve it on the way over.',
+  };
+  return T;
+}
+
 /** Ferris on THE FLOOR. Same counter, same man, and he has not been relieved. */
 function ferrisFloor() {
   const T = { who: 'Ferris', spr: 'ferris', nodes: {} };
@@ -646,8 +906,265 @@ function annexBoxes() {
   return T;
 }
 
+/* ------------------------ the small matters' counters --------------------- */
+// Five props that are the thing you have the conversation with. A bail bondsman
+// behind glass, your own lease, a tow-yard gate, a notice case and a reception
+// desk — none of them need a person standing there, and a district reads better
+// when not everything that talks to you has a face.
+
+function bondsTree() {
+  const T = { who: 'ACE BAIL BONDS — 24 HRS', spr: 'sign', nodes: {} };
+  if (isDone('bail')) {
+    T.start = 'a';
+    T.nodes.a = { text: isFailedCase('bail')
+      ? 'The window is shuttered at eleven in the morning, which it has never been, and which is a message.'
+      : 'A new card taped inside the glass, hand-lettered, under ACE BAIL BONDS: AND WE KNOW A LAWYER.' };
+    return T;
+  }
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'The speaker crackles before you have touched it. — You the one over the Wok? My cousin is in on a bench warrant for a hearing nobody told him about. Nobody told him. He does not miss things, he is not a person who misses things, and there is a warrant.',
+    fx: () => learn('bail_cousin'),
+    choices: [
+      { label: '"A motion to quash. One page. I can have it at the window by Thursday."', to: 'yes' },
+      { label: '"I can\'t take it."', to: 'no' },
+    ],
+  };
+  T.nodes.yes = {
+    text: 'Six hundred. — He says the number before you do, which tells you what he thinks of lawyers and also what he thinks the job is worth, and both of those are correct. — Thursday. He has a kid.',
+  };
+  T.nodes.no = {
+    text: 'The speaker clicks off without anything else being said, which on this street is a considered response and not a rude one.',
+  };
+  return T;
+}
+
+function leaseTree() {
+  const T = { who: 'THE LEASE, IN THE GLASS', spr: 'board', nodes: {} };
+  const stage = currentStage('lease');
+
+  if (isDone('lease')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        sue: 'A copy of the filed complaint is taped inside the glass next to the lease, because the code says the lease has to be posted and says nothing at all about what may be posted beside it.',
+        negotiate: 'The figure in the glass has been changed with a pen. It is initialled. It is not initialled by you.',
+        pay: 'Eleven hundred a week, in the glass, where the code says it has to be, where you will read it every single time you go up those stairs.',
+      }[outcomeOf('lease')] || 'The lease is in the glass.',
+    };
+    return T;
+  }
+
+  if (!stage || stage.type !== 'resolve') {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'Eleven hundred a week for a room over a kitchen, on a form nobody drafted so much as assembled — three different fonts and a clause about livestock. You have read every lease that has crossed your desk in nine years and you have never once read this one, which is the oldest joke in the profession and it is on you.',
+      choices: [
+        { tag: 'THE CAP', label: 'Check whether the unit was ever registered as converted.',
+          if: () => knows('lease_terms'), to: 'cap' },
+        { label: 'Put it back.', to: null },
+      ],
+    };
+    T.nodes.cap = {
+      text: 'It was not. Suite 2B is a converted residential unit and the conversion was never registered, which means the stabilised cap never came off it, which means the rent has been over the line since before you signed — and Golden Wok Holdings owns three buildings on this street and has not registered a conversion on any of them.',
+      fx: () => { learn('lease_cap'); learn('lease_wok'); },
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'Your landlord is a client\'s defendant, your neighbour, and the reason you can afford to be on this street at all. The number in the glass is four hundred a week more than the law allows.',
+    choices: [
+      { tag: 'FILE IT', label: 'File it. Freeze the rent at the stabilised figure.', to: 'do_sue' },
+      { label: 'Show them the registration and settle it quietly.', to: 'do_neg' },
+      { label: 'Put the lease back in the glass and pay it.', to: 'do_pay' },
+      { label: 'Not yet.', to: null },
+    ],
+  };
+  T.nodes.do_sue = {
+    text: 'You file it from the building it is about. It is going to make the stairs longer and the man at the bottom of them quieter, and the rent is frozen from today, and every tenant in the other two buildings is going to hear about it inside a fortnight.',
+    fx: () => qResolve('lease', 'sue'),
+  };
+  T.nodes.do_neg = {
+    text: 'You put the unregistered conversion in front of them and did not put it in front of anybody else. The rent comes down. Nothing is recorded anywhere, nobody at the county learns anything, and the other two buildings go on exactly as they were.',
+    fx: () => qResolve('lease', 'negotiate'),
+  };
+  T.nodes.do_pay = {
+    text: 'You put it back in the glass. Eleven hundred a week. The difference between not knowing and knowing is that from Monday you will be paying it on purpose.',
+    fx: () => qResolve('lease', 'pay'),
+  };
+  return T;
+}
+
+function lienTree() {
+  const T = { who: 'BONILLA TOWING — GATE', spr: 'sign', nodes: {} };
+  const stage = currentStage('lien');
+
+  if (isDone('lien')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: outcomeOf('lien') === 'void'
+        ? 'The board has been repainted again. LIEN SALE AFTER 30 — NOTICE PER STATUTE. The last three words are newer than the rest and are not in the same hand.'
+        : 'The gate man raises a hand at you now, which he did not before, and it costs him nothing, and it is not nothing.',
+    };
+    return T;
+  }
+
+  if (!stage || stage.type !== 'resolve') {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'STORAGE $65/DAY. LIEN SALE AFTER 30. There is a hook truck in the third row that has been in the third row long enough that the storage has run past what the truck is worth, which is a thing that happens to about one vehicle in four in this yard.',
+      fx: () => learn('lien_storage'),
+      choices: [
+        { tag: 'NOTICE', label: 'Ask to see the notice they sent the registered owner.',
+          if: () => knows('lien_storage'), to: 'notice' },
+        { label: 'Walk on.', to: null },
+      ],
+    };
+    T.nodes.notice = {
+      text: 'They produce it happily, because they have nothing to hide and have never once been asked. Thirty days\' notice, correctly worded, correctly dated — and addressed to where the truck was towed FROM, which is a kerb on Alameda, and not to the registered owner, who is a man in a house four miles away who has been ringing this yard every week.',
+      fx: () => learn('lien_notice'),
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'The notice is defective. The sale is void if you say so, and the storage is negotiable if you do not.',
+    choices: [
+      { tag: 'VOID IT', label: 'Void the sale. The notice never reached the owner.', to: 'do_void' },
+      { label: 'Trade the defect for a third of the storage and keep the yard.', to: 'do_settle' },
+      { label: 'Leave it.', to: null },
+    ],
+  };
+  T.nodes.do_void = {
+    text: 'Released the same afternoon, and Bonilla is extremely polite about it, and will be extremely polite about it every single time you walk past that gate for the rest of your working life.',
+    fx: () => qResolve('lien', 'void'),
+  };
+  T.nodes.do_settle = {
+    text: 'Storage knocked to a third, paid, driven out by four. Everybody kept a relationship they are going to need — and the notice defect goes back in the drawer at that yard, where it will wait for somebody with less to lose than you had.',
+    fx: () => qResolve('lien', 'settle'),
+  };
+  return T;
+}
+
+function centreTree() {
+  const T = { who: 'THE COMMUNITY CENTRE — NOTICES', spr: 'sign', nodes: {} };
+  const stage = currentStage('centre');
+
+  if (isDone('centre')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        incorporate: 'A filing number on a card in the glass, next to the notices. It is the least interesting thing in the case and it is the only thing in it that will still be true in thirty years.',
+        answer: 'The lease renewed. There is a note in the glass in Iris\'s hand reminding whoever reads it that this has to be done again next August.',
+        nothing: 'The glass has the eviction notices in it and nothing else, and the letter about the building itself is not there any more, and nobody took it down.',
+      }[outcomeOf('centre')] || 'The case is full of notices.',
+    };
+    return T;
+  }
+
+  if (!stage || stage.type !== 'resolve') {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'Behind the thirty photocopied eviction notices, at the back of the case, on county paper: a letter about the centre itself. Peppercorn lease, thirty years, renews on silence — and this is not silence, this is a letter, and the window on it is eleven days old.',
+      fx: () => { learn('centre_lease'); learn('centre_letter'); },
+      choices: [
+        { tag: 'WHO HOLDS IT', label: 'Find out who the lease actually runs to.',
+          if: () => knows('centre_lease'), to: 'board' },
+        { label: 'Close the case.', to: null },
+      ],
+    };
+    T.nodes.board = {
+      text: 'It runs to a person. Not a company, not a trust, not a nonprofit — a named individual, who is Iris, who has been personally the tenant of a public building for eleven years without appearing to have noticed, and there is no board and there are no articles and there is no filing of any kind.',
+      fx: () => learn('centre_board'),
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'Eleven days gone of a window nobody has told her about. You can answer the letter, or you can make the centre into a thing that does not depend on one woman being alive and paying attention.',
+    choices: [
+      { tag: 'ARTICLES', label: 'Incorporate it. Board of five, articles, a filing number.',
+        if: () => knows('centre_board'), to: 'do_inc' },
+      { label: 'Answer the letter. The lease renews for another year.', to: 'do_ans' },
+      { label: 'Leave it. You have a rent day of your own.', to: 'do_no' },
+    ],
+  };
+  T.nodes.do_inc = {
+    text: 'Five names, articles, a number. It cost you a week you did not have, and it means the centre outlives Iris, and she did not thank you for it — she read the articles twice, put them in the folder with the dates, and said: so now it is not mine. And you said no. And she said: good, and did not look up.',
+    fx: () => qResolve('centre', 'incorporate'),
+  };
+  T.nodes.do_ans = {
+    text: 'One letter, inside the window, and the lease renews by silence for another year exactly the way it has for thirty. It works. It will need doing again next August, by whoever is holding the clipboard next August.',
+    fx: () => qResolve('centre', 'answer'),
+  };
+  T.nodes.do_no = {
+    text: 'You put it back behind the eviction notices. The window closes on the twenty-second. The county will probably not do anything about it, and that is now the entire security of a building thirty people rely on.',
+    fx: () => qResolve('centre', 'nothing'),
+  };
+  return T;
+}
+
+function grabbitTree() {
+  const T = { who: 'GRABBIT & RUNN — RECEPTION', spr: 'sign', nodes: {} };
+  const stage = currentStage('grabbit');
+
+  if (isDone('grabbit')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: outcomeOf('grabbit') === 'decline'
+        ? 'The receptionist is pleasant to you in exactly the way she is pleasant to couriers.'
+        : 'They have not chased it. That is the technique — the offer does not expire, it just sits in your drawer being available.',
+    };
+    return T;
+  }
+
+  if (!stage || stage.type !== 'resolve') {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'They have been expecting you for about a week. A folder, already made up, with your name spelled correctly on the tab: of counsel, a floor, a salary with a comma in it — and the covenant bought out on your first day, which they raise before you do, because they know precisely what it is worth to you and precisely who drafted it.',
+      fx: () => learn('gr_offer'),
+      choices: [
+        { tag: 'LOOK DOWN', label: 'Look at the carpet.', to: 'carpet' },
+        { label: 'Take the folder and go.', to: null },
+      ],
+    };
+    T.nodes.carpet = {
+      text: 'It is the same carpet. Not similar — the same, and so is the layout, and so is the form of the engagement letter down to the clause numbering, which means the same person drafted both or one firm copied the other so completely that the distinction has stopped meaning anything. You have been here before. You have been here for nine years.',
+      fx: () => learn('gr_carpet'),
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: 'A floor, a salary, and the covenant gone by Monday. Everything you have been fighting for, handed over, on the condition that you stop.',
+    choices: [
+      { tag: 'NO', label: 'Say no here, in the lobby, standing up.', to: 'do_no' },
+      { label: 'Take the folder. Do not sign it. Do not give it back.', to: 'do_keep' },
+    ],
+  };
+  T.nodes.do_no = {
+    text: 'Standing up, in the lobby, out loud, because it is the only way it can be said and stay said. The receptionist does not react. She has heard it before and she has heard the other one before and she could tell you the ratio.',
+    fx: () => qResolve('grabbit', 'decline'),
+  };
+  T.nodes.do_keep = {
+    text: 'It goes in the bottom drawer of a folding table above a kitchen. Unsigned. Not returned. And you will know which drawer for as long as you have that table.',
+    fx: () => qResolve('grabbit', 'consider'),
+  };
+  return T;
+}
+
 const NPC_TREES = {
   annexboxes: annexBoxes,
+  bonds: bondsTree,
+  lease: leaseTree,
+  lien: lienTree,
+  centre: centreTree,
+  grabbit: grabbitTree,
 
   /* ------------------------------ MARISOL RUIZ ------------------------------ */
   ruiz() {
@@ -904,6 +1421,11 @@ const NPC_TREES = {
   // is a man who signed a thing because somebody put it in front of him, and he
   // will tell you that himself, accurately, and it will not help either of you.
   hargrove() {
+    // In re Withdrawal takes over the man entirely once it is filed. He is on
+    // the other side of it and does not pretend otherwise, and that is the only
+    // decent thing available to him.
+    if (isActive('withdrawal') || isDone('withdrawal')) return hargroveSuit();
+
     const stage = currentStage('retrieval');
     const phase = !started('retrieval') || (stage && stage.type === 'talk' && !knows('dch_hargrove')) ? 'intake'
       : isDone('retrieval') ? 'after'
