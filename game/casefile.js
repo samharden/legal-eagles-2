@@ -19,6 +19,7 @@ import { knownFacts, openFacts, factCount } from '../engine/facts.js';
 import { Cal, dateString, relative, allEntries } from '../engine/clock.js';
 import { Books, Rep, Office, repLabel, Firm, STAFF, UPGRADES, payrollTotal, hasUpgrade } from '../engine/practice.js';
 import { Hours, fmtHours, isLit, pressureStep } from '../engine/hours.js';
+import { Bleed, bleedAt, witnessed, canCross, LEVEL_NAME } from '../engine/bleed.js';
 import { REGIONS } from './city.js';
 
 let cfRoot, cfBody, cfTabs;
@@ -71,15 +72,50 @@ Casefile.render = function (layer) {
   renderMatters(layer);
 };
 
+/* ------------------------------- THE BLEED ----------------------------- */
+// Sits above MATTERS rather than in a tab of its own, because it is not a
+// system the player operates — there is nothing to spend and nothing to
+// choose. It is a note about the state of the world, and the only actionable
+// line in it is the last one.
+
+const BLEED_NOTE = [
+  '',
+  'Colour that belongs to somewhere else is in the light here. Nothing has moved.',
+  'There are things in these districts that are not in these districts. They can be read. They cannot yet be used.',
+  'The crossings are open. What is on the other side of one is this city, dressed the other way, and everything you do there is real there.',
+];
+
+function bleedPanel() {
+  if (!Bleed.level) return '';
+  let html = `<section class="cfCase"><h3>THE BLEED<span class="cfStatus">${LEVEL_NAME[Bleed.level]}</span></h3>`;
+  html += `<p class="cfBlurb">${BLEED_NOTE[Bleed.level]}</p>`;
+  // Which districts have gone over, and which are only tinted. The list is the
+  // reason to go back to a district you have finished with.
+  const gone = REGIONS.filter(r => witnessed(r.id));
+  if (gone.length) {
+    html += `<h4>FOUND IN</h4><ul class="cfFacts">`;
+    for (const r of gone) html += `<li>${r.name} <span class="cfDim">(${Math.round(bleedAt(r.id) * 100)}% through)</span></li>`;
+    html += `</ul>`;
+  }
+  const left = REGIONS.length - gone.length;
+  if (Bleed.level >= 2 && left > 0)
+    html += `<p class="cfFoot">${left} district${left > 1 ? 's have' : ' has'} something in ${left > 1 ? 'them' : 'it'} you have not read yet.</p>`;
+  if (canCross())
+    html += `<p class="cfWarn">You have crossed ${Bleed.crossed} time${Bleed.crossed === 1 ? '' : 's'}. The day does not advance on THE FLOOR and there is no money on it; nothing bills on THE STREET and the lights are somebody else's problem. Both sides keep what you did to them.</p>`;
+  html += `</section>`;
+  return html;
+}
+
 /* ------------------------------- MATTERS ------------------------------- */
 function renderMatters(layer) {
   const mine = allQuests().filter(q => (!q.layer || q.layer === layer) && started(q.id));
   if (!mine.length) {
-    cfBody.innerHTML = `<div class="cfEmpty">No open matters.<br><span>Work is out there. It does not come to you — that was the old job.</span></div>`;
+    cfBody.innerHTML = bleedPanel()
+      + `<div class="cfEmpty">No open matters.<br><span>Work is out there. It does not come to you — that was the old job.</span></div>`;
     return;
   }
 
-  let html = '';
+  let html = bleedPanel();
   for (const q of mine) {
     const done = isDone(q.id), failed = isFailed(q.id);
     const stage = currentStage(q.id);

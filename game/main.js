@@ -16,6 +16,7 @@ import * as Quests from '../engine/quests.js';
 import { Cal, clockHooks, dateString, schedule, unschedule, allEntries, advanceDay, saveClock, loadClock, resetClock } from '../engine/clock.js';
 import * as Practice from '../engine/practice.js';
 import { Hours, hoursHooks, bill, lightUp, lightFree, isLit, writeDown, fmtHours, pressure, saveHours, loadHours, resetHours } from '../engine/hours.js';
+import { Bleed, bleedHooks, setBleed, witness, bleedAt, canCross, LEVEL_NAME, saveBleed, loadBleed, resetBleed } from '../engine/bleed.js';
 import { Dialogue } from '../engine/dialogue.js';
 import { REGIONS, SPAWN } from './city.js';
 import { LAYERS, layerOf } from './layers.js';
@@ -79,6 +80,7 @@ Quests.questHooks.onComplete = q => {
   // It is also the only way to bank enough to light anything substantial, which
   // is how the layer makes you WANT to do the building's work.
   if (HAS_HOURS()) bill(BILL_MATTER, `${fmtHours(BILL_MATTER)} — ${q.name}: matter concluded`);
+  bleedTick();
   refreshCasefile(); syncHud();
 };
 // the objective line must follow the stage the moment it changes, including
@@ -170,6 +172,51 @@ const HAS_CLOCK = () => G.layer === 'street';
 // file should never have to answer for itself.
 const HAS_HOURS = () => G.layer === 'floor';
 
+/** The layer you are not on. Two callers, and both would get it wrong once. */
+const OTHER_LAYER = () => (G.layer === 'street' ? 'floor' : 'street');
+
+/* ================================ THE BLEED ============================== */
+// DESIGN §2's crossover, and it is deliberately not a story flag. The level is
+// DERIVED from matters closed, so a save cannot disagree with the docket about
+// how far in the player is, and the gates are the same two districts on both
+// paths — the Tower, then the Annex, then your own finale.
+//
+// The symmetry is the whole reason these particular matters were chosen:
+// `retrieval` and `reviews` are both the Tower District, which is DC&H on one
+// layer and the desk you woke at on the other. `sealed` and `sublevel` are
+// both the Annex and both about the four hundred letters. A player on either
+// path meets the bleed in the same building at the same depth.
+const BLEED_GATES = [
+  { at: 1, when: () => Quests.isDone('retrieval') || Quests.isDone('reviews') },
+  { at: 2, when: () => Quests.isDone('sealed') || Quests.isDone('sublevel') },
+  { at: 3, when: () => Quests.isDone('withdrawal') || Quests.isDone('thefirm') },
+];
+
+/** Re-derive the level. Cheap, and called only when a matter closes or loads. */
+function bleedTick() {
+  for (const g of BLEED_GATES) if (Bleed.level < g.at && g.when()) setBleed(g.at);
+}
+
+const BLEED_LINES = [
+  '',
+  'The colour of the light changed while you were not looking at it, and it has not changed back. Nothing else about the street is different, which is the part that will keep you up.',
+  'There is a door in this building that is not in this building. You have walked past the wall it is in perhaps two hundred times.',
+  'It is open. It has been open for some time and you have been the thing that was shut.',
+];
+
+bleedHooks.onLevel = (n) => {
+  showBanner('THE BLEED — ' + LEVEL_NAME[n], n >= 3 ? 'YOU CAN GO THROUGH' : 'IT IS COMING THROUGH');
+  say(BLEED_LINES[n] || BLEED_LINES[BLEED_LINES.length - 1], 11);
+  G.fx.addTrauma(0.5);
+  SFX.del();
+  // Content gated on the level has to come into being, and props are resolved
+  // at build time — so every resident region is dropped and rebuilt through the
+  // gate. Without this the door that shouldn't exist appears the next time you
+  // happen to walk far enough away to evict the district, which is nowhere.
+  if (G.world) { G.world.rebuild(); G.world.update(G.player.x, G.player.y); }
+  refreshCasefile(); syncHud();
+};
+
 // what work is worth, in tenths of an hour
 const BILL_FACT = 3;      // 0.3 — a fact established
 const BILL_PROP = 1;      // 0.1 — something read for the first time
@@ -252,6 +299,10 @@ function beginPath(layerId, path, area) {
   Facts.resetFacts();
   Quests.resetQuests();
   G.world = new World(REGIONS, layerId);
+  // Anything authored with a `bleed` is not in the world until the layers have
+  // come apart that far. One line, and it is the whole of how Phase 4's content
+  // knows when it exists.
+  G.world.gate = e => e.bleed == null || Bleed.level >= e.bleed;
   G.world.onEnter = (def, built) => {
     const L = built.layerData;
     const unlit = G.layer === 'floor' && !isLit(def.id);
@@ -285,17 +336,12 @@ function beginPath(layerId, path, area) {
   Practice.resetPractice();
   Practice.seedRep(REGIONS.map(r => r.id));
   resetHours();
+  resetBleed();
   if (layerId === 'street') {
     Practice.post(4100, 'Opening balance — everything you had', 'operating', 1);
     scheduleRent();
   }
-  if (layerId === 'floor') {
-    // Wherever you wake up is already on the lights, and nowhere else is. The
-    // region declares it rather than main.js hard-coding a district, because by
-    // the end of Phase 3 there are six of these and only one is free.
-    for (const def of REGIONS)
-      if (def.layers.floor && def.layers.floor.litFree) lightFree(def.id);
-  }
+  if (layerId === 'floor') seedFreeLights();
   G.world.update(s.x, s.y);
   camFollow(s.x, s.y);
   G.state = 'play';
@@ -303,6 +349,21 @@ function beginPath(layerId, path, area) {
   document.getElementById('hud').style.display = '';
   Quests.qTick();      // opens whichever matter this path starts with
   syncHud();
+}
+
+/**
+ * Wherever you wake up is already on the lights, and nowhere else is. The region
+ * declares it rather than main.js hard-coding a district, because there are six
+ * of these and only one is free.
+ *
+ * Called from beginPath on Path B — and again the first time a Path A player
+ * crosses over, because they did not wake up here and would otherwise arrive on
+ * a floor with no lit district anywhere and no banked hours to light one with.
+ * `lightFree` is idempotent, so calling it twice costs nothing.
+ */
+function seedFreeLights() {
+  for (const def of REGIONS)
+    if (def.layers.floor && def.layers.floor.litFree) lightFree(def.id);
 }
 
 function startNew() {
@@ -329,6 +390,8 @@ function continueGame() {
   Practice.loadPractice(d.practice);
   Practice.seedRep(REGIONS.map(r => r.id));   // a save made before a district existed
   if (d.hours) loadHours(d.hours);
+  loadBleed(d.bleed);
+  bleedTick();                                // a save made before a gate existed
   G.world.loadDeltas(d.deltas);
   // rebuild residency at the restored position so deltas apply to fresh builds
   for (const id of G.world.residentIds()) G.world.evict(id);
@@ -357,6 +420,7 @@ export function doSave() {
     clock: saveClock(),
     practice: Practice.savePractice(),
     hours: saveHours(),
+    bleed: saveBleed(),
     complaint: !!G.complaint,
     deltas: G.world.saveDeltas(),
   });
@@ -440,9 +504,20 @@ function useProp(pr) {
   if (((!pr.repeat && first) || learned) && HAS_HOURS() && !pr.lights)
     bill(BILL_PROP, `${fmtHours(BILL_PROP)} — reviewed file materials`);
 
+  // Anything authored with a `bleed` IS the bleed evidence for its district, so
+  // reading it is what makes that district start showing the other side. This
+  // is the difference between a bleed that happens to you on a schedule and one
+  // you go and find: the level is global, the intensity is where you have been.
+  if (pr.bleed && witness(pr.region)) {
+    showBanner(districtName(pr.region), 'IT IS IN THIS ONE TOO');
+    G.fx.addTrauma(0.3);
+    if (G.world) { G.world.rebuild(); G.world.update(G.player.x, G.player.y); }
+  }
+
   // ...and then the PRESENTATION half.
   if (pr.lights) return openPanel(pr);
   if (pr.office) return openOffice(pr);
+  if (pr.cross) return openCrossing(pr);
   // A prop can name a dialogue tree. Some things you have a conversation with
   // are not people — a personnel file with your name on it is one of them, and
   // a `resolve` stage has to be answerable somewhere.
@@ -502,6 +577,81 @@ function openPanel(pr) {
     text: 'You write the hours in, and you do not write a matter number, because there is no matter — and the lights come on anyway, which tells you what the form is actually for.',
   };
   openDialogue(T);
+}
+
+/* --------------------------- crossing over ------------------------------ */
+
+/**
+ * A crossing. It is authored ONCE per district and appears in both layers at
+ * the same tile, because it is the same physical thing seen from either side —
+ * the door behind the bench in Department 13 is the door behind the bench in
+ * Department 13. `tools/check.mjs` enforces the pairing, because a one-sided
+ * crossing is a one-way trip into a district with no way back out of it.
+ *
+ * Like the lighting panel it is a conversation rather than a keypress. Going
+ * through is the largest decision left in the game and it should cost the
+ * player a sentence every time, not become a hotkey by the fourth crossing.
+ */
+function openCrossing(pr) {
+  const T = { who: pr.who || 'THE WAY THROUGH', spr: 'sign', start: 'a', nodes: {} };
+  const other = layerOf(OTHER_LAYER());
+
+  if (!canCross()) {
+    // It is there before it works, which is the point of it being there. You
+    // are meant to have found this and been unable to use it.
+    T.nodes.a = {
+      text: (pr.text || 'A door that is not in this building.')
+        + '\n\nIt does not open. Not locked — it has no lock and no handle and no give in it at all, and the air on the far side of it is a different temperature, and you can feel that through four inches of fire-rated timber.',
+    };
+    openDialogue(T);
+    return;
+  }
+
+  T.nodes.a = {
+    text: (pr.text || 'A door that is not in this building.')
+      + `\n\nIt is open now. Through it is ${other.name}: the same street, the same buildings, the same room you are standing in, and none of it dressed the way this one is.`,
+    choices: [
+      { tag: 'THROUGH', label: `Go through. Cross to ${other.name}.`, to: 'go' },
+      { label: 'Not yet. Shut it.', to: null },
+    ],
+  };
+  T.nodes.go = {
+    text: 'You go through, and there is no threshold — no step down, no give, no moment of being in neither. One stride is here and the next stride is there and your own footfall does not change pitch, which it would have to, if the floor were a different floor.',
+    fx: () => crossLayers(),
+  };
+  openDialogue(T);
+}
+
+/**
+ * Change layer in place. Position, energy, what you are carrying, the grievance
+ * and the paralegal all come with you; the world does not.
+ *
+ * Everything else that had to be true for this was already true before Phase 4
+ * touched it, which is the payoff of the two layers having been kept genuinely
+ * separate: deltas are keyed by layer so the other side's dead stay dead,
+ * `layerOk` opens the other docket and no more of it than its prereqs allow,
+ * and HAS_CLOCK/HAS_HOURS are one-line predicates on G.layer, so the day stops
+ * and the timesheet starts without a single system being told about it.
+ */
+function crossLayers() {
+  const to = OTHER_LAYER();
+  const p = G.player;
+  G.layer = to;
+  G.world.setLayer(to);
+  if (to === 'floor') seedFreeLights();
+  // paper in the air belonged to the world you left
+  G.incoming.length = 0; G.shots.length = 0;
+  G.world.update(p.x, p.y);
+  Bleed.crossed++;
+
+  showBanner(layerOf(to).name, `CROSSING #${Bleed.crossed}`);
+  say(to === 'floor'
+    ? 'The date on your watch is the date it was. It is going to be that date for as long as you are here, and the only currency on this side of the door is the time you put in.'
+    : 'It is a Tuesday and it is four in the afternoon and there is a bus. Your rent is still due. You have never in your life been so glad about a bus.', 11);
+  SFX.district();
+  G.fx.addTrauma(0.6);
+  Quests.qTick();          // whatever this layer opens with, if anything
+  refreshCasefile(); syncHud();
 }
 
 /* ---------------------------- ending the day ---------------------------- */
@@ -1465,8 +1615,13 @@ function syncHudLight() {
   el('hHpFill').style.width = Math.max(0, (p.hp / p.maxhp) * 100) + '%';
   el('hHpLabel').textContent = `ENERGY ${Math.max(0, Math.round(p.hp))}/${p.maxhp}`;
   const b = G.world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
+  // The bleed reads as a property of the DISTRICT, next to its name, because
+  // that is what it is — the level is global but a district you have found the
+  // evidence in is much further gone than one you have only walked through.
+  const amt = b ? bleedAt(b.id) : 0;
   el('hDistrict').textContent = (b ? b.def.name + ' · ' + layerOf(G.layer).name : layerOf(G.layer).name)
-    + (G.dark ? ' · UNLIT' : '');
+    + (G.dark ? ' · UNLIT' : '')
+    + (amt >= 0.4 ? ' · BLED' : amt > 0 ? ' · SEEPING' : '');
   // the active stage's hint IS the objective — one source, never restated
   const obj = Quests.objective();
   // A live boss takes over the objective line. Everything else you are doing
@@ -1591,6 +1746,7 @@ window.LE2 = {
   G, Input, LAYERS, doSave, beginPath, loadGame, Facts, Quests, Practice,
   Dialogue, Casefile, talkTo, useProp, endDay, Intro,
   Hrs: { Hours, bill, lightUp, isLit, fmtHours, pressure },
+  Bld: { Bleed, setBleed, witness, bleedAt, canCross, cross: () => crossLayers() },
   Areas: { AREAS, areaOf, importLE1, set: id => { if (AREAS[id]) G.area = id; return G.area; } },
   Clock: { Cal, dateString, allEntries, advanceDay, schedule, unschedule, resetClock },
 };

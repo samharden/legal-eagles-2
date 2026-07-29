@@ -30,6 +30,8 @@ for (const def of REGIONS) {
   const { grid, w, h } = parseRows(def.rows, def.id);
   console.log(`${def.id}  ${w}x${h}  gx ${def.ox}..${def.ox + w - 1}  gy ${def.oy}..${def.oy + h - 1}`);
 
+  const crossings = {};   // layer -> [{id, tx, ty}] — checked as a pair below
+
   for (const layerId of ['street', 'floor']) {
     const L = (def.layers && def.layers[layerId]) || null;
     if (!L) continue;
@@ -60,6 +62,12 @@ for (const def of REGIONS) {
           fail(`${where}: sits on a solid tile '${ch}' at ${e.tx},${e.ty}`);
         }
         if (kind === 'actors' && !ACTOR_TYPES[e.type]) fail(`${where}: unknown actor type '${e.type}'`);
+        if (e.bleed != null && !(e.bleed >= 1 && e.bleed <= 3))
+          fail(`${where}: bleed ${e.bleed} is not 1..3 — it would never come into being`);
+        if (kind === 'props' && e.cross) {
+          (crossings[layerId] ||= []).push(e);
+          if (!e.repeat) fail(`${where}: a crossing must be repeat:true — it is a door, not a document`);
+        }
       }
     }
 
@@ -68,6 +76,20 @@ for (const def of REGIONS) {
       if (!L.litFree && !hasPanel) fail(`${def.id}/floor: no lights: prop and not litFree — this district can never be lit`);
       if (!L.litFree && !L.lightCost) fail(`${def.id}/floor: no lightCost`);
     }
+  }
+
+  // A crossing is ONE physical thing seen from either side, so it has to be
+  // authored on both layers at the same tile. A one-sided crossing is a one-way
+  // trip into a district with no way back out, which is the single worst bug
+  // this feature can have and the only one the player cannot work around.
+  const A = crossings.street || [], B = crossings.floor || [];
+  for (const a of A) {
+    const b = B.find(x => x.tx === a.tx && x.ty === a.ty);
+    if (!b) fail(`${def.id}: crossing '${a.id}' is on street at ${a.tx},${a.ty} with nothing facing it on floor`);
+  }
+  for (const b of B) {
+    const a = A.find(x => x.tx === b.tx && x.ty === b.ty);
+    if (!a) fail(`${def.id}: crossing '${b.id}' is on floor at ${b.tx},${b.ty} with nothing facing it on street`);
   }
 }
 

@@ -27,6 +27,12 @@ export class World {
     this.deltas = new Map();    // "layer:id" -> {used:Set, taken:Set, killed:Set}
     this.onEnter = null;        // (regionDef) => void — fired when the player's region changes
     this.currentId = null;
+    // A predicate the host installs to decide whether a piece of authored
+    // content exists at all right now — `(entry, kind) => boolean`. The bleed
+    // uses it to bring `bleed: 2` props into being; anything else that wants
+    // conditional content gets it for free. It runs at BUILD time, so a change
+    // to whatever it reads must be followed by rebuild().
+    this.gate = null;
   }
 
   /* ---------------------------- deltas ---------------------------- */
@@ -50,6 +56,17 @@ export class World {
     this.currentId = null;
   }
 
+  /**
+   * Drop every build so the next update() re-runs the gate. Keeps `currentId`
+   * by default, because a rebuild is not an arrival — announcing the district
+   * again every time the bleed deepens would be noise on top of the one banner
+   * that actually matters.
+   */
+  rebuild(announce = false) {
+    for (const id of [...this.built.keys()]) this.evict(id);
+    if (announce) this.currentId = null;
+  }
+
   /* ---------------------------- build ----------------------------- */
   build(id) {
     if (this.built.has(id)) return this.built.get(id);
@@ -71,14 +88,19 @@ export class World {
     const gx = t => (def.ox + t) * TILE + TILE / 2;
     const gy = t => (def.oy + t) * TILE + TILE / 2;
 
-    const props = (L.props || []).map(p => ({
-      ...p, region: id, x: gx(p.tx), y: gy(p.ty), used: d.used.has(p.id),
-    }));
+    // the host's conditional-content predicate, applied to every kind
+    const ok = (e, kind) => !this.gate || this.gate(e, kind);
+
+    const props = (L.props || [])
+      .filter(p => ok(p, 'props'))
+      .map(p => ({
+        ...p, region: id, x: gx(p.tx), y: gy(p.ty), used: d.used.has(p.id),
+      }));
     const pickups = (L.pickups || [])
-      .filter(p => !d.taken.has(p.id))
+      .filter(p => !d.taken.has(p.id) && ok(p, 'pickups'))
       .map(p => ({ ...p, region: id, x: gx(p.tx), y: gy(p.ty), bob: Math.random() * 6 }));
     const actors = (L.actors || [])
-      .filter(a => !d.killed.has(a.id))
+      .filter(a => !d.killed.has(a.id) && ok(a, 'actors'))
       // hp is left UNSET unless the region overrides it. The engine has no idea
       // what a `server` is worth; the host fills it from the actor table on the
       // first frame it sees one. Defaulting it here quietly made every enemy in
@@ -86,7 +108,21 @@ export class World {
       .map(a => ({ ...a, region: id, x: gx(a.tx), y: gy(a.ty), hp: a.hp ?? null, rig: null }));
     // NPCs are not actors: they never fight, never die, and are the only things
     // in the world that can hand you a fact.
-    const npcs = (L.npcs || []).map(n => ({ ...n, region: id, x: gx(n.tx), y: gy(n.ty), rig: null }));
+    const npcs = (L.npcs || []).filter(n => ok(n, 'npcs'))
+      .map(n => ({ ...n, region: id, x: gx(n.tx), y: gy(n.ty), rig: null }));
+
+    // GHOSTS — where the other layer's furniture stands. Not entities: they
+    // have no id, no state and nothing to interact with. They are the vending
+    // machine from DESIGN §2, still there, unplugged, drawn at whatever opacity
+    // the bleed says. Only things that stand still qualify; a ghost of somebody
+    // who wanders would just be a bug you could see.
+    const ghosts = [];
+    for (const other in def.layers || {}) {
+      if (other === this.layer) continue;
+      const O = def.layers[other];
+      for (const e of [...(O.props || []), ...(O.npcs || [])])
+        ghosts.push({ spr: e.spr, x: gx(e.tx), y: gy(e.ty) });
+    }
 
     const built = {
       def, id, grid, w, h,
@@ -94,7 +130,7 @@ export class World {
       px: def.ox * TILE, py: def.oy * TILE,      // world-pixel origin
       pw: w * TILE, ph: h * TILE,
       layerData: L,
-      props, pickups, actors, npcs,
+      props, pickups, actors, npcs, ghosts,
     };
     this.built.set(id, built);
     return built;
