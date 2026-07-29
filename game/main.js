@@ -24,6 +24,7 @@ import { AREAS, DEFAULT_AREA, areaOf, importLE1 } from './areas.js';
 import { actorDef } from './actors.js';
 import { drawWorld, drawPrompt } from './render.js';
 import { Intro } from './intro.js';
+import { Ending } from './ending.js';
 import { npcDialogue, CASE_HOOKS } from './cases.js';
 import { Casefile } from './casefile.js';
 
@@ -150,6 +151,27 @@ CASE_HOOKS.rep = (d, n) => {
   if (!n) return;
   Practice.bumpRep(d, n);
   say(`Word gets around ${districtName(d)}.`, 3);
+};
+/**
+ * The last thing that happens. `cases.js` decides WHICH of the seven; it has
+ * never had an opinion about what an ending looks like and does not get one now.
+ *
+ * The Casefile is closed first because it is DOM and sits over the canvas — an
+ * ending playing underneath an open matters list is the sort of thing nobody
+ * finds until somebody records it.
+ */
+CASE_HOOKS.ending = outcome => {
+  Casefile.hide();
+  Input.clearHeld();
+  G.state = 'end';
+  Ending.start(outcome, () => {
+    // Back to the title. The save is left exactly as it was — a finished run is
+    // a thing you should be able to load and stand around in, and there is a
+    // whole city that reads differently once you know how it comes out.
+    G.state = 'menu';
+    document.getElementById('menu').style.display = '';
+    document.getElementById('hud').style.display = 'none';
+  });
 };
 
 /** The city is the one place district names live. Nothing else spells them. */
@@ -452,7 +474,11 @@ function openDialogue(tree, onClose) {
   Input.clearHeld();
   SFX.blip();
   Dialogue.open(tree, () => {
-    G.state = 'play';
+    // A choice's `fx` may have moved the game somewhere else entirely — picking
+    // an ending does exactly that, from inside this conversation. The only
+    // state this handler owns is the conversation's own, so restoring 'play'
+    // unconditionally would stomp whatever the choice just did.
+    if (G.state === 'dialog') G.state = 'play';
     if (onClose) onClose();
     refreshCasefile();
     syncHud();
@@ -477,7 +503,8 @@ function talkTo(npc) {
   // the open/close pair would walk through both in one conversation.
   Quests.questEvent('talk', { npc: npc.id });
   Dialogue.open(tree, () => {
-    G.state = 'play';
+    // see openDialogue: a choice may have ended the game from in here
+    if (G.state === 'dialog') G.state = 'play';
     // and again on close, for a stage this conversation's own facts unlocked
     Quests.questEvent('talk', { npc: npc.id });
     refreshCasefile();
@@ -1017,6 +1044,15 @@ const ACTOR_NEEDS = {
   // summons it is open, and it is gone the moment that matter closes
   sued: () => Quests.isActive('withdrawal'),
   sublevelopen: () => Quests.isActive('thefirm'),
+  // Tighter than the other two on purpose. In re Yourself opens on your first
+  // crossing and its first stage sends you to two more districts to find the
+  // other doors — a 380hp boss with a 1000px chase radius standing in the
+  // square for all of that is not tension, it is a commute. It is on the board
+  // for exactly the stage that asks you to put it down.
+  yourselfopen: () => {
+    const s = Quests.currentStage('yourself');
+    return !!s && s.type === 'kill';
+  },
 };
 const actorAwake = d => !d.needs || !ACTOR_NEEDS[d.needs] || ACTOR_NEEDS[d.needs]();
 
@@ -1672,6 +1708,10 @@ function step(now) {
     Intro.step(dt);
     Intro.draw();
     musicTick('letter');
+  } else if (G.state === 'end') {
+    Ending.step(dt);
+    Ending.draw();
+    musicTick('letter');
   } else if (G.state === 'dialog') {
     // the world holds still behind the conversation, but keeps drawing
     G.fx.step(dt);
@@ -1726,7 +1766,10 @@ Input.hooks.onMute = () => {
 Input.hooks.onFullscreen = toggleFullscreen;
 Input.hooks.onZoom = z => (typeof z === 'number' ? setZoom(z) : cycleZoom());
 Input.hooks.onWheel = dy => { if (G.state === 'play') setZoom(view.zoom * (dy > 0 ? 0.92 : 1.087)); };
-Input.hooks.onCanvasTap = (x, y) => { if (G.state === 'intro') Intro.tap(x, y); };
+Input.hooks.onCanvasTap = (x, y) => {
+  if (G.state === 'intro') Intro.tap(x, y);
+  else if (G.state === 'end') Ending.tap();
+};
 
 el('fsBtn').addEventListener('click', toggleFullscreen);
 el('startBtn').addEventListener('click', startNew);
@@ -1744,7 +1787,7 @@ requestAnimationFrame(loop);
 // expose for the dev editor and for browser-console verification
 window.LE2 = {
   G, Input, LAYERS, doSave, beginPath, loadGame, Facts, Quests, Practice,
-  Dialogue, Casefile, talkTo, useProp, endDay, Intro,
+  Dialogue, Casefile, talkTo, useProp, endDay, Intro, Ending,
   Hrs: { Hours, bill, lightUp, isLit, fmtHours, pressure },
   Bld: { Bleed, setBleed, witness, bleedAt, canCross, cross: () => crossLayers() },
   Areas: { AREAS, areaOf, importLE1, set: id => { if (AREAS[id]) G.area = id; return G.area; } },

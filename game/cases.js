@@ -12,6 +12,7 @@
 
 import { defineFacts, learn, knows, knowsAny } from '../engine/facts.js';
 import { defineQuests, qResolve, isActive, isDone, isFailed as isFailedCase, started, outcomeOf, currentStage } from '../engine/quests.js';
+import { Bleed } from '../engine/bleed.js';
 
 /* ================================ FACTS ================================ */
 
@@ -145,6 +146,7 @@ defineFacts([
   { id: 'iry_door', case: 'yourself', text: 'There is a door four feet left of the courthouse steps, in eleven feet of granite, and it is the same door from both sides.' },
   { id: 'iry_same', case: 'yourself', text: 'It is not a copy. The push bar is on the side people were getting out from, and it is worn — this has been used, by somebody, a great many times.' },
   { id: 'iry_dept13', case: 'yourself', text: 'Run L ends in a doorway with a brass threshold worn through in the middle, and every crossing in this city leads back to the same room: Department 13, which has been in session throughout.' },
+  { id: 'iry_caption', case: 'yourself', text: 'Bane will not decide it on the pleadings or on the submissions, because both of you were taught by the same people and both of you are good. It is decided on the record, and the record is what you did.' },
 
   { id: 'unsent_hand', case: 'unsent', text: 'The letter is not in your handwriting, and the signature line has been signed and struck out eleven times.' },
   { id: 'unsent_docket', case: 'unsent', text: 'Department 13 has one matter on its docket. You are named as counsel. You are also named as the party.' },
@@ -158,6 +160,9 @@ defineFacts([
 export const CASE_HOOKS = {
   say: () => {}, banner: () => {},
   fee: () => {}, retainer: () => {}, earn: () => {}, rep: () => {}, rent: () => {},
+  // The last thing any matter does. One of seven, and the host takes it from
+  // here — the cases file decides WHICH ending, never what an ending looks like.
+  ending: () => {},
   // Which layer we are standing on. Iris Nakamura exists on BOTH — she is the
   // same person in the same cardigan in both versions of The Flats, and that is
   // the whole point of her — so her tree has to know which one it is being
@@ -501,6 +506,37 @@ defineQuests([
     onComplete() {
       CASE_HOOKS.say('It comes apart the way a going concern comes apart, which is slowly and into constituent parts, and every one of the parts is somebody\'s work and none of them stop being good work on the way down. Nobody asked anybody to stay. That was true the whole time. It is still not a defence, and it is still true.', 14);
       CASE_HOOKS.banner('DISSOLVED', 'THE FIRM');
+    },
+  },
+
+  {
+    id: 'yourself',
+    name: 'In re Yourself',
+    // NO `layer`. The README's authoring rule reserves that omission for
+    // something that genuinely belongs to both, and DESIGN §5 asks for exactly
+    // one such thing: the matter both paths converge on. It is the only quest
+    // in the game without a layer and it should stay the only one.
+    blurb: 'A courtroom in which you are counsel and party at once, against the version of you that hit the other key. Which of you is real depends on what you did with the trust account, the letters, and the four hundred people who did not leave.',
+    auto: true,
+    // Opens on the first crossing — not on the bleed level, because standing
+    // next to an open door is not the same as having gone through one, and this
+    // matter is about having gone through one.
+    prereq: () => Bleed.crossed > 0,
+    stages: [
+      { type: 'learn', facts: ['iry_door', 'iry_same', 'iry_dept13'],
+        hint: 'Three doors in three districts, and all three of them are the same door. You have found one.' },
+      { type: 'talk', npc: 'bane',
+        hint: 'Department 13, Courthouse Square. It has been in session since 1959 and the caption on it is your name.' },
+      { type: 'kill', enemy: 'yourself',
+        hint: 'The other one of you has the floor, and it is making your argument at you, because it is the only argument either of you was ever taught.' },
+      { type: 'talk', npc: 'bane',
+        hint: 'It is on the ground. He has not moved and he is not going to ask you twice.' },
+      { type: 'resolve',
+        hint: 'Say what you are. Seven things can be said and you have earned some of them.',
+        options: ['win', 'settle', 'countersue', 'goback', 'wake', 'file', 'dissolve'] },
+    ],
+    onComplete(outcome) {
+      CASE_HOOKS.ending(outcome);
     },
   },
 
@@ -2439,6 +2475,122 @@ const NPC_TREES = {
     T.nodes.do_burn = {
       text: 'It goes up fast, the way forty-year-old paper does, and he watches it with no expression whatsoever, and when it is ash he says: she will write another one. — She is dead. — He says: yes.',
       fx: () => qResolve('unsent', 'burn'),
+    };
+    return T;
+  },
+
+  /**
+   * Hon. M. Bane. On the bench since 1959, named in five places since Phase 1,
+   * and on both layers at the same tile because Department 13 is one room.
+   *
+   * The seven endings are gated HERE rather than on the resolve stage, because
+   * the quest engine's `options` are documentation and the dialogue's `if` is
+   * the enforcement — same as every other resolution in the game. Every gate
+   * reads something the player DID: a matter they closed, an outcome they
+   * picked, a fact they went and got. Two are ungated, one per path, and both
+   * of those are surrender.
+   */
+  bane() {
+    const T = { who: 'Hon. M. Bane', spr: 'bane', nodes: {} };
+
+    if (isDone('yourself')) {
+      T.start = 'a';
+      T.nodes.a = { text: 'The court thanks counsel. — He is already reading the next one. There is no next one. He is reading it anyway, and he will be reading it after you have gone, and that is not a threat, it is a working day.' };
+      return T;
+    }
+
+    // Both of Bane's conversations sit on a `talk` stage, so the stage TYPE
+    // cannot tell them apart — and it must not be asked to. `talkTo` builds the
+    // tree from the state you walked up in and fires the talk event immediately
+    // after, which is what lets one conversation satisfy the talk stage and
+    // answer the resolve behind it. Keying the judgment off `stage.type ===
+    // 'resolve'` therefore never fires: at build time the quest is still parked
+    // on the talk. The discriminator is the fact the first conversation taught,
+    // which is the same way Hargrove tells his two apart.
+    const stage = currentStage('yourself');
+    const phase = !stage ? 'idle'
+      : stage.type === 'kill' ? 'waiting'
+        : knows('iry_caption') ? 'judgment'
+          : 'first';
+
+    if (phase === 'idle') {
+      T.start = 'a';
+      T.nodes.a = { text: 'He is at the top of the steps in a robe, at an hour and in a place where nobody is at the top of the steps in a robe. He looks at you the way you look at a name on a list you have not got to yet.' };
+      return T;
+    }
+
+    if (phase === 'first') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'Counsellor. — He does not ask how you got here and he does not ask which way you came, and after a moment you understand that both questions are ones he has stopped finding interesting. — Department 13. One matter, and it has been one matter since 1959, and the caption has not changed in that time. You have read the caption.',
+        choices: [
+          { label: '"It is my name. On both sides."', to: 'both' },
+          { label: '"Which one of them am I?"', to: 'which' },
+        ],
+      };
+      T.nodes.both = {
+        text: 'It is. — And the court has not, in sixty-six years, been asked to determine which of them is the party and which of them is counsel, because in sixty-six years nobody has come through both doors. — He lets that sit exactly as long as it needs to. — You have come through both doors.',
+        to: 'which',
+      };
+      T.nodes.which = {
+        text: 'That is the question before the court. — He straightens the one piece of paper in front of him, which does not need it. — I do not decide it on the pleadings, counsellor, and I do not decide it on your submissions, because you will make a very good submission and so will the other one, and you were both taught by the same people. It is decided on the record. The record is what you did.',
+        fx: () => learn('iry_caption'),
+        choices: [
+          { label: '"Where is the other one?"', to: 'other' },
+        ],
+      };
+      T.nodes.other = {
+        text: 'On the floor of the court, waiting to be heard. — He inclines his head about four degrees at the plaza. — I would not keep it waiting. It has been extremely patient and it is going to argue exactly the way you argue, because there is only one thing either of you was ever actually taught to do, and you are both very good at it.',
+      };
+      return T;
+    }
+
+    if (phase === 'waiting') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'He has not moved. — Counsel is arguing, he says, without any emphasis on the word. — When counsel has finished, the court will hear you.',
+      };
+      return T;
+    }
+
+    /* ------------------------------ JUDGMENT ----------------------------- */
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'It is over and it is very quiet, and the quiet has the specific quality of a courtroom in which somebody has stopped talking and nobody has started. — Then say what you are, counsellor. Say it once and say it in your own words, and the court will enter it, and the court will not entertain an amendment.',
+      choices: () => [
+        // ---- the street's four (DESIGN §3) ----
+        { tag: 'WIN', label: 'That the covenant was struck and the rest of it is a case, and you would like to try it.',
+          if: () => isDone('withdrawal') && !isFailedCase('withdrawal'),
+          showLocked: true,
+          lockedNote: 'In re Withdrawal is not behind you',
+          fx: () => qResolve('yourself', 'win'), to: null },
+        { tag: 'COUNTERSUE', label: 'That you have their realisation rates by associate for four years, and a note at the bottom about which of them to have the conversation with.',
+          if: () => outcomeOf('retrieval') === 'keep' && knows('dch_billing'),
+          showLocked: true,
+          lockedNote: 'you did not keep the billing summary',
+          fx: () => qResolve('yourself', 'countersue'), to: null },
+        { tag: 'GO BACK', label: 'That there is a floor with your name going on the door and you have not said no to it.',
+          if: () => outcomeOf('grabbit') === 'consider' || outcomeOf('retrieval') === 'sign',
+          showLocked: true,
+          lockedNote: 'nobody has offered you a room',
+          fx: () => qResolve('yourself', 'goback'), to: null },
+        // ---- the floor's three (DESIGN §4) ----
+        { tag: 'FILE', label: 'That there is one letter in this building that will still send, and it is not yours.',
+          if: () => knows('unsent_name'),
+          showLocked: true,
+          lockedNote: 'you do not know whose hand it is',
+          fx: () => qResolve('yourself', 'file'), to: null },
+        { tag: 'DISSOLVE', label: 'That a going concern is four hundred people\'s work and it should not have been allowed to be a person.',
+          if: () => isDone('thefirm'),
+          showLocked: true,
+          lockedNote: 'the going concern is still going',
+          fx: () => qResolve('yourself', 'dissolve'), to: null },
+        // ---- the two that are always there, and both of them are surrender --
+        { label: 'That you will take a number to make it stop.',
+          fx: () => qResolve('yourself', 'settle'), to: null },
+        { label: 'That you are tired, and it is 2:47, and there is work on the desk.',
+          fx: () => qResolve('yourself', 'wake'), to: null },
+      ],
     };
     return T;
   },

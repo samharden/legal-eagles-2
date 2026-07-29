@@ -94,6 +94,11 @@ export const REGIONS = [
             label: '[E] Hector (newsstand)' },
           { id: 'delgado', name: 'Arturo Delgado', spr: 'delgado', tx: 16, ty: 14,
             label: '[E] the man on the steps' },
+          // Named in five places since Phase 1 and on the bench throughout.
+          // He is on both layers at the same tile, because Department 13 is one
+          // room and has been in session the entire time.
+          { id: 'bane', name: 'Hon. M. Bane', spr: 'bane', tx: 17, ty: 13, bleed: 2,
+            label: '[E] the judge on the steps' },
         ],
         actors: [
           { id: 'ch_civ1', type: 'civ', tx: 14, ty: 18 },
@@ -102,6 +107,7 @@ export const REGIONS = [
           { id: 'ch_srv2', type: 'server', tx: 6, ty: 24 },
           { id: 'ch_depo', type: 'depo', tx: 30, ty: 13 },
           { id: 'ch_land', type: 'landlord', tx: 12, ty: 19 },
+          { id: 'ch_you', type: 'yourself', tx: 24, ty: 14 },
         ],
       },
       floor: {
@@ -136,6 +142,8 @@ export const REGIONS = [
         npcs: [
           { id: 'clerk', name: 'The Night Clerk', spr: 'clerk', tx: 21, ty: 13,
             label: '[E] the Night Clerk' },
+          { id: 'bane', name: 'Hon. M. Bane', spr: 'bane', tx: 17, ty: 13, bleed: 2,
+            label: '[E] the judge at the top of the steps' },
         ],
         pickups: [
           { id: 'ch_letter', tx: 20, ty: 16, spr: 'dossier', item: 'letter',
@@ -144,6 +152,7 @@ export const REGIONS = [
         ],
         actors: [
           { id: 'ch_unb1', type: 'unbilled', tx: 33, ty: 18 },
+          { id: 'ch_you', type: 'yourself', tx: 24, ty: 14 },
         ],
       },
     },

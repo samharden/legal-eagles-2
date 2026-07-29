@@ -152,6 +152,28 @@ export const ACTOR_TYPES = {
     onTouch: 'ENJOINED',
   },
 
+  // DESIGN §5. The version of you that hit the other key, in a courtroom where
+  // you are simultaneously counsel and party.
+  //
+  // `past: true` on purpose and not as a shortcut: it means the thing throws
+  // YOUR practice area's attack back at you, which is what the Past Selves do
+  // and what this is the last and largest of. It is deliberately NOT `scales` —
+  // pressure is a floor-only quantity, and this is the one fight that has to be
+  // the same fight from both sides of the door.
+  yourself: {
+    spr: 'yourself', size: 56, r: 26, hp: 380, speed: 78, dmg: 20, chase: 1000,
+    boss: true, title: 'THE PARTY OF THE SECOND PART', needs: 'yourselfopen',
+    past: true, hours: 40,
+    barks: [
+      'You pressed a key.', 'I pressed the other one.',
+      'Neither of us read it back.',
+      'I have the same nine years you have.',
+      'Ask him which of us is the party.',
+      'You have been arguing with me since 2:47.',
+    ],
+    onTouch: 'STIPULATED',
+  },
+
   // What is running the copier in Sublevel C. Not a person and not pretending
   // to be — it is the going concern, and it has four hundred people's work in
   // it, and it is still going.

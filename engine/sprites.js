@@ -607,6 +607,52 @@ SPR.thefirm = makeSprite([
   "....kk....kk....",
 ], { t: '#241f33', g: '#f0c75e', k: '#0c0b10' });
 
+// THE PARTY OF THE SECOND PART. The version of you that hit the other key.
+// Split down the middle — street gold on one side, floor blue on the other,
+// with the seam drawn as a hard black line, because that is the only honest
+// picture of a person who is counsel and party at the same time. Which half is
+// which does not depend on the key you pressed, and that is deliberate.
+SPR.yourself = makeSprite([
+  "................",
+  ".....aa||bb.....",
+  "....aaa||bbb....",
+  "....aaa||bbb....",
+  "....aaa||bbb....",
+  "....aka||bkb....",
+  "....aaa||bbb....",
+  ".....aa||bb.....",
+  "......a||b......",
+  "....aaaa||bbbb..",
+  "...aaaaa||bbbbb.",
+  "...aaaaa||bbbbb.",
+  "...aaaa.||.bbbb.",
+  ".....aa.||.bb...",
+  ".....aa.||.bb...",
+  ".....kk.||.kk...",
+], { a: '#f0c75e', b: '#3d5570', k: K, '|': '#0c0b10' });
+
+// ---- Hon. M. Bane ---------------------------------------------------------
+// Named in five places since Phase 1 and never seen. Black robe, white bib,
+// grey the whole way. He is not waiting for anything — he is presiding.
+SPR.bane = makeSprite([
+  "................",
+  "....gggggggg....",
+  "...gggggggggg...",
+  "...gffffffffg...",
+  "....ffffffff....",
+  "....fkffffkf....",
+  "....ffffffff....",
+  ".....ffffff.....",
+  "....wwwffwww....",
+  "...rrrrwwrrrr...",
+  "..rrrrrwwrrrrr..",
+  "..rrrrrrrrrrrr..",
+  "..rrrrrrrrrrrr..",
+  "...rrrrrrrrrr...",
+  "...rrrrrrrrrr...",
+  "....kk....kk....",
+], { g: '#c8c4bc', f: SKIN, k: K, w: WHT, r: '#16151c' });
+
 // ---- props ----------------------------------------------------------------
 SPR.dossier = makeSprite([
   "................",
