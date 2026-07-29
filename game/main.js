@@ -232,7 +232,7 @@ clockHooks.onDue = e => {
 };
 
 /* -------------------------------- boot --------------------------------- */
-function beginPath(layerId, path) {
+function beginPath(layerId, path, area) {
   G.path = path;
   G.layer = layerId;
   Facts.resetFacts();
@@ -249,17 +249,18 @@ function beginPath(layerId, path) {
     SFX.district();
     Quests.questEvent('reach', { region: def.id });
   };
-  // DESIGN §6: read the LE1 save, and let it decide what kind of lawyer you
-  // are and what you look like. No save is not an error — it is the common
-  // case, and it means litigation.
+  // The practice area comes from the reel, which either asked you to finish a
+  // sentence in the resignation letter or found the answer in an LE1 save. The
+  // import is still read here for the FACE, and so that the dev `?layer=` jump —
+  // which skips the reel entirely — still gets a sensible lawyer.
   const le1 = importLE1();
-  G.area = le1 ? le1.area : DEFAULT_AREA;
+  G.area = (area && AREAS[area]) ? area : (le1 ? le1.area : DEFAULT_AREA);
   const s = SPAWN[layerId];
   G.player = makePlayer(s.x, s.y);
-  if (le1) {
-    G.player.spr = le1.spr;
-    say(`Your bar card, your practice area and your face all came out of the last one. ${areaOf(G.area).name}. ${areaOf(G.area).attack}.`, 8);
-  }
+  if (le1) G.player.spr = le1.spr;
+  say(le1
+    ? `Your bar card, your practice area and your face all came out of the last one. ${areaOf(G.area).name}. ${areaOf(G.area).attack}.`
+    : `${areaOf(G.area).name}. ${areaOf(G.area).attack}. It is what you put in the letter and it is what you have.`, 8);
   G.carried = [];
   G.complaint = null;
   G.ally = null;
@@ -294,7 +295,7 @@ function startNew() {
   audioInit();
   document.getElementById('menu').style.display = 'none';
   G.state = 'intro';
-  Intro.start((layerId, path) => beginPath(layerId, path));
+  Intro.start((layerId, path, area) => beginPath(layerId, path, area));
 }
 
 function continueGame() {
@@ -1550,7 +1551,7 @@ requestAnimationFrame(loop);
 // expose for the dev editor and for browser-console verification
 window.LE2 = {
   G, Input, LAYERS, doSave, beginPath, loadGame, Facts, Quests, Practice,
-  Dialogue, Casefile, talkTo, useProp, endDay,
+  Dialogue, Casefile, talkTo, useProp, endDay, Intro,
   Hrs: { Hours, bill, lightUp, isLit, fmtHours, pressure },
   Areas: { AREAS, areaOf, importLE1, set: id => { if (AREAS[id]) G.area = id; return G.area; } },
   Clock: { Cal, dateString, allEntries, advanceDay, schedule, unschedule, resetClock },

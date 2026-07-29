@@ -11,6 +11,7 @@ import { ctx, W, H, C, IS_TOUCH, wrapText } from '../engine/stage.js';
 import { Typewriter, Transition, Easing, clamp } from '../engine/anim.js';
 import { SFX } from '../engine/audio.js';
 import * as Input from '../engine/input.js';
+import { AREAS, DEFAULT_AREA, importLE1 } from './areas.js';
 
 const CPS = IS_TOUCH ? 62 : 55;
 const FS = IS_TOUCH ? 19 : 17;      // body type
@@ -124,11 +125,27 @@ const SCENES = [
       + 'The first ten were arguments. This one is two paragraphs and it does not argue with anybody.',
   },
   {
+    // The practice area is chosen HERE, by finishing a sentence in the letter.
+    // It is the ranged attack for the whole game — DESIGN §3's practice area and
+    // LE1's five classes — but the player is not picking a weapon, they are
+    // saying what they did for these people for nine years. Same decision, and
+    // it belongs in the resignation rather than on a select screen.
+    //
+    // If an LE1 save exists it has already answered this, so the blank arrives
+    // filled in and there is nothing to choose. That is the better beat anyway.
     id: 'C', tag: 'EXHIBIT C', title: 'THE LETTER', art: drawLetter,
-    body: 'Dear Managing Partner Hargrove:\n'
-      + 'Please accept this as notice of my resignation, effective immediately.\n'
-      + 'I am grateful for the opportunity. I am not grateful for the rest of it.\n'
-      + 'Very truly yours,',
+    field: 'area',
+    body: I => {
+      const head = 'Dear Managing Partner Hargrove:\n'
+        + 'Please accept this as notice of my resignation, effective immediately.\n';
+      const a = I.area && AREAS[I.area];
+      if (!a) return head + 'For nine years I have been the person this firm sends when ______________________.';
+      return head
+        + `For nine years I have been the person this firm sends when ${a.letter}\n`
+        + 'I am grateful for the opportunity. I am not grateful for the rest of it.\n'
+        + 'Very truly yours,';
+    },
+    choices: Object.values(AREAS).map(a => ({ key: a.id, label: a.name, sub: a.letter })),
   },
   {
     id: 'D', tag: 'EXHIBIT D', title: 'THE CHOICE', art: drawChoiceArt,
@@ -166,15 +183,36 @@ export const Intro = {
   outroT: 0,
   onDone: null,
 
+  area: null,
+  le1: null,
+
   start(onDone) {
     this.active = true; this.i = 0; this.sceneT = 0; this.sel = 0;
     this.choice = null; this.outroT = 0; this.onDone = onDone;
+    // DESIGN §6: the first game answers this if it can. A save means the blank
+    // in the letter is already filled, in your own handwriting, and there is
+    // nothing to pick.
+    this.le1 = importLE1();
+    this.area = this.le1 ? this.le1.area : null;
     document.body.classList.add('reel');
     this._load();
   },
-  _load() {
+
+  /** The scene's text, which for the letter depends on what is in the blank. */
+  _body() {
     const s = SCENES[this.i];
-    this.tw = new Typewriter(s.body, { cps: CPS, onShout: () => SFX.ret() });
+    return typeof s.body === 'function' ? s.body(this) : s.body;
+  },
+  /** The choices actually on offer — none once the scene's field is decided. */
+  _choices() {
+    const s = SCENES[this.i];
+    if (!s.choices) return null;
+    if (s.field && this[s.field]) return null;
+    return s.choices;
+  },
+
+  _load() {
+    this.tw = new Typewriter(this._body(), { cps: CPS, onShout: () => SFX.ret() });
     this.trans.start();
     this.sceneT = 0;
   },
@@ -182,7 +220,7 @@ export const Intro = {
     this.active = false;
     document.body.classList.remove('reel');
     const out = OUTCOMES[this.choice || 'send'];
-    if (this.onDone) this.onDone(out.layer, this.choice || 'send');
+    if (this.onDone) this.onDone(out.layer, this.choice || 'send', this.area || DEFAULT_AREA);
   },
   skip() {
     // Esc/B before the fork still has to produce a fork — jump to it rather
@@ -195,17 +233,28 @@ export const Intro = {
 
   advance() {
     if (this.choice) { if (this.outroT > 1.2) this.finish(); return; }
-    const s = SCENES[this.i];
     if (!this.tw.done) { this.tw.finish(); SFX.page(); return; }
-    if (s.choices) return;             // the fork does not auto-advance
+    if (this._choices()) return;       // an undecided choice does not auto-advance
     if (this.i < SCENES.length - 1) { this.i++; this._load(); SFX.page(); }
   },
 
   pick(n) {
     const s = SCENES[this.i];
-    if (!s.choices || this.choice) return;
-    const c = s.choices[n];
+    const list = this._choices();
+    if (!list || this.choice) return;
+    const c = list[n];
     if (!c) return;
+
+    // A `field` scene records an answer and stays put — the letter re-types
+    // itself with the blank filled, and the player reads their own sentence
+    // back before the page turns. The fork is the only choice that ends the reel.
+    if (s.field) {
+      this[s.field] = c.key;
+      this.sel = 0;
+      SFX.ret();
+      this._load();
+      return;
+    }
     this.choice = c.key;
     this.outroT = 0;
     if (c.key === 'send') SFX.send(); else SFX.del();
@@ -224,18 +273,18 @@ export const Intro = {
     this.tw.step(dt);
     if (this.tw.count !== before && this.tw.count % 3 === 0) SFX.key();
 
-    const s = SCENES[this.i];
-    // auto page-turn once the narration has landed — except on the fork
-    if (this.tw.done && !s.choices && this.sceneT > 3.6 + this.tw.text.length / CPS) this.advance();
+    const list = this._choices();
+    // auto page-turn once the narration has landed — except on an open choice
+    if (this.tw.done && !list && this.sceneT > 3.6 + this.tw.text.length / CPS) this.advance();
 
     // input
     if (Input.pressed('cancel')) { this.skip(); return; }
-    if (s.choices && this.tw.done) {
+    if (list && this.tw.done) {
       const nv = Input.nav();
-      if (nv === 'up') { this.sel = (this.sel + s.choices.length - 1) % s.choices.length; SFX.blip(); }
-      if (nv === 'down') { this.sel = (this.sel + 1) % s.choices.length; SFX.blip(); }
+      if (nv === 'up') { this.sel = (this.sel + list.length - 1) % list.length; SFX.blip(); }
+      if (nv === 'down') { this.sel = (this.sel + 1) % list.length; SFX.blip(); }
       const n = Input.numberPressed();
-      if (n >= 1 && n <= s.choices.length) { this.pick(n - 1); return; }
+      if (n >= 1 && n <= list.length) { this.pick(n - 1); return; }
       if (Input.pressed('confirm') || Input.pressed('interact')) { this.pick(this.sel); return; }
     } else if (Input.pressed('confirm') || Input.pressed('interact') || Input.pressed('fire') || Input.pressed('strike')) {
       this.advance();
@@ -244,10 +293,9 @@ export const Intro = {
 
   // a tap anywhere: fast-forward, turn the page, or hit a choice row
   tap(x, y) {
-    const s = SCENES[this.i];
     if (this.choice) { if (this.outroT > 1.2) this.finish(); return; }
     if (x > W - 110 && y < 54) { this.skip(); return; }
-    if (s.choices && this.tw.done) {
+    if (this._choices() && this.tw.done) {
       for (let i = 0; i < this._rects.length; i++) {
         const r = this._rects[i];
         if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) { this.pick(i); return; }
@@ -287,14 +335,19 @@ export const Intro = {
     // the choice rows get a reserved band that the body can never grow into.
     g.font = `${FS}px "Courier New", monospace`;
     const maxW = W * WRAP;
-    const paras = SCENES[this.i].body.split('\n').map(p => wrapText(g, p, maxW));
+    const paras = this._body().split('\n').map(p => wrapText(g, p, maxW));
     const lineH = FS + 8;
     const bodyH = paras.reduce((n, ls) => n + ls.length * lineH + 5, 0);
 
-    const showChoices = !!(s.choices && this.tw.done);
-    const choicesH = s.choices ? s.choices.length * 54 : 0;
+    // The fork is two fat rows. The practice area is five, and five rows at the
+    // fork's height would push the letter off the top of the board — so the row
+    // shrinks with the count rather than the letter being cut.
+    const list = this._choices();
+    const rowH = list && list.length > 3 ? 38 : 54;
+    const showChoices = !!(list && this.tw.done);
+    const choicesH = list ? list.length * rowH : 0;
     const choicesTop = H - 26 - choicesH;
-    const bodyBottom = (s.choices ? choicesTop : H - 44) - 14;
+    const bodyBottom = (list ? choicesTop : H - 44) - 14;
     const bodyTop = bodyBottom - bodyH;
     const ruleY = bodyTop - 18;
     const titleY = ruleY - 20;
@@ -330,23 +383,35 @@ export const Intro = {
     this._rects = [];
     if (showChoices) {
       let cy = choicesTop;
-      s.choices.forEach((c, i) => {
+      const tight = rowH < 54;
+      list.forEach((c, i) => {
         const on = i === this.sel;
-        const rw = Math.min(W - 68, 520), rh = 46;
+        const rw = Math.min(W - 68, tight ? 640 : 520), rh = rowH - 8;
         this._rects.push({ x: 34, y: cy - 4, w: rw, h: rh });
         g.fillStyle = on ? 'rgba(240,199,94,0.13)' : 'rgba(255,255,255,0.03)';
         g.fillRect(34, cy - 4, rw, rh);
         g.strokeStyle = on ? C.gold : C.rule; g.lineWidth = on ? 2 : 1;
         g.strokeRect(34, cy - 4, rw, rh);
-        g.font = `bold ${FS}px "Courier New", monospace`;
-        g.fillStyle = on ? C.gold : C.muted;
-        g.fillText(`${i + 1}.  ${c.label}`, 48, cy + 12);
-        g.font = `${FS - 4}px "Courier New", monospace`;
-        g.fillStyle = C.dim;
-        g.fillText(c.sub, 48, cy + 32);
-        cy += 54;
+        if (tight) {
+          // one line: the area, then the clause it puts in the letter
+          g.font = `bold ${FS - 2}px "Courier New", monospace`;
+          g.fillStyle = on ? C.gold : C.muted;
+          const head = `${i + 1}.  ${c.label}`;
+          g.fillText(head, 48, cy + rh / 2 - 2);
+          g.font = `${FS - 5}px "Courier New", monospace`;
+          g.fillStyle = C.dim;
+          g.fillText(c.sub, 48 + Math.max(230, g.measureText(head).width + 24), cy + rh / 2 - 2);
+        } else {
+          g.font = `bold ${FS}px "Courier New", monospace`;
+          g.fillStyle = on ? C.gold : C.muted;
+          g.fillText(`${i + 1}.  ${c.label}`, 48, cy + 12);
+          g.font = `${FS - 4}px "Courier New", monospace`;
+          g.fillStyle = C.dim;
+          g.fillText(c.sub, 48, cy + 32);
+        }
+        cy += rowH;
       });
-    } else if (!s.choices) {
+    } else if (!list) {
       g.font = '12px "Courier New", monospace';
       g.fillStyle = C.dim;
       g.textAlign = 'right';

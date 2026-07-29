@@ -132,12 +132,19 @@ Reputation is no longer two hard-coded districts — `Practice.seedRep()` takes 
 
 Melee is 18 a swing and requires standing next to a Collections Agent while it takes $140 off you, so ranged is deliberately a little weaker per second and much safer. That is the trade.
 
+**You choose it in the resignation letter.** EXHIBIT C has a blank in it —
+
+> *For nine years I have been the person this firm sends when ______________________.*
+
+— and the five practice areas are the five ways to finish that sentence. Pick one and the letter re-types itself with your clause in it. You are not picking a weapon on a class-select screen; you are saying what you did for these people, and the weapon is downstream of that.
+
 `game/areas.js` is also the answer to two other things DESIGN asked for:
 
-- **LE1 save import** (§6) — LE2 reads `legalEagles.save.v1` and takes your `classId` and `genderId`, so your practice area *and your face* carry over from the first game. No save is not an error; it is the common case, and it means litigation.
+- **LE1 save import** (§6) — LE2 reads `legalEagles.save.v1` and takes your `classId` and `genderId`, so your practice area *and your face* carry over from the first game. When a save is found the blank in the letter arrives **already filled in** and there is nothing to choose, which is the better beat anyway.
+  > `localStorage` is scoped to the **origin**, not the path. On GitHub Pages both games sit under `samharden.github.io`, so the import works. Running LE1 off `file://` and LE2 off `localhost:8142` are two different origins and it will never find the save — that is not a bug, and the no-save path is the designed one.
 - **Past Selves fight with your attack** (§4) — they literally do now. A litigator's past selves object at them constantly; a tax lawyer's arrive slowly and hit like a filing deadline.
 
-Not built yet: The Annex, the rest of the ~12 cases per path, bosses, character creation when there is no LE1 save, the crossover. See DESIGN.md §8.
+Not built yet: The Annex, the rest of the ~12 cases per path, bosses, the crossover. See DESIGN.md §8.
 
 ---
 

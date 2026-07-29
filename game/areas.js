@@ -20,10 +20,16 @@
 //   §4  what a Past Self fights with, since Past Selves are supposed to use
 //       YOUR attack, and now literally do
 
+// `letter` is the clause that goes in the blank in the resignation letter, and
+// it is where the player actually chooses this — not on a class-select screen.
+// You are not picking a weapon, you are finishing a sentence about what you did
+// for these people for nine years, which is the same decision and reads better.
+
 export const AREAS = {
   lit: {
     id: 'lit', name: 'LITIGATION', attack: 'OBJECTION!',
     blurb: 'Fast, loud, dramatic. Bills by the outburst.',
+    letter: 'somebody has to stand up and say no out loud.',
     dmg: 9, cd: 0.26, speed: 560, count: 1, size: 5, color: '#ff6b6b', special: null,
     // 1-in-4 shots shout, exactly as in LE1
     shout: 'OBJECTION!',
@@ -31,21 +37,25 @@ export const AREAS = {
   corp: {
     id: 'corp', name: 'CORPORATE M&A', attack: 'Hostile Takeover',
     blurb: 'Slow, heavy, and absolutely non-negotiable.',
+    letter: 'a deal needs a signature and does not deserve one.',
     dmg: 26, cd: 0.8, speed: 300, count: 1, size: 11, color: '#5ec8f0', special: null,
   },
   crim: {
     id: 'crim', name: 'CRIMINAL DEFENSE', attack: 'Cross-Examination',
     blurb: 'Rapid-fire triple shot of doubt. Reasonable doubt.',
+    letter: 'everybody in the room has already decided.',
     dmg: 5, cd: 0.38, speed: 500, count: 3, size: 4, color: '#9be05e', special: 'spread',
   },
   ip: {
     id: 'ip', name: 'INTELLECTUAL PROPERTY', attack: 'Cease & Desist',
     blurb: 'Letters that hunt down infringers automatically.',
+    letter: 'somebody has taken a thing that cannot be held.',
     dmg: 12, cd: 0.5, speed: 380, count: 1, size: 6, color: '#e05ed8', special: 'homing',
   },
   tax: {
     id: 'tax', name: 'TAX', attack: 'Surprise Audit',
     blurb: 'Nothing is certain except death and this nova.',
+    letter: 'the numbers have to be looked at properly, once.',
     dmg: 7, cd: 1.0, speed: 330, count: 10, size: 5, color: '#f0c75e', special: 'nova',
     shout: 'AUDIT!',
   },
