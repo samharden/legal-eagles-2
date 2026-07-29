@@ -313,6 +313,40 @@
   <span style="white-space:nowrap">− / + zoom<button id="saveBtn">SAVE</button><button id="fsBtn" title="Fullscreen (F)">⛶ F</button></span>
 </div>
 
+<!--
+  Opened off the disk instead of a server? This file cannot work that way and
+  will not say so on its own: ES module scripts are fetched under CORS rules,
+  file:// has an opaque origin, and the failure is a blank page with one line in
+  a console nobody opens. So it says so here, before the modules are even asked
+  for. dist/index.html is the double-clickable build and has none of this in it.
+
+  Deliberately a classic script, not a module — a module here would be the very
+  thing that cannot load.
+
+  `data-dev-only` is load-bearing: tools/build.mjs strips this tag, and MUST,
+  because dist/index.html is opened over file:// on purpose and would otherwise
+  greet the player with a notice telling them to go and open dist/index.html.
+-->
+<script data-dev-only>
+if (location.protocol === 'file:') {
+  document.addEventListener('DOMContentLoaded', function () {
+    var m = document.getElementById('menu');
+    if (!m) return;
+    m.style.display = '';
+    m.innerHTML =
+      '<h2 style="color:#e05e5e">THIS IS THE DEV ENTRY POINT</h2>'
+      + '<p>You have opened <code>index.html</code> off the disk. It is built out of ES'
+      + ' modules, and a browser will not load those over <code>file://</code> — that is the'
+      + ' CORS error in the console, and it is not a bug in the game.</p>'
+      + '<p><b>Double-click <code>dist/index.html</code> instead.</b> It is the same game as one'
+      + ' self-contained file, with no external references and nothing to fetch.</p>'
+      + '<p style="opacity:.72">Not there yet? Build it once with <code>node tools/build.mjs</code>'
+      + ' — <code>dist/</code> is gitignored, so a fresh clone has to. To work on the source'
+      + ' instead, run <code>node tools/serve.mjs</code> and open'
+      + ' <code>http://localhost:8142</code>.</p>';
+  });
+}
+</script>
 <script type="module" src="game/main.js?v=1"></script>
 <script type="module" src="dev/editor.js?v=1"></script>
 </body>

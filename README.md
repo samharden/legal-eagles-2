@@ -238,6 +238,15 @@ node tools/build.mjs
 
 Writes `dist/index.html` — one file, no external references, double-clickable and itch.io-ready.
 
+> **Double-click `dist/index.html`, never the `index.html` in the repo root.** The
+> root one is the dev entry and is built out of ES modules; browsers fetch module
+> scripts under CORS rules and `file://` has an opaque origin, so it fails with a
+> console error and a blank page. That is the cost DESIGN §6a accepted for the
+> dependency graph, and the bundler is the mitigation it promised. The root file
+> now detects `file://` and says all this on the page instead of failing silently —
+> `tools/build.mjs` strips that notice from `dist`, which is the one place the
+> notice would be actively wrong.
+
 ---
 
 ## Controls
@@ -342,6 +351,12 @@ All four fail the build with the offending files named. Rules 3 and 4 exist
 because both failure modes ship a page that loads, renders nothing, and logs
 nothing — the most expensive kind of broken. Keep imports as plain relative
 specifiers; the dev server adds cache-busting, the source stays clean.
+
+It also strips `<script data-dev-only>` (and the comment immediately above it)
+out of the shipped HTML. Anything that only makes sense while being served from
+the source tree goes in one of those. Today that is the `file://` notice, which
+in `dist` would tell a player who correctly double-clicked `dist/index.html` to
+go and open `dist/index.html`.
 
 One non-obvious trap the bundler now guards: the bundle is inserted with
 `html.replace('</body>', () => …)` and the replacement **must** be a function.

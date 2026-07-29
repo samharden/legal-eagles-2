@@ -165,6 +165,24 @@ for (const abs of order) {
 const bundle = '"use strict";\n' + parts.join('\n');
 
 html = html.replace(tagRe, '');
+
+// Anything marked `data-dev-only` belongs to the served source tree and must not
+// ship. Today that is one thing: the file:// guard, which tells a player who
+// double-clicked the DEV index.html to open dist/index.html instead. Left in, it
+// would fire in dist/index.html — which is opened over file:// by design — and
+// tell the player to go and open the file they already have open.
+// The leading `<!--…-->` clause takes the tag's explanatory comment with it: it
+// is about a mechanism that does not exist in the shipped file, so leaving it
+// there would document a thing dist cannot do. It only ever eats a comment
+// immediately before the tag — the inner match stops at the first `-->`, so an
+// unrelated comment earlier in the file fails the `<script` that must follow.
+const devOnlyRe = /(?:<!--[\s\S]*?-->\s*)?<script\s+data-dev-only\s*>[\s\S]*?<\/script>\s*/g;
+const devOnly = (html.match(devOnlyRe) || []).length;
+html = html.replace(devOnlyRe, '');
+// Anchored on the TAG, not the bare string — the first version of this check
+// matched the word inside its own explanatory comment and failed every build.
+if (/<script\s+data-dev-only/.test(html))
+  throw new Error('a data-dev-only tag survived into the bundle — check the tag is exactly <script data-dev-only>');
 // The replacement MUST be a function. With a replacement *string*, JS expands
 // `$&`, "$'", '$`' and `$$` inside it — and the bundle is full of `${...}` and
 // `$$` in template literals. That silently corrupts the shipped copy while the
@@ -182,5 +200,5 @@ mkdirSync(resolve(ROOT, 'dist'), { recursive: true });
 writeFileSync(resolve(ROOT, 'dist/index.html'), html);
 
 const kb = (Buffer.byteLength(html) / 1024).toFixed(1);
-console.log(`dist/index.html  ${kb} KB  (${order.length} modules)`);
+console.log(`dist/index.html  ${kb} KB  (${order.length} modules, ${devOnly} dev-only tag${devOnly === 1 ? '' : 's'} stripped)`);
 console.log('modules in order:\n  ' + order.map(rel).join('\n  '));
