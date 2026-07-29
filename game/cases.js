@@ -138,6 +138,14 @@ defineFacts([
   { id: 'mr_keyring', case: 'impound', text: 'Forty-odd keys on a ring, each tagged with a matter number. Not one of them is a car key.' },
   { id: 'mr_release', case: 'impound', text: 'The Yard Man: nothing leaves this lot without a signature, and a signature is a filing like any other.' },
 
+  // ---- In re Yourself ----
+  // Taught by the three crossings, which are authored on both layers at the
+  // same tile — so these arrive the same whichever side of the door you were
+  // standing on when you found it, which is the entire thesis of the finale.
+  { id: 'iry_door', case: 'yourself', text: 'There is a door four feet left of the courthouse steps, in eleven feet of granite, and it is the same door from both sides.' },
+  { id: 'iry_same', case: 'yourself', text: 'It is not a copy. The push bar is on the side people were getting out from, and it is worn — this has been used, by somebody, a great many times.' },
+  { id: 'iry_dept13', case: 'yourself', text: 'Run L ends in a doorway with a brass threshold worn through in the middle, and every crossing in this city leads back to the same room: Department 13, which has been in session throughout.' },
+
   { id: 'unsent_hand', case: 'unsent', text: 'The letter is not in your handwriting, and the signature line has been signed and struck out eleven times.' },
   { id: 'unsent_docket', case: 'unsent', text: 'Department 13 has one matter on its docket. You are named as counsel. You are also named as the party.' },
   { id: 'unsent_drawer', case: 'unsent', text: 'Every desk in the building has a letter like this in the drawer. Four hundred desks.' },
