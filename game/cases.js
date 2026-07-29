@@ -43,6 +43,18 @@ defineFacts([
   { id: 'flats_iris', case: 'rivera', text: 'Iris Nakamura has been organising for six weeks and has all thirty signatures on one piece of paper.' },
   { id: 'flats_halloran', case: 'rivera', text: 'Halloran will pay you $4,000 to consult on "tenant relations" — which is $4,000 for you to be unavailable.' },
 
+  // ---- Retrieval ----
+  { id: 'dch_noncompete', case: 'retrieval', text: 'The covenant: two years, fifty miles, and CLIENT OF THE FIRM defined to include anyone the firm ever opened a file on.' },
+  { id: 'dch_clause9', case: 'retrieval', text: 'Clause 9. You signed it. Nobody read it out and you remember deciding that was normal.' },
+  { id: 'dch_billing', case: 'retrieval', text: 'An internal billing summary: realisation by associate, four years, write-offs in their own column, and a note about which of them to have the conversation with.' },
+  { id: 'dch_hargrove', case: 'retrieval', text: 'Hargrove signed the retrieval authorisation. He did not write it and he did not refuse it.' },
+  { id: 'dch_list', case: 'retrieval', text: 'You did not take a document. You took a memory, and the firm has worked out that it cannot send three men to retrieve one.' },
+
+  // ---- The Reviews ----
+  { id: 'tw_desk', case: 'reviews', text: 'The desk you woke at is out in the plaza at the correct angle to a window eleven floors up. The ring under the coffee is forty years deep.' },
+  { id: 'tw_reviews', case: 'reviews', text: 'Your personnel file holds three annual reviews, one per rank, and all three are in the same hand and all three are signed by you.' },
+  { id: 'tw_ninth', case: 'reviews', text: 'Scratched into the back of your own nameplate: CL. 9 IS NOT ABOUT RETIREMENT.' },
+
   // ---- In re: The Meeting ----
   { id: 'flats_sun', case: 'meeting', text: 'There is daylight in The Flats and there is no sun. The river is the only thing in this city that has moved since you woke up.' },
   { id: 'flats_chairs', case: 'meeting', text: 'Thirty chairs in a circle in a warm room, with the gap left at the near side for whoever is still coming.' },
@@ -233,6 +245,69 @@ defineQuests([
       CASE_HOOKS.banner('THE NOTICES RAN OUT', 'THE RIVERA BLOCK');
       CASE_HOOKS.rep('flats', -7);
       CASE_HOOKS.rep('courthouse', -2);
+    },
+  },
+  {
+    id: 'retrieval',
+    name: 'Retrieval',
+    layer: 'street',
+    blurb: 'DC&H have sent three men to take back a client list you never physically took. The covenant they are relying on is posted inside their own front door.',
+    auto: true,
+    // The Tower is late. It opens once the street has decided you are a real
+    // practice — which, from the firm's point of view, is exactly the problem.
+    prereq: () => isDone('ferraro') || isDone('rivera'),
+    stages: [
+      { type: 'talk', npc: 'hargrove',
+        hint: 'The Tower District, north of Courthouse Square. Somebody up there signed the authorisation and it was not a stranger.' },
+      { type: 'learn', facts: ['dch_noncompete', 'dch_clause9', 'dch_billing'],
+        hint: 'Read the covenant on their own door. Then find what they left in the plaza and on the dock.' },
+      { type: 'talk', npc: 'hargrove',
+        hint: 'Back to Hargrove with the covenant, Clause 9, and the billing summary.' },
+      { type: 'resolve',
+        hint: 'Decide what you are walking out of that plaza holding.',
+        options: ['keep', 'return', 'sign'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        keep: 'You kept the summary. Nothing improves. The retrieval does not stop and the covenant does not soften and there is now a thing in your files that they would very much rather was in theirs, and that is the entire benefit and it is enough.',
+        return: 'You gave the boxes back and they called the men off, and the covenant is still two years and fifty miles, and you have handed over the only document that was ever going to be worth anything to you.',
+        sign: 'You signed the release in the plaza on the roof of the grey van. No admission, no covenant enforcement, no further contact. It is a clean, complete, entirely reasonable end to it, and there is nothing left to bring.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 11);
+      CASE_HOOKS.banner('MATTER CLOSED', 'RETRIEVAL — ' + String(outcome).toUpperCase());
+      CASE_HOOKS.fee({ sign: 2500, return: 600, keep: 0 }[outcome] || 0, 'DC&H — release');
+      CASE_HOOKS.rep('tower', { sign: 2, return: 1, keep: -3 }[outcome] || 0);
+      CASE_HOOKS.rep('courthouse', { keep: 2 }[outcome] || 0);
+    },
+  },
+  {
+    id: 'reviews',
+    name: 'The Reviews',
+    layer: 'floor',
+    blurb: 'Your personnel file is open on a chair in the plaza, and there are three annual reviews in it, and all three of them are walking around out here.',
+    auto: true,
+    prereq: () => isDone('impound') || isDone('meeting'),
+    stages: [
+      { type: 'learn', facts: ['tw_desk', 'tw_reviews'],
+        hint: 'The Tower District, up the ramp north of the courthouse. Find the desk you woke at, and the file beside it.' },
+      { type: 'kill', enemy: 'past_junior',
+        hint: 'The first review. He is faster than you and he does not know anything yet.' },
+      { type: 'kill', enemy: 'past_counsel',
+        hint: 'The second review. She has read everything you are about to say.' },
+      { type: 'kill', enemy: 'past_partner',
+        hint: 'The third. He is not a warning and he will tell you so.' },
+      { type: 'resolve',
+        hint: 'The file is still open on the chair. Decide what goes in it.',
+        options: ['sign_off', 'refuse', 'read'] },
+    ],
+    onComplete(outcome) {
+      const lines = {
+        sign_off: 'You sign the fourth review the way you signed the other three: at the bottom, in the box, without reading the part above it. The file closes itself. It is not heavier.',
+        refuse: 'You leave the fourth one blank. Nothing enforces it. Nobody comes. The blank stays blank, and it turns out that a blank in a file this old is the loudest thing on the floor.',
+        read: 'You read all three properly for the first time, which takes longer than the fighting did. They are not bad reviews. They are accurate, and generous, and every single one of them describes somebody who was going to be fine, and all three were written by you.',
+      };
+      CASE_HOOKS.say(lines[outcome] || 'The matter closes.', 12);
+      CASE_HOOKS.banner('MATTER CLOSED', 'THE REVIEWS — ' + String(outcome).toUpperCase());
     },
   },
   {
@@ -556,6 +631,151 @@ const NPC_TREES = {
     };
     T.nodes.no = {
       text: 'Yeah. Yeah, okay. — He folds the summons into a square small enough to stop being a summons.',
+    };
+    return T;
+  },
+
+  /* ------------------------------- HARGROVE -------------------------------- */
+  // The LE1 callback. He is not the villain and never was, which is worse: he
+  // is a man who signed a thing because somebody put it in front of him, and he
+  // will tell you that himself, accurately, and it will not help either of you.
+  hargrove() {
+    const stage = currentStage('retrieval');
+    const phase = !started('retrieval') || (stage && stage.type === 'talk' && !knows('dch_hargrove')) ? 'intake'
+      : isDone('retrieval') ? 'after'
+        : (stage && stage.type === 'resolve') || knows('dch_noncompete', 'dch_clause9', 'dch_billing') ? 'report'
+          : 'working';
+
+    const T = { who: 'Emmett Hargrove', spr: 'hargrove', nodes: {} };
+
+    if (phase === 'intake') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'He is standing in the plaza at eleven in the morning with no coat and no reason to be out here, which means he has been waiting, which means somebody told him you were coming. — You look well. — I look employed. — He accepts that as the correction it is.',
+        to: 'b',
+      };
+      T.nodes.b = {
+        text: 'They have sent people after you. — He does not phrase it as a question. — Three of them. Retrieval Associates, which is a job title somebody was paid to invent. I signed the authorisation.',
+        choices: [
+          { label: '"You signed it."', to: 'signed' },
+          { label: '"What do they think I took?"', to: 'signed' },
+        ],
+      };
+      T.nodes.signed = {
+        text: 'I signed it. I did not write it and I did not refuse it and I would like you to hold both of those at once, because I have had four months of practice and I can just about manage it. — What do they think I took? — The list. — I didn\'t take a list. — He nods. — No. You took the memory of one. They have not worked out how to send three men after that, and it is genuinely keeping somebody awake.',
+        fx: () => { learn('dch_hargrove'); learn('dch_list'); },
+        choices: [{ label: 'Say nothing for a moment.', to: 'end' }],
+      };
+      T.nodes.end = {
+        text: 'Read the covenant. — I know the covenant. — He looks at the doors. — Read it on the door, counsellor. Not from memory. They amended it, and they amended it after you left, and they posted it, because posting it is what makes it enforceable and somebody in there knows every single one of those rules.',
+      };
+      return T;
+    }
+
+    if (phase === 'working') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'Still out here. I have a window I could be behind.',
+        choices: [
+          { label: 'Still reading.', to: null },
+          { tag: 'PROGRESS', label: 'Tell him what you have found.',
+            if: () => knowsAny('dch_noncompete', 'dch_clause9', 'dch_billing'), to: 'b' },
+        ],
+      };
+      T.nodes.b = { text: 'Keep going. And do not tell me where you found the last one, because I would then know it.' };
+      return T;
+    }
+
+    if (phase === 'report') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'You have read it. — Two years, fifty miles, and a definition of CLIENT that covers anybody they ever opened a file on. That is not a covenant, that is a fence around a career. — Yes. — And Clause 9 is still in there. — Yes.',
+        to: 'b',
+      };
+      T.nodes.b = {
+        text: 'And I have the internal billing summary off your loading dock, which has a column in it for write-offs and a note at the bottom about which associates to have the conversation with.',
+        choices: [
+          { tag: 'COUNTERSUE', label: 'Keep it. Whatever they file, you file back.',
+            if: () => knows('dch_billing', 'dch_noncompete'), to: 'keep' },
+          { label: 'Give the boxes back and have them call the men off.', to: 'return' },
+          { label: 'Ask what they would pay to end it today.', to: 'sign' },
+          { label: 'Not decided.', to: null },
+        ],
+      };
+      T.nodes.keep = {
+        text: 'He looks at the folder for a long moment and does not reach for it. — You understand that if you keep that, this stops being a thing that goes away. — I understand. — He nods once, and then, quietly, in a voice he has clearly been holding somewhere for four months: good.',
+        fx: () => qResolve('retrieval', 'keep'),
+      };
+      T.nodes.return = {
+        text: 'That is the sensible one. — He says it without any weight at all, which is how you know what he thinks of it. — I will have the men called off this afternoon. The covenant stands. It was always going to stand; that was never the part that was up for discussion.',
+        fx: () => qResolve('retrieval', 'return'),
+      };
+      T.nodes.sign = {
+        text: 'Twenty-five hundred and a mutual release. No admission, no enforcement, no further contact. — He produces it from an inside pocket, already drawn, already dated today. — I would like the record to show that I did not enjoy having this in my coat.',
+        fx: () => qResolve('retrieval', 'sign'),
+      };
+      return T;
+    }
+
+    T.start = 'a';
+    T.nodes.a = {
+      text: {
+        keep: 'They know you have it. Nobody has said so and everybody has stopped saying several other things, which is how a firm says so.',
+        return: 'It is quieter. — Is it better? — He watches the plaza for a while. — It is quieter.',
+        sign: 'Clean file. — He says it the way you\'d describe a room after everything has been taken out of it. — Clean file, counsellor.',
+      }[outcomeOf('retrieval')] || 'Counsellor.',
+    };
+    return T;
+  },
+
+  /* --------------------------- THE PERSONNEL FILE --------------------------- */
+  // Not a person, which is why it is reached through a prop's `tree` rather
+  // than an NPC. It is still the thing you have the conversation with.
+  personnel() {
+    const T = { who: 'YOUR PERSONNEL FILE', spr: 'dossier', nodes: {} };
+    const stage = currentStage('reviews');
+
+    if (isDone('reviews')) {
+      T.start = 'a';
+      T.nodes.a = {
+        text: {
+          sign_off: 'Four reviews. Four signatures. The last one is fresher than the others and in about a week you will not be able to tell which.',
+          refuse: 'Three reviews and a blank. The blank has not filled itself in overnight, which you had privately expected it to.',
+          read: 'Three reviews, read. The file is exactly as heavy as it was.',
+        }[outcomeOf('reviews')] || 'The file is closed.',
+      };
+      return T;
+    }
+
+    if (!stage || stage.type !== 'resolve') {
+      T.start = 'a';
+      T.nodes.a = {
+        text: 'Three annual reviews, one per rank, in one hand, and the hand is yours. Behind you in the plaza, at three different distances, three people are standing very still and have been since you opened it.',
+      };
+      return T;
+    }
+
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'The plaza is empty. The file is open at the fourth form, which is blank, and which has the current year printed on it, and which has your name in the REVIEWER box as well as the REVIEWED one.',
+      choices: [
+        { tag: 'SIGN', label: 'Sign the fourth one. At the bottom, in the box.', to: 'do_sign' },
+        { label: 'Leave it blank.', to: 'do_refuse' },
+        { label: 'Read the first three properly.', to: 'do_read' },
+        { label: 'Close it.', to: null },
+      ],
+    };
+    T.nodes.do_sign = {
+      text: 'You sign it the way you signed the other three. The file closes itself. It is not heavier and it is not lighter and the plaza stays empty, and somewhere above you the eleventh floor stays exactly as lit as it was.',
+      fx: () => qResolve('reviews', 'sign_off'),
+    };
+    T.nodes.do_refuse = {
+      text: 'You put the pen down on the chair. Nothing enforces it. Nobody comes. A blank in a file this old turns out to be the loudest thing on the floor, and it stays blank the entire time you are looking at it, which you keep checking.',
+      fx: () => qResolve('reviews', 'refuse'),
+    };
+    T.nodes.do_read = {
+      text: 'It takes longer than the fighting did. They are not bad reviews. They are accurate, and in places generous, and every one of them describes somebody who was going to be fine — and all three were written by you, about you, in a building that only ever asked you for one opinion and got it three times.',
+      fx: () => qResolve('reviews', 'read'),
     };
     return T;
   },

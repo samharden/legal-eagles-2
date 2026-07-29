@@ -116,6 +116,188 @@ SPR.unbilled = makeSprite([
   "................",
 ], { p: '#d8d0c0', q: '#8f88a6' });
 
+// Collections Agent: a lanyard, a tablet, and the patience of an amortisation
+// schedule. Does not want to hurt you. Wants a hundred and forty dollars.
+SPR.collections = makeSprite([
+  "................",
+  "......nnnn......",
+  ".....nnnnnn.....",
+  ".....ffffff.....",
+  ".....fkffkf.....",
+  ".....ffffff.....",
+  "......ffff......",
+  "......ll.l......",
+  "....bbbbbbbb....",
+  "...bbbbbbbbtt...",
+  "...bbbbbbbbtt...",
+  "...b.bbbbbb.b...",
+  "....bbbbbbbb....",
+  ".....bb..bb.....",
+  ".....bb..bb.....",
+  ".....kk..kk.....",
+], { n: '#39312a', f: SKIN, k: K, b: '#4b4f63', l: '#c0a83e', t: '#22242e' });
+
+// The Ambulance Chaser. Not looking at you. Has never once looked at you.
+SPR.chaser = makeSprite([
+  "................",
+  "......hhhh......",
+  ".....hhhhhh.....",
+  "....hhffffh.....",
+  "....hfkffkf.....",
+  "....hffffffh....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....rrrrrrrr....",
+  "...rrwwrrwwrr...",
+  "...rrrrrrrrcc...",
+  "...rr.rrrr.cc...",
+  "....rrrrrrrr....",
+  ".....rr..rr.....",
+  ".....rr..rr.....",
+  ".....kk..kk.....",
+], { h: '#6b2f4a', f: SKIN, k: K, r: '#a03050', w: '#f2e6ea', c: '#e0c860' });
+
+// Notice of Deposition. Not a person. A caption, a date, and a demand that you
+// be somewhere at nine in the morning, standing up on its own.
+SPR.depo = makeSprite([
+  "................",
+  "...pppppppppp...",
+  "...pkkkkkkkkp...",
+  "...pppppppppp...",
+  "...pkkkkkkpppp..",
+  "...pppppppppp...",
+  "...pkkkkkkkkp...",
+  "...pppppppppp...",
+  "...pkkkkpppppp..",
+  "...pppppppppp...",
+  "...pkkkkkkkkp...",
+  "...pppppppppp...",
+  "....ssssssss....",
+  ".....ss..ss.....",
+  ".....ss..ss.....",
+  "................",
+], { p: '#efe9d8', k: '#5a5568', s: '#8a8296' });
+
+// The Landlord. Only exists while you owe him, which is the entire character.
+SPR.landlord = makeSprite([
+  "................",
+  ".....kkkkkk.....",
+  "....kkkkkkkk....",
+  "....ffffffff....",
+  "....fkffffkf....",
+  "....ffffffff....",
+  ".....ffmmff.....",
+  "......ffff......",
+  "...yyyyyyyyyy...",
+  "..yyyyyyyyyyyy..",
+  "..yyyyyyyyyyyy..",
+  "..yy.yyyyyy.yy..",
+  "...yyyyyyyyyy...",
+  "....yy....yy....",
+  "....yy....yy....",
+  "....kk....kk....",
+], { k: '#241d16', f: SKIN, m: '#6b5a48', y: '#7a4a2a' });
+
+// DC&H Retrieval Associates. Identical, which is deliberate on somebody's part.
+SPR.retrieval = makeSprite([
+  "................",
+  "......kkkk......",
+  ".....kkkkkk.....",
+  ".....ffffff.....",
+  ".....fwffwf.....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....nnnnnnnn....",
+  "...nnnwwwnnnn...",
+  "...nnnnnnnnnn...",
+  "...nn.nnnn.nn...",
+  "....nnnnnnnn....",
+  ".....nn..nn.....",
+  ".....nn..nn.....",
+  ".....kk..kk.....",
+  "................",
+], { k: '#101018', f: '#b8a894', n: '#1c2436', w: '#6fa8c8' });
+
+// The Ones Who Stayed. Still at the desk. Not coming for you. Right there.
+SPR.stayed = makeSprite([
+  "................",
+  "......dddd......",
+  ".....dddddd.....",
+  "....ddssssd.....",
+  "....dsksskd.....",
+  "....dssssdd.....",
+  ".....ssssss.....",
+  "......ssss......",
+  "....eeeeeeee....",
+  "...eeeeeeeeee...",
+  "...eeeeeeeeee...",
+  "...ee.eeee.ee...",
+  "....eeeeeeee....",
+  ".....ee..ee.....",
+  ".....ee..ee.....",
+  ".....kk..kk.....",
+], { d: '#2b2833', s: '#9a9284', k: '#0c0b10', e: '#3a3546' });
+
+// ---- Past Selves ----------------------------------------------------------
+// You, at three ranks. Same build as the player sprite on purpose — the shape
+// is supposed to be recognisable before the colour tells you which one it is.
+SPR.past_junior = makeSprite([
+  "................",
+  ".....hhhhhh.....",
+  "....hhhhhhhh....",
+  "...hhffffffhh...",
+  "...hhf.ff.fhh...",
+  "...hhffffffhh...",
+  "...hhffffffhh...",
+  "...h..ffff..h...",
+  "....jjjjjjjj....",
+  "...jjjwtwjjjj...",
+  "...jjjwtwjjjj...",
+  "...j.jjjjjj.j...",
+  "....jjjjjjjj....",
+  ".....j....j.....",
+  ".....j....j.....",
+  ".....k....k.....",
+], { h: '#3b2614', f: '#9aa4b0', k: K, j: '#3d5f7a', w: '#e8e8ee', t: '#7fa8c0' });
+
+SPR.past_counsel = makeSprite([
+  "................",
+  ".....hhhhhh.....",
+  "....hhhhhhhh....",
+  "...hhffffffhh...",
+  "...hhf.ff.fhh...",
+  "...hhffffffhh...",
+  "...hhffffffhh...",
+  "...h..ffff..h...",
+  "....vvvvvvvv....",
+  "...vvvwtwvvvv...",
+  "...vvvwtwvvvv...",
+  "...v.vvvvvv.v...",
+  "....vvvvvvvv....",
+  ".....v....v.....",
+  ".....v....v.....",
+  ".....k....k.....",
+], { h: '#332038', f: '#9a8fa4', k: K, v: '#5c3f74', w: '#e8e8ee', t: '#b08fd0' });
+
+SPR.past_partner = makeSprite([
+  "................",
+  ".....hhhhhh.....",
+  "....hhhhhhhh....",
+  "...hhffffffhh...",
+  "...hhf.ff.fhh...",
+  "...hhffffffhh...",
+  "...hhffffffhh...",
+  "...h..ffff..h...",
+  "....gggggggg....",
+  "...gggwtwgggg...",
+  "...gggwtwgggg...",
+  "...g.gggggg.g...",
+  "....gggggggg....",
+  ".....g....g.....",
+  ".....g....g.....",
+  ".....k....k.....",
+], { h: '#2a2118', f: '#b09a72', k: K, g: '#5a4420', w: '#f0e6c8', t: '#f0c75e' });
+
 // ---- civilians ------------------------------------------------------------
 SPR.civ = makeSprite([
   "................",
@@ -339,6 +521,27 @@ SPR.halloran = makeSprite([
   ".....CC..CC.....",
   ".....kk..kk.....",
 ], { c: '#6e6350', f: SKIN, k: K, C: '#2f3a34', w: '#f2f2f2', s: '#8c2f3a' });
+
+// Emmett Hargrove. From the first game, four months older, standing in a plaza
+// at eleven in the morning with no coat and no reason to be out there.
+SPR.hargrove = makeSprite([
+  "................",
+  "......gggg......",
+  ".....gggggg.....",
+  "....ggffffg.....",
+  "....gfkffkf.....",
+  "....gffffffg....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....nnnnnnnn....",
+  "...nnnwrwnnnn...",
+  "...nnnwrwnnnn...",
+  "...nn.nnnn.nn...",
+  "....nnnnnnnn....",
+  ".....nn..nn.....",
+  ".....nn..nn.....",
+  ".....kk..kk.....",
+], { g: '#a8a49c', f: '#d8b48c', k: K, n: '#2b3040', w: '#eceff2', r: '#7a2f3a' });
 
 // ---- props ----------------------------------------------------------------
 SPR.dossier = makeSprite([

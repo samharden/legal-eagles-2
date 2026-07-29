@@ -80,6 +80,7 @@ function stageSatisfied(q, stage) {
       return ids.every(f => questHooks.knows(f));
     }
     case 'collect': return (s.counts[stage.item] || 0) >= (stage.n || 1);
+    case 'kill': return (s.counts['kill:' + stage.enemy] || 0) >= (stage.n || 1);
     default: return false;   // talk / reach / use / resolve need a real event
   }
 }
@@ -133,17 +134,20 @@ export function questEvent(type, data = {}) {
     const stage = q.stages[s.stage];
     if (!stage) continue;
 
-    // counters accumulate whether or not the current stage wants them, so a
-    // player who picks things up early is not punished for being ahead
+    // Counters accumulate whether or not the current stage wants them, so a
+    // player who picks things up early is not punished for being ahead. Kills
+    // count the same way: a matter that asks you to put down three Past Selves
+    // should not care which one you met first, and it used to, because the
+    // counter only incremented when the CURRENT stage already matched.
     if (type === 'collect' && data.item) s.counts[data.item] = (s.counts[data.item] || 0) + 1;
+    if (type === 'kill' && data.enemy) s.counts['kill:' + data.enemy] = (s.counts['kill:' + data.enemy] || 0) + 1;
 
     let hit = false;
     switch (stage.type) {
       case 'talk':    hit = type === 'talk' && data.npc === stage.npc; break;
       case 'reach':   hit = type === 'reach' && data.region === stage.region; break;
       case 'use':     hit = type === 'use' && data.prop === stage.prop; break;
-      case 'kill':    hit = type === 'kill' && data.enemy === stage.enemy
-                        && (s.counts['kill:' + stage.enemy] = (s.counts['kill:' + stage.enemy] || 0) + 1) >= (stage.n || 1); break;
+      case 'kill':
       case 'learn':
       case 'collect': hit = stageSatisfied(q, stage); break;
       case 'resolve': hit = false; break;   // only qResolve ends this one

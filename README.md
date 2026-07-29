@@ -71,11 +71,13 @@ The six districts are allocated on the global tile grid **up front**, before any
 
 |  | `gx 0–35` | `gx 36–75` | `gx 76–111` |
 |---|---|---|---|
-| **`gy 0–29`** | — | THE TOWER DISTRICT | THE ANNEX |
+| **`gy 0–29`** | — | **THE TOWER DISTRICT** | THE ANNEX |
 | **`gy 30–59`** | **THE FLATS** | **COURTHOUSE SQUARE** | **THE STRAND** |
 | **`gy 60–89`** | — | **MOTOR ROW** | — |
 
-Unbuilt space is solid, so a district whose neighbour does not exist yet simply has a wall there. The openings are cut on **both** sides in advance: Courthouse Square already has its climb north to the Tower District, and it is a wall until that region lands.
+Unbuilt space is solid, so a district whose neighbour does not exist yet simply has a wall there. The openings are cut on **both** sides in advance — The Strand already has its way north into The Annex, and it is a wall until that region lands.
+
+`node tools/check.mjs` validates the city statically and runs automatically before every build: anything authored where it cannot be used (an NPC inside a wall, a prop with no open tile beside it), duplicate ids within a region+layer, unknown actor types, and any floor district that can never be lit because it has a `lightCost` and no panel.
 
 **MOTOR ROW** (bold above = built) is reached down the alley on the courthouse's south side — no loading break, same as the seam east to The Strand. Tow yards, body shops, and a chain-link fence you can see through, which is the point of a fence.
 
@@ -95,9 +97,30 @@ Unbuilt space is solid, so a district whose neighbour does not exist yet simply 
 
 **Iris Nakamura exists on both layers** — same person, same cardigan, and she does not know you on the second one. `CASE_HOOKS.layer()` is how her tree finds out which Flats it is being asked for; quest state cannot answer it before either matter has opened.
 
+**Phase 3d** built the opposition DESIGN §3 and §4 name, and the useful thing about that list is that barely any of it is *a thing that walks at you and reduces a number*. So the roster is **behaviour flags** on a data table, with one branch each in the host — a new enemy is a row until it needs a verb nothing else has.
+
+| | Wants |
+|---|---|
+| **Process Server** | To hand you paper. Being served is a *condition*, not a hit — stacks, slows you, and stays on you until you sleep |
+| **Collections Agent** | $140. Not your energy. Sixty-two hit points and no interest in tiring |
+| **Ambulance Chaser** | Your client. Never touches you and cannot be fought off, because she is never on you — she walks at whoever the HUD says you should be talking to, and standing in the gap is the only counter |
+| **Notice of Deposition** | You, at nine a.m. Never moves. Throws subpoenas |
+| **The Landlord** | The rent. Does not exist while you are current — he is not a fight, he is a bill with a walking speed |
+| **Retrieval Associates** | What you are carrying. Three of them, and they take the file rather than the energy |
+| **The Unbilled** | Your hours, which you can take back off them |
+| **The Ones Who Stayed** | Nothing. They do not move. Walking into one is your decision every time |
+| **Past Selves** | Junior, Of Counsel, Partner. Each fights the way you fought at that rank |
+
+**THE TOWER DISTRICT** is north of Courthouse Square, up a ramp: DC&H on one side, Grabbit & Runn on the other, and a plaza between them with nowhere to stand that is not overlooked.
+
+| Path | Matter | Shape |
+|---|---|---|
+| THE STREET | **Retrieval** | DC&H want back a client list you never physically took, and the covenant they are relying on is posted inside their own front door. Hargrove signed the authorisation; he did not write it and did not refuse it, and he will tell you both. Keeping the internal billing summary is the COUNTERSUE evidence — and it makes nothing better, which is the point |
+| THE FLOOR | **The Reviews** | Your personnel file is open on a chair in the plaza with three annual reviews in it, and all three are walking around out there. The first matter built on `kill` stages |
+
 Reputation is no longer two hard-coded districts — `Practice.seedRep()` takes the city's own region list, so adding a district is a change to `game/city.js` and nowhere else.
 
-Not built yet: combat beyond a briefcase swing, the other three districts, the full enemy roster and bosses, LE1 save import, the crossover. See DESIGN.md §8.
+Not built yet: The Annex, the rest of the ~12 cases per path, bosses, LE1 save import, the crossover. See DESIGN.md §8.
 
 ---
 

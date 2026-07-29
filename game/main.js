@@ -41,6 +41,8 @@ export const G = {
   complaint: null,      // the Bar Complaint, once you have earned one
   ally: null,           // the paralegal, if she is on the payroll
   dark: false,          // standing on an unlit floor
+  shots: [],            // paper in the air
+  served: 0,            // stacking, and it does not come off until you sleep
 };
 
 // what you tell yourself in an unlit corridor
@@ -249,6 +251,8 @@ function beginPath(layerId, path) {
   G.carried = [];
   G.complaint = null;
   G.ally = null;
+  G.shots = [];
+  G.served = 0;
   resetClock();
   Practice.resetPractice();
   Practice.seedRep(REGIONS.map(r => r.id));
@@ -392,16 +396,33 @@ function useProp(pr) {
   // a `repeat` prop is a place you keep going back to — the filing window, the
   // stairs up to your office, the lighting panel. It must never be marked spent.
   if (!pr.repeat) { pr.used = true; G.world.markUsed(pr.region, pr.id); }
-  if (pr.lights) { openPanel(pr); return; }
-  if (pr.office) { openOffice(pr); return; }
+
+  // The COMMON half runs for every kind of prop, before any of them decide how
+  // to present themselves. A prop that opened a dialogue used to return before
+  // this, which meant a prop carrying both a `tree` and a `fact` silently never
+  // taught the fact — and the matter behind it could not be finished.
+  Quests.questEvent('use', { prop: pr.id });
+  const learned = pr.fact ? Facts.learn(pr.fact) : false;
+  if (pr.fact && !learned) SFX.page();
+  // Reading something on THE FLOOR is work, and work on this layer is billable.
+  // 0.1 is nothing; it is nothing six hundred times. Only on a genuine first
+  // read or a fact you did not have — otherwise a `repeat` prop is a bank.
+  if (((!pr.repeat && first) || learned) && HAS_HOURS() && !pr.lights)
+    bill(BILL_PROP, `${fmtHours(BILL_PROP)} — reviewed file materials`);
+
+  // ...and then the PRESENTATION half.
+  if (pr.lights) return openPanel(pr);
+  if (pr.office) return openOffice(pr);
+  // A prop can name a dialogue tree. Some things you have a conversation with
+  // are not people — a personnel file with your name on it is one of them, and
+  // a `resolve` stage has to be answerable somewhere.
+  const tree = pr.tree ? npcDialogue(pr.tree) : null;
+  if (tree) {
+    openDialogue(tree, () => Quests.questEvent('use', { prop: pr.id }));
+    return;
+  }
   say(pr.text, 9);
   SFX.door();
-  Quests.questEvent('use', { prop: pr.id });
-  if (pr.fact && first) Facts.learn(pr.fact);
-  else if (pr.fact) SFX.page();
-  // reading something on THE FLOOR is work, and work on this layer is billable.
-  // 0.1 is nothing. It is nothing six hundred times.
-  if (first && HAS_HOURS()) bill(BILL_PROP, `${fmtHours(BILL_PROP)} — reviewed file materials`);
   if (pr.endDay) endDay();
   syncHud();
 }
@@ -485,6 +506,9 @@ function endDay(forced) {
   }
 
   advanceDay();
+  // Sleeping is the only thing that gets the paper off you.
+  if (G.served) { say(`You went through what you were handed. ${G.served} of them, and none of them were about anything you did.`, 6); G.served = 0; }
+  G.shots.length = 0;
   if (Practice.hasStaff('associate')) associateWorks();
 
   // Evicted, you can still end the day — blocking it would soft-lock the game,
@@ -803,6 +827,151 @@ function downActor(a, d) {
     bill(d.hours, `${fmtHours(d.hours)} — time recovered (previously written off)`);
 }
 
+/* --------------------------- the opposition ----------------------------- */
+
+// Conditions the roster can require before it exists at all. Keyed by the
+// `needs` string on the actor type, so the table stays data.
+const ACTOR_NEEDS = {
+  arrears: () => Practice.Books.arrears > 0 || !Practice.Office.held,
+};
+const actorAwake = d => !d.needs || !ACTOR_NEEDS[d.needs] || ACTOR_NEEDS[d.needs]();
+
+/**
+ * Something reached you. Not every enemy in LE2 wants the same thing off you —
+ * a Collections Agent wants $140 and does not care about your energy, a Process
+ * Server wants to hand you a piece of paper that stays handed. One place, so
+ * adding an enemy that wants something new is one branch.
+ */
+function touchedBy(a, d, dmg) {
+  const p = G.player;
+  if (p.hurtCd > 0 || p.dashT > 0) return;
+  p.hurtCd = 0.9;
+  const ux = (p.x - a.x) / (Math.hypot(p.x - a.x, p.y - a.y) || 1);
+  const uy = (p.y - a.y) / (Math.hypot(p.x - a.x, p.y - a.y) || 1);
+  p.rig.hurt(ux, uy);
+  G.fx.addTrauma(0.4);
+  SFX.hit();
+
+  if (d.drain && HAS_CLOCK()) {
+    // It takes what is there. An empty operating account is not a defence — it
+    // is just a smaller number on the same demand.
+    const took = Math.min(d.drain, Math.max(0, Practice.Books.operating));
+    if (took > 0) Practice.expense(took, 'Collection — taken on the street', Cal.day);
+    G.fx.number(p.x, p.y - 30, took > 0 ? `−$${took}` : 'NOTHING TO TAKE', C.red);
+    say(took > 0 ? `They took $${took} off you in the street, with a receipt.` : 'He looks at the balance, and then at you, and writes something down.', 5);
+    syncHud();
+    return;
+  }
+
+  if (d.steal && G.carried.length) {
+    const i = (Math.random() * G.carried.length) | 0;
+    const gone = G.carried.splice(i, 1)[0];
+    G.fx.number(p.x, p.y - 30, 'RETRIEVED', C.red);
+    say(`They took the ${gone}. It was on their system, apparently, and now it is back on it.`, 6);
+    syncHud();
+    return;
+  }
+
+  p.hp -= dmg;
+  G.fx.number(p.x, p.y - 30, d.onTouch || dmg, C.red);
+  if (d.debuff === 'served') {
+    // Being served is a condition, not a hit. They stack, they slow you, and
+    // they last until you sleep — which makes a bad afternoon on the courthouse
+    // steps a bad afternoon rather than a bad four seconds.
+    G.served++;
+    G.fx.bark(p.x, p.y - 52, `SERVED ×${G.served}`, '#e05e5e', 2.4);
+  }
+  if (p.hp <= 0) collapse();
+  syncHud();
+}
+
+/** How much the paper you are carrying is slowing you down. Caps, so it is a tax. */
+const servedSlow = () => 1 - Math.min(0.45, G.served * 0.09);
+
+/**
+ * The Ambulance Chaser. She is not hostile — she never touches you and cannot
+ * be fought off, because she is never on you. She walks at whoever the HUD
+ * currently says you should be talking to, and if she gets there she signs
+ * them. Getting in the way is the only counter, which is also true of the
+ * actual profession.
+ */
+function updateChaser(a, d, dt) {
+  const p = G.player;
+  if (!a.rig) { a.rig = new Rig(); a.rig.spawn(); }
+  a.barkT = (a.barkT || 4 + Math.random() * 8) - dt;
+
+  // She only operates where you are. Every district is resident at once on a
+  // map this size, and a rival quietly signing a client two districts away
+  // while you have never set foot there is not a mechanic, it is a tax you
+  // cannot see. She is a threat in the room, or she is not a threat.
+  const here = G.world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
+  if (!here || here.id !== a.region) { a.rig.step(dt, { moving: false }); return; }
+
+  const obj = Quests.objective();
+  // the nearest marked client, not whichever one the iterator reached first
+  let mark = null, best = Infinity;
+  for (const n of G.world.allNpcs()) {
+    if (n.marker !== '!') continue;
+    const dd = Math.hypot(n.x - a.x, n.y - a.y);
+    if (dd < best) { best = dd; mark = n; }
+  }
+
+  let moving = false;
+  if (mark) {
+    const dx = mark.x - a.x, dy = mark.y - a.y, m = Math.hypot(dx, dy) || 1;
+    // you, standing in the gap, are a wall to her
+    const toYou = Math.hypot(p.x - a.x, p.y - a.y);
+    if (toYou > 46) {
+      moveEntity(G.world, a, (dx / m) * d.speed * dt, (dy / m) * d.speed * dt, d.r);
+      a.face = dx; moving = true;
+    }
+    if (m < 34) poached(a, obj);
+  }
+  if (a.barkT <= 0 && Math.hypot(p.x - a.x, p.y - a.y) < 320 && d.barks) {
+    a.barkT = 7 + Math.random() * 10;
+    G.fx.bark(a.x, a.y - d.r - 20, d.barks[(Math.random() * d.barks.length) | 0], '#e07a9a', 2.6);
+  }
+  a.rig.step(dt, { moving, speed: d.speed, faceX: a.face || 0 });
+}
+
+/** She got there first. Not a lost matter — a worse one, on a shorter fuse. */
+function poached(a, obj) {
+  G.world.killActor(a);
+  G.fx.stamp(a.x, a.y - 10, 'SIGNED', '#e07a9a');
+  SFX.del(); G.fx.addTrauma(0.5);
+  showBanner('SHE GOT THERE FIRST', 'VONNIE ASLANIAN — RETAINED');
+  if (!obj) { say('She signed somebody on the street in front of you and did not break stride.', 8); return; }
+  const q = obj.quest;
+  const entry = allEntries().find(e => e.ref === q.id && e.kind === 'deadline');
+  if (entry) entry.day = Math.max(Cal.day, entry.day - 1);
+  // the standing goes where it happened — she signed somebody on THIS street
+  CASE_HOOKS.rep(a.region, -3);
+  say(`She had a card out before you had the door open. ${q.name} is still yours and it is now on somebody else's timetable.`, 10);
+  refreshCasefile(); syncHud();
+}
+
+/** Paper in the air. Expires on its own; nothing here needs a pool. */
+function updateShots(dt) {
+  const p = G.player;
+  for (let i = G.shots.length - 1; i >= 0; i--) {
+    const s = G.shots[i];
+    s.x += s.vx * dt; s.y += s.vy * dt; s.t -= dt;
+    if (s.t <= 0 || G.world.solidAtPx(s.x, s.y)) { G.shots.splice(i, 1); continue; }
+    if (Math.hypot(s.x - p.x, s.y - p.y) < p.r + 10) {
+      G.shots.splice(i, 1);
+      if (p.hurtCd > 0 || p.dashT > 0) continue;
+      p.hurtCd = 0.7;
+      p.hp -= s.dmg;
+      p.rig.hurt(Math.sign(s.vx), Math.sign(s.vy));
+      G.fx.number(p.x, p.y - 30, s.label, C.red);
+      G.fx.addTrauma(0.35);
+      SFX.hit();
+      if (p.hp <= 0) collapse();
+      syncHud();
+    }
+  }
+}
+
 /* ------------------------------- update -------------------------------- */
 function updatePlay(dt) {
   const p = G.player, world = G.world, fx = G.fx;
@@ -831,7 +1000,9 @@ function updatePlay(dt) {
     moveEntity(world, p, p.dashDx * DASH_SPD * dt, p.dashDy * DASH_SPD * dt, p.r);
     p.face = { x: p.dashDx, y: p.dashDy };
   } else if (p.moving) {
-    moveEntity(world, p, (v.x / mag) * SPEED * dt, (v.y / mag) * SPEED * dt, p.r);
+    // every piece of paper you are carrying is on you until you sleep
+    const spd = SPEED * servedSlow();
+    moveEntity(world, p, (v.x / mag) * spd * dt, (v.y / mag) * spd * dt, p.r);
     p.face = { x: v.x / mag, y: v.y / mag };
   }
 
@@ -891,26 +1062,53 @@ function updatePlay(dt) {
   const PRESS = HAS_HOURS() ? pressure() : 1;
   for (const a of world.allActors()) {
     const d = actorDef(a.type);
+
+    // Some of the roster only exists under a condition. The Landlord is not a
+    // fight, he is a bill with a walking speed, and he is not on the street at
+    // all while you are current.
+    a.asleep = !actorAwake(d);
+    if (a.asleep) continue;
+
     const spd = d.scales ? d.speed * PRESS : d.speed;
     const dmg = d.scales ? Math.round(d.dmg * PRESS) : d.dmg;
     if (!a.rig) { a.rig = new Rig(); a.rig.spawn(); }
     a.barkT = (a.barkT || 4 + Math.random() * 10) - dt;
     const dist = Math.hypot(p.x - a.x, p.y - a.y);
 
+    // The Ambulance Chaser does not want you and will not be drawn off. She
+    // walks at whoever your objective is, and the only way to stop her is to
+    // be standing between her and them, which is also the only way anybody has
+    // ever stopped one.
+    if (d.poach) { updateChaser(a, d, dt); continue; }
+
+    // Anything with `ranged` throws from where it stands, on its own cadence,
+    // whether or not it also closes.
+    if (d.ranged && dist < d.chase) {
+      a.fireT = (a.fireT ?? d.ranged.every) - dt;
+      if (a.fireT <= 0) {
+        a.fireT = d.ranged.every;
+        const ux = (p.x - a.x) / (dist || 1), uy = (p.y - a.y) / (dist || 1);
+        G.shots.push({
+          x: a.x, y: a.y, vx: ux * d.ranged.speed, vy: uy * d.ranged.speed,
+          t: d.ranged.life, dmg: Math.round(d.ranged.dmg * (d.scales ? PRESS : 1)),
+          label: d.ranged.label,
+        });
+        a.rig.strike();
+        SFX.page();
+      }
+    }
+
     let moving = false;
-    if (!d.harmless && dist < d.chase) {
+    // `still` never closes. It is where it is, it hurts what touches it, and
+    // that is the entire design — a thing that does not come for you is scarier
+    // than a thing that does, and cheaper.
+    if (d.still) {
+      if (dist < d.r + p.r + 4) touchedBy(a, d, dmg);
+    } else if (!d.harmless && dist < d.chase) {
       const ux = (p.x - a.x) / (dist || 1), uy = (p.y - a.y) / (dist || 1);
       moveEntity(world, a, ux * spd * dt, uy * spd * dt, d.r);
       a.face = ux; moving = true;
-      if (dist < d.r + p.r + 4 && p.hurtCd <= 0 && p.dashT <= 0) {
-        p.hp -= dmg; p.hurtCd = 0.9;
-        p.rig.hurt(ux, uy);
-        fx.number(p.x, p.y - 30, d.onTouch, C.red);
-        fx.addTrauma(0.4);
-        SFX.hit();
-        if (p.hp <= 0) collapse();
-        syncHud();
-      }
+      if (dist < d.r + p.r + 4) touchedBy(a, d, dmg);
     } else {
       // wander: pick a nearby open point, walk to it, then stand around
       if (!a.wp || a.lingerT > 0) {
@@ -937,6 +1135,9 @@ function updatePlay(dt) {
     }
     a.rig.step(dt, { moving, speed: spd, faceX: a.face || 0 });
   }
+
+  // --- paper in the air ---
+  updateShots(dt);
 
   // --- the paralegal ---
   // She keeps station off your shoulder and swings at whatever is on you. She
@@ -1088,7 +1289,8 @@ function syncHud() {
     money.textContent = '';
     el('hDay').textContent = '';
   }
-  el('hCarry').textContent = G.carried.length ? 'CARRYING: ' + G.carried.join(' · ') : '';
+  el('hCarry').innerHTML = (G.carried.length ? 'CARRYING: ' + G.carried.join(' · ') : '')
+    + (G.served ? ` <span class="bad">SERVED ×${G.served}</span>` : '');
   syncHudLight();
 }
 function syncHudLight() {
@@ -1143,18 +1345,18 @@ function step(now) {
     // the world holds still behind the conversation, but keeps drawing
     G.fx.step(dt);
     G.player.rig.step(dt, { moving: false });
-    drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint, G.ally);
+    drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G);
     stepDialogueInput();
     musicTick(layerOf(G.layer).music);
   } else if (G.state === 'play') {
     if (Casefile.open) {
       // the casefile is a reading screen; freeze play under it
-      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint, G.ally);
+      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G);
       if (Input.pressed('casefile') || Input.pressed('cancel')) { Casefile.hide(); Input.clearHeld(); }
     } else {
       if (G.fx.hitStop > 0) G.fx.hitStop -= dt;
       else updatePlay(dt);
-      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G.complaint, G.ally);
+      drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G);
       if (G.prompt) drawPrompt(G.prompt);
       drawBanner();
       if (Input.pressed('casefile')) { Casefile.show(G.layer, HAS_CLOCK()); Input.clearHeld(); }

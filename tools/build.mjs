@@ -18,6 +18,7 @@
 // Usage:  node tools/build.mjs
 
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import './check.mjs';   // city geometry is validated before anything is emitted
 import { dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

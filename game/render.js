@@ -20,7 +20,14 @@ function seedMotes(layer) {
   moteLayer = layer.id;
 }
 
-export function drawWorld(world, layer, player, fx, gameT, complaint, ally) {
+/**
+ * `ent` is the bag of things that are not in the world's own arrays — the
+ * grievance, the paralegal, paper in the air. It is an object rather than four
+ * more positional parameters because render.js cannot import G (main.js imports
+ * render.js, and the bundler forbids the cycle).
+ */
+export function drawWorld(world, layer, player, fx, gameT, ent = {}) {
+  const { complaint, ally, shots } = ent;
   const g = ctx;
   const Z = view.zoom;
 
@@ -144,9 +151,20 @@ export function drawWorld(world, layer, player, fx, gameT, complaint, ally) {
 
   // ---- actors ----
   for (const a of world.allActors()) {
+    if (a.asleep) continue;          // conditional roster — not here right now
     const d = actorDef(a.type);
     if (a.rig) a.rig.draw(g, SPR[d.spr], a.x - cam.x, a.y - cam.y, d.size, a.face < 0);
     else drawSprite(g, SPR[d.spr], a.x - cam.x, a.y - cam.y, d.size);
+  }
+
+  // ---- paper in the air ----
+  if (shots) for (const s of shots) {
+    const sx = s.x - cam.x, sy = s.y - cam.y;
+    g.save();
+    g.translate(sx, sy);
+    g.rotate(Math.atan2(s.vy, s.vx) + gameT * 6);
+    drawSprite(g, SPR.paper, 0, 0, 18);
+    g.restore();
   }
 
   // ---- the paralegal ----
