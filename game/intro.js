@@ -189,11 +189,14 @@ export const Intro = {
   start(onDone) {
     this.active = true; this.i = 0; this.sceneT = 0; this.sel = 0;
     this.choice = null; this.outroT = 0; this.onDone = onDone;
-    // DESIGN §6: the first game answers this if it can. A save means the blank
-    // in the letter is already filled, in your own handwriting, and there is
-    // nothing to pick.
+    // DESIGN §6: the first game answers this if it can — but it does not get to
+    // answer it FOR you. An LE1 save now pre-selects its area and says so; it
+    // used to fill the blank in and skip the question entirely, which meant a
+    // player with an old save on the same origin was silently handed a practice
+    // area they never chose and could not change. The face still comes across
+    // without being asked, because a face is not a decision.
     this.le1 = importLE1();
-    this.area = this.le1 ? this.le1.area : null;
+    this.area = null;
     document.body.classList.add('reel');
     this._load();
   },
@@ -203,11 +206,19 @@ export const Intro = {
     const s = SCENES[this.i];
     return typeof s.body === 'function' ? s.body(this) : s.body;
   },
-  /** The choices actually on offer — none once the scene's field is decided. */
+  /**
+   * The choices actually on offer — none once the scene's field is decided.
+   * An LE1 save annotates the row it came from rather than removing the list.
+   */
   _choices() {
     const s = SCENES[this.i];
     if (!s.choices) return null;
     if (s.field && this[s.field]) return null;
+    // A `mark`, not a longer `sub`: the sub column already runs most of the way
+    // to the edge of the row on the five-wide layout, and appending to it put
+    // the note outside the box it belongs to.
+    if (s.field === 'area' && this.le1)
+      return s.choices.map(c => c.key === this.le1.area ? { ...c, mark: 'LAST TIME' } : c);
     return s.choices;
   },
 
@@ -215,12 +226,22 @@ export const Intro = {
     this.tw = new Typewriter(this._body(), { cps: CPS, onShout: () => SFX.ret() });
     this.trans.start();
     this.sceneT = 0;
+    // Land the cursor on what the last game said you were, so an LE1 player
+    // confirms rather than hunts. Still a keystroke, and still theirs.
+    const s = SCENES[this.i];
+    if (s.field === 'area' && this.le1 && !this.area) {
+      const at = s.choices.findIndex(c => c.key === this.le1.area);
+      this.sel = at >= 0 ? at : 0;
+    }
   },
   finish() {
     this.active = false;
     document.body.classList.remove('reel');
     const out = OUTCOMES[this.choice || 'send'];
-    if (this.onDone) this.onDone(out.layer, this.choice || 'send', this.area || DEFAULT_AREA);
+    // Skipping the reel never reaches the blank, so the LE1 answer is the best
+    // one available before the hardcoded default.
+    const area = this.area || (this.le1 && this.le1.area) || DEFAULT_AREA;
+    if (this.onDone) this.onDone(out.layer, this.choice || 'send', area);
   },
   skip() {
     // Esc/B before the fork still has to produce a fork — jump to it rather
@@ -274,8 +295,10 @@ export const Intro = {
     if (this.tw.count !== before && this.tw.count % 3 === 0) SFX.key();
 
     const list = this._choices();
-    // auto page-turn once the narration has landed — except on an open choice
-    if (this.tw.done && !list && this.sceneT > 3.6 + this.tw.text.length / CPS) this.advance();
+    // No auto page-turn. The reel used to advance itself a few seconds after the
+    // narration landed, which reads fine at the pace it was written at and takes
+    // the page away from anybody reading slower than that — on the one screen in
+    // the game where every word is doing work. It waits now.
 
     // input
     if (Input.pressed('cancel')) { this.skip(); return; }
@@ -386,7 +409,10 @@ export const Intro = {
       const tight = rowH < 54;
       list.forEach((c, i) => {
         const on = i === this.sel;
-        const rw = Math.min(W - 68, tight ? 640 : 520), rh = rowH - 8;
+        // The five-wide layout gets a wider row than the fork's two: it carries a
+        // label, a clause and possibly a mark on one line, and at 640 the clause
+        // finished about twenty pixels short of the border.
+        const rw = Math.min(W - 68, tight ? 780 : 520), rh = rowH - 8;
         this._rects.push({ x: 34, y: cy - 4, w: rw, h: rh });
         g.fillStyle = on ? 'rgba(240,199,94,0.13)' : 'rgba(255,255,255,0.03)';
         g.fillRect(34, cy - 4, rw, rh);
@@ -401,6 +427,14 @@ export const Intro = {
           g.font = `${FS - 5}px "Courier New", monospace`;
           g.fillStyle = C.dim;
           g.fillText(c.sub, 48 + Math.max(230, g.measureText(head).width + 24), cy + rh / 2 - 2);
+          // right-aligned inside the row, so it cannot run past the border no
+          // matter how long the clause beside it is
+          if (c.mark) {
+            g.textAlign = 'right';
+            g.fillStyle = on ? C.gold : C.muted;
+            g.fillText(c.mark, 34 + rw - 14, cy + rh / 2 - 2);
+            g.textAlign = 'left';
+          }
         } else {
           g.font = `bold ${FS}px "Courier New", monospace`;
           g.fillStyle = on ? C.gold : C.muted;

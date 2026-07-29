@@ -243,7 +243,12 @@ bleedHooks.onLevel = (n) => {
 const BILL_FACT = 3;      // 0.3 — a fact established
 const BILL_PROP = 1;      // 0.1 — something read for the first time
 const BILL_MATTER = 40;   // 4.0 — a matter closed
-const DARK_DRAIN = 1.7;   // energy per second on an unlit floor
+// Energy per second on an unlit floor. Was 1.7, which emptied a full bar in
+// fifty-nine seconds — enough to CROSS a dark district and not remotely enough
+// to look at one, so the layer's own content was behind a timer nobody could
+// beat. At 0.4 a full bar is about four minutes in the dark: still a clock, still
+// the argument for paying the panel, but long enough to read what is down there.
+const DARK_DRAIN = 0.4;
 const COLLAPSE_TAKE = 20; // 2.0 — what the building charges for time you lost
 
 hoursHooks.onBill = (t, memo) => {

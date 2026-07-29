@@ -58,7 +58,7 @@ The two cases:
 > On the street the pressure comes from outside — rent is imposed, the docket is imposed, and paying is how you keep working. On the floor nothing is imposed. **The building offers.**
 
 - **The Hours** (`engine/hours.js`) — two numbers. **Banked** is what you can spend and moves both ways. **Billed** is what you have put into this building ever, and only goes up. Everything is stored in tenths of an hour as integers, because a firm bills in six-minute increments and floats accumulate lies.
-- **The dark.** Every floor district but the one you wake in renders near-black beyond a radius, with a hard seam at the district line, and drains energy for as long as you stand in it. You can *cross* a dark district cheaply. You cannot *work* in one.
+- **The dark.** Every floor district but the one you wake in renders near-black beyond a radius, with a hard seam at the district line, and drains energy for as long as you stand in it — about four minutes of a full bar. You can *cross* a dark district, and you can *look* at one. You cannot *live* in one.
 - **The lighting panel.** The layer's only transaction: a breaker box with a time-entry form taped over the switches. It costs banked hours, it is permanent, and the cost has to be read in the building's own language every single time. There is a line for a matter number. Nobody has ever asked about the matter number.
 - **Work is what pays.** Establishing a fact, reading a file, closing a matter — and putting down one of **The Unbilled**, which are your own hours itemized and are carrying time you can take back. That is the only reason to fight anything on this layer.
 - **The trap, made mechanical.** Every ten hours billed, the building notices, and The Unbilled get faster and hit harder *everywhere*. Lighting a floor buys safety on that floor and pays for it in every other one. You cannot buy your way out; you can only buy your way further in.
@@ -140,7 +140,7 @@ Melee is 18 a swing and requires standing next to a Collections Agent while it t
 
 `game/areas.js` is also the answer to two other things DESIGN asked for:
 
-- **LE1 save import** (§6) — LE2 reads `legalEagles.save.v1` and takes your `classId` and `genderId`, so your practice area *and your face* carry over from the first game. When a save is found the blank in the letter arrives **already filled in** and there is nothing to choose, which is the better beat anyway.
+- **LE1 save import** (§6) — LE2 reads `legalEagles.save.v1` and takes your `classId` and `genderId`, so your practice area *and your face* carry over from the first game. The face arrives without being asked, because a face is not a decision. The practice area **pre-selects the row and says so** — it does not answer for you. It used to fill the blank in and skip the question entirely, which meant anybody with an old LE1 save on the same origin was silently handed an area they never picked and could not change, on the one screen the whole game forks on.
   > `localStorage` is scoped to the **origin**, not the path. On GitHub Pages both games sit under `samharden.github.io`, so the import works. Running LE1 off `file://` and LE2 off `localhost:8142` are two different origins and it will never find the save — that is not a bug, and the no-save path is the designed one.
 - **Past Selves fight with your attack** (§4) — they literally do now. A litigator's past selves object at them constantly; a tax lawyer's arrive slowly and hit like a filing deadline.
 
