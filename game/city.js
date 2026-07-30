@@ -76,11 +76,11 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'ch_bleed', tx: 30, ty: 18, spr: 'board', bleed: 1,
             label: '[E] the notice that is not a notice',
-            text: 'Stapled to the kiosk post at the height everything gets stapled: a time-entry form. Not a photocopy of one — a form, carbon, third sheet, of a kind this county has never used and no stationer within fifty miles stocks. The line for HOURS TO BE CHARGED is filled in. The line for MATTER № is not. The hand is yours and you have never once in your life written on a carbon.' },
+            text: 'A time-entry form, stapled to the kiosk post. Carbon, third sheet. Nobody in this county uses carbon. HOURS TO BE CHARGED is filled in. MATTER № is blank. The handwriting is yours.' },
           { id: 'ch_cross', tx: 15, ty: 12, spr: 'sign', repeat: true, cross: true, bleed: 2,
             who: 'THE DOOR BEHIND THE BENCH',
             label: '[E] the door that is not on the plan',
-            text: 'Four feet left of the courthouse steps there is a door, and there has never been a door here. It is the right door — fire-rated, wire-glass, a county lever handle worn bright on the underside by forty years of the same thumb — and it is set into eleven feet of load-bearing granite that goes down to the water table. Through the wire glass: a room with a bench in it, the lights on, and a matter in session.',
+            text: 'There is a door four feet left of the courthouse steps. There has never been a door here. Fire-rated, wire-glass, county lever handle worn bright underneath. The wall it sits in is eleven feet of granite. Through the glass: a bench, the lights on, a matter in session.',
             fact: 'iry_door' },
         ],
         pickups: [
@@ -132,11 +132,11 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'ch_bleed', tx: 30, ty: 18, spr: 'board', bleed: 1,
             label: '[E] the newsstand rack',
-            text: 'The rack outside the kiosk has a paper in it that is not the same edition as the other four hundred. It is thin, it is warm, and it is dated the day after the day it has been since you woke up. Page one is a fire on The Strand. Page four is a photograph of the courthouse steps at about four in the afternoon with roughly eleven people on them, in daylight, moving, some of them mid-sentence.' },
+            text: 'One paper in the rack is a different edition from the other four hundred. Thin, warm, dated tomorrow. Page one: a fire on The Strand. Page four: a photograph of these steps at four in the afternoon, eleven people on them, in daylight, moving.' },
           { id: 'ch_cross', tx: 15, ty: 12, spr: 'sign', repeat: true, cross: true, bleed: 2,
             who: 'THE DOOR BEHIND THE BENCH',
             label: '[E] the door with the light under it',
-            text: 'Four feet left of the steps, in a wall that is granite the entire way through, there is a door, and there is light under it, and the light is the wrong colour. It is not the ceiling light this building has. It is four in the afternoon in March coming through glass at a low angle, and it is moving very slightly, the way light does when there is traffic going past outside.',
+            text: 'A door four feet left of the steps, in a wall that is granite the whole way through. There is light under it and the colour is wrong — not this building\'s ceilings. Afternoon light, low, and it moves the way light moves when traffic goes past.',
             fact: 'iry_door' },
         ],
         npcs: [
@@ -214,7 +214,7 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'st_bleed', tx: 10, ty: 19, spr: 'board', bleed: 1,
             label: '[E] the storefront between the two storefronts',
-            text: 'Between the dry cleaner and the place that has been PERMANENTLY CLOSED for six years there is a travel agency. It is open. There is a fare board in the window with prices on it that stopped being prices before you were qualified, and a wall map with the pins still in, and a kettle behind the counter that is on. You have walked this block four hundred times. You would like to say you have never seen it before. What you have actually got is worse, which is that you cannot remember either way.' },
+            text: 'Between the dry cleaner and the place that has been PERMANENTLY CLOSED for six years, a travel agency. Open. A fare board with prices that stopped being prices before you qualified, a wall map with the pins still in, a kettle on behind the counter. You have walked this block four hundred times. You cannot remember whether it was here.' },
         ],
         npcs: [
           { id: 'ruiz', name: 'Marisol Ruiz', spr: 'ruiz', tx: 8, ty: 12,
@@ -258,7 +258,7 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'st_bleed', tx: 10, ty: 19, spr: 'board', bleed: 1,
             label: '[E] the window with the weather in it',
-            text: 'One pane on this whole street has something behind it. Not a lit room — an OUTSIDE: a road, a kerb, a bus shelter with an advertisement on it for a firm you have never heard of, and rain, coming down at an angle, on all of it. You put the back of your hand against the glass and it is cold, which nothing in this building is, and there is a bus, and the bus goes past, and it is full of people who are going home.' },
+            text: 'One pane on this street has something behind it. Not a lit room — an outside. A road, a kerb, a bus shelter advertising a firm you have never heard of, and rain coming down at an angle on all of it. The glass is cold, which nothing in this building is. A bus goes past. It is full of people going home.' },
         ],
         pickups: [
           { id: 'st_ledger', tx: 6, ty: 12, spr: 'dossier', item: 'ledger',
@@ -331,11 +331,11 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'tw_bleed', tx: 35, ty: 21, spr: 'board', bleed: 1,
             label: '[E] the eleventh floor',
-            text: 'Stand in the plaza and count up eleven and there is one window lit in the whole elevation, at half past two in the afternoon, with the sun full on the glass — which should make it impossible to see anything at all, and does not. There is a desk at it. There is somebody at the desk. They are not moving and they have not moved in the four minutes you have been standing here with your neck at this angle, and a man going past has asked if you are all right.' },
+            text: 'Count up eleven floors. One window lit in the whole elevation, at half past two in the afternoon, sun full on the glass. You should not be able to see anything through it. There is a desk at the window and somebody at the desk, and they have not moved in four minutes. A man going past asks if you are all right.' },
           { id: 'tw_cross', tx: 27, ty: 15, spr: 'sign', repeat: true, cross: true, bleed: 2,
             who: 'THE FIRE DOOR ON THE PLAZA',
             label: '[E] the fire door in the plaza wall',
-            text: 'A fire door, flush to the plaza wall, on the side where there is no building — the wall is a retaining wall and behind it is eleven feet of compacted fill and then Fourth Street. There is a push bar on this side. Push bars are fitted on the side people are getting OUT from.',
+            text: 'A fire door flush to the plaza wall, on the side where there is no building. It is a retaining wall. Behind it is eleven feet of fill and then Fourth Street. There is a push bar on this side, and push bars go on the side people get out from.',
             fact: 'iry_same' },
         ],
         pickups: [
@@ -382,11 +382,11 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'tw_bleed', tx: 35, ty: 21, spr: 'board', bleed: 1,
             label: '[E] the eleventh floor',
-            text: 'Every window on both towers is lit and one of them is lit differently. Eleven up, and what is coming out of it is afternoon — the real kind, with a colour temperature and an angle and dust in it — and it lands on the plaza in a rectangle you can stand in and feel, and the rectangle has moved about a foot to the left since you first noticed it, which means it is early in the afternoon and getting later.' },
+            text: 'Every window on both towers is lit, and one is lit differently. Eleven up, and what comes out of it is afternoon — the real kind, with an angle and dust in it. It lands on the plaza in a rectangle you can stand in. The rectangle has moved a foot to the left since you noticed it.' },
           { id: 'tw_cross', tx: 27, ty: 15, spr: 'sign', repeat: true, cross: true, bleed: 2,
             who: 'THE FIRE DOOR ON THE PLAZA',
             label: '[E] the fire door with the noise behind it',
-            text: 'A fire door in the retaining wall, and behind it, faintly, continuously, the sound of a street: engines, a horn a long way off, somebody\'s radio, the specific slap of a bus kneeling at a stop. You have not heard a vehicle since you woke up. You did not notice that until this second and now you cannot stop having noticed it.',
+            text: 'A fire door in the retaining wall, and behind it the sound of a street: engines, a horn a long way off, somebody\'s radio, a bus kneeling at a stop. You have not heard a vehicle since you woke up. You had not noticed that until now.',
             fact: 'iry_same' },
         ],
         pickups: [
@@ -464,11 +464,11 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'an_bleed', tx: 5, ty: 23, spr: 'board', bleed: 1,
             label: '[E] the run that is one run too many',
-            text: 'The stacks in this room are lettered A to K and there are twelve of them. You walk L end to end twice. It is the same length as the others, it is full, the cards on the ends are in the same hand as every other card in this building, and when you come out of it you are facing the counter, which you should not be, because you went in facing the counter.' },
+            text: 'The stacks in this room are lettered A to K, and there are twelve of them. You walk L end to end twice. Same length as the others, full, the cards in the same hand as every other card here. When you come out you are facing the counter. You went in facing the counter.' },
           { id: 'an_cross', tx: 24, ty: 16, spr: 'sign', repeat: true, cross: true, bleed: 2,
             who: 'THE END OF RUN L',
             label: '[E] the end of the run that should be a wall',
-            text: 'Run L ends in a doorway. Not a fire exit and not a service door — a doorway, with no door in it, cut square and finished, with a threshold strip screwed down across it that has been walked over enough times to be worn through to the brass. Past it the shelving carries on, and the light on the shelving past it is not this building\'s light.',
+            text: 'Run L ends in a doorway. Not a fire exit, not a service door — a doorway with no door in it, cut square and finished, with a threshold strip worn through to the brass. Past it the shelving carries on, and the light on it is not this building\'s.',
             fact: 'iry_dept13' },
         ],
         pickups: [
@@ -512,11 +512,11 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'an_bleed', tx: 5, ty: 23, spr: 'board', bleed: 1,
             label: '[E] the drawer that has been closed',
-            text: 'Forty drawers in the index and every one of them is open, which you have got used to. One is shut. Inside it, filed correctly, alphabetically, between two cards in the hand that wrote all four hundred of the others: a public library card, expiring in a year that has not happened, in a name that is not on any of the other cards, and a receipt from a hardware shop on The Strand for one padlock, paid in cash, at 4:51 in the afternoon.' },
+            text: 'Forty drawers in the index, all of them open. One is shut. Inside, filed correctly between two cards in the hand that wrote the other four hundred: a library card expiring in a year that has not happened, in a name on none of the other cards. And a receipt from a hardware shop on The Strand. One padlock, cash, 4:51 p.m.' },
           { id: 'an_cross', tx: 24, ty: 16, spr: 'sign', repeat: true, cross: true, bleed: 2,
             who: 'THE END OF RUN L',
             label: '[E] the doorway at the end of the run',
-            text: 'Run L ends in a doorway with no door in it and a brass threshold strip worn through in the middle. Past it: the same shelving, in daylight, with a public-access terminal at the end of it that has a screensaver on, and a chair pushed in, and somebody\'s cardigan over the back of the chair.',
+            text: 'Run L ends in a doorway with no door in it, brass threshold worn through in the middle. Past it: the same shelving, in daylight. A public terminal with a screensaver on, a chair pushed in, somebody\'s cardigan over the back of it.',
             fact: 'iry_dept13' },
         ],
         npcs: [
@@ -586,7 +586,7 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'fl_bleed', tx: 30, ty: 14, spr: 'board', bleed: 1,
             label: '[E] the chairs, stacked',
-            text: 'Thirty stacking chairs against the wall of the community centre, out in the weather, which nobody down here would ever leave out. Thirty. You count them twice because the number arrived before you did. The top one on the near stack has a coat over it, and the coat is dry, and it has been raining since eleven.' },
+            text: 'Thirty stacking chairs against the community centre wall, out in the weather, which nobody down here would leave them in. You count them twice. The top one has a coat over it. The coat is dry. It has been raining since eleven.' },
         ],
         pickups: [
           { id: 'fl_ordinance', tx: 8, ty: 16, spr: 'dossier', item: 'ordinance',
@@ -635,7 +635,7 @@ export const REGIONS = [
           // people, and they are fine, and they are not thinking about you.
           { id: 'fl_bleed', tx: 30, ty: 14, spr: 'board', bleed: 1,
             label: '[E] the wall by the doors',
-            text: 'Thirty chairs are stacked against this wall and there are thirty chairs in a circle inside, which is sixty chairs and a centre that owns thirty. Somebody is putting the outside stack out and somebody is putting the inside circle out and they are doing it at the same time, four feet apart, through a wall, on a Thursday, and neither of them has any idea and both of them are going to be finished by ten to seven.' },
+            text: 'Thirty chairs stacked against this wall, and thirty in a circle inside. That is sixty chairs, in a centre that owns thirty. Somebody is setting out each lot, at the same time, four feet apart, through a wall. Neither of them knows. Both will be done by ten to seven.' },
         ],
         pickups: [
           { id: 'fl_sheet', tx: 14, ty: 11, spr: 'dossier', item: 'sheet',
@@ -708,7 +708,7 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'mr_bleed', tx: 33, ty: 13, spr: 'board', bleed: 1,
             label: '[E] the car nobody is in',
-            text: 'Third from the end, nose out, engine running. Not idling rough the way a car left running goes — running warm and even, with the wipers parked and the tank showing full and the driver\'s door unlocked. You lean in. The seat is set for somebody about your height. There is a coffee in the holder with a quarter left in it and the coffee is hot, and the ticket on the windshield is dated tomorrow.' },
+            text: 'Third from the end, nose out, engine running. Not rough, the way a car left running goes — warm and even, wipers parked, tank full, driver\'s door unlocked. The seat is set for somebody about your height. There is a coffee in the holder, still hot. The ticket on the windshield is dated tomorrow.' },
         ],
         pickups: [
           { id: 'mr_ledger', tx: 19, ty: 24, spr: 'dossier', item: 'ledger',
@@ -751,7 +751,7 @@ export const REGIONS = [
           // ---- the bleed ----
           { id: 'mr_bleed', tx: 33, ty: 13, spr: 'board', bleed: 1,
             label: '[E] the gap in the fourth row',
-            text: 'There is a space in the fourth row the exact size of a car, with the oil stain still on it, still wet at the edges. Every other slot in this yard has been full since before you were born. Somebody came and got one. Somebody signed for one and drove it off this lot and out onto a road, and the gate is thirty feet away and you are going to go and look at the gate now.' },
+            text: 'A space in the fourth row the exact size of a car, oil stain still wet at the edges. Every other slot here has been full since before you were born. Somebody signed for one and drove it off the lot. The gate is thirty feet away.' },
         ],
         pickups: [
           { id: 'mr_keys', tx: 19, ty: 24, spr: 'dossier', item: 'keys',

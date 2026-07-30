@@ -655,7 +655,7 @@ function openPanel(pr) {
       + `\n    BANKED . . . . . . . . .${fmtHours(Hours.banked).padStart(6)}`
       + `\n    MATTER № . . . . . . . .  ______`
       + `\n    ────────────────────────────────\n`
-      + `\nUnder the line, in the same hand as everything else in this building: THE LIGHTS RUN AS LONG AS THE WORK DOES.`,
+      + `\nUnder the line, in the same hand as everything else here: THE LIGHTS RUN AS LONG AS THE WORK DOES.`,
     choices: () => [
       { tag: 'BILL', label: `Sign it. Charge ${fmtHours(cost)} hours to the floor.`,
         if: () => Hours.banked >= cost,
@@ -667,7 +667,7 @@ function openPanel(pr) {
     ],
   };
   T.nodes.done = {
-    text: 'You write the hours in, and you do not write a matter number, because there is no matter — and the lights come on anyway, which tells you what the form is actually for.',
+    text: 'You write the hours in. You leave the matter number blank, because there is no matter. The lights come on anyway.',
   };
   openDialogue(T);
 }
@@ -694,7 +694,7 @@ function openCrossing(pr) {
     // are meant to have found this and been unable to use it.
     T.nodes.a = {
       text: (pr.text || 'A door that is not in this building.')
-        + '\n\nIt does not open. Not locked — it has no lock and no handle and no give in it at all, and the air on the far side of it is a different temperature, and you can feel that through four inches of fire-rated timber.',
+        + '\n\nIt does not open. Not locked — no lock, no handle, no give at all. The air on the far side is a different temperature and you can feel it through the door.',
     };
     openDialogue(T);
     return;
@@ -702,14 +702,14 @@ function openCrossing(pr) {
 
   T.nodes.a = {
     text: (pr.text || 'A door that is not in this building.')
-      + `\n\nIt is open now. Through it is ${other.name}: the same street, the same buildings, the same room you are standing in, and none of it dressed the way this one is.`,
+      + `\n\nIt is open now. Through it is ${other.name} — the same street, the same buildings, none of it dressed the way this one is.`,
     choices: [
       { tag: 'THROUGH', label: `Go through. Cross to ${other.name}.`, to: 'go' },
       { label: 'Not yet. Shut it.', to: null },
     ],
   };
   T.nodes.go = {
-    text: 'You go through, and there is no threshold — no step down, no give, no moment of being in neither. One stride is here and the next stride is there and your own footfall does not change pitch, which it would have to, if the floor were a different floor.',
+    text: 'You go through. No step down, no threshold, no moment of being in neither. One stride is here and the next is there, and your footfall does not change pitch.',
     fx: () => crossLayers(),
   };
   openDialogue(T);
@@ -739,8 +739,8 @@ function crossLayers() {
 
   showBanner(layerOf(to).name, `CROSSING #${Bleed.crossed}`);
   say(to === 'floor'
-    ? 'The date on your watch is the date it was. It is going to be that date for as long as you are here, and the only currency on this side of the door is the time you put in.'
-    : 'It is a Tuesday and it is four in the afternoon and there is a bus. Your rent is still due. You have never in your life been so glad about a bus.', 11);
+    ? 'The date on your watch has not moved, and it will not while you are here. The only currency on this side is the time you put in.'
+    : 'A Tuesday, four in the afternoon, and a bus goes past. Your rent is still due. You have never been so glad about a bus.', 11);
   SFX.district();
   G.fx.addTrauma(0.6);
   Quests.qTick();          // whatever this layer opens with, if anything
@@ -793,8 +793,8 @@ function endDay(forced) {
   const d = Cal.day;
   showBanner(dateString(d), forced ? 'you lost the rest of yesterday' : `DAY ${d}`);
   if (!forced) say(roofless
-    ? `${dateString(d)}. You slept in the firm car with the files in the footwell and woke up at an angle you will feel until Thursday.`
-    : `${dateString(d)}. You slept about four hours, which is two more than the firm ever allowed.`, 6);
+    ? `${dateString(d)}. You slept in the firm car with the files in the footwell. You will feel it until Thursday.`
+    : `${dateString(d)}. You slept about four hours. Two more than the firm ever allowed.`, 6);
   SFX.district();
   syncHud();
   refreshCasefile();
@@ -822,7 +822,7 @@ function rentDay() {
   const owed = RENT;
   const T = { who: 'The Golden Wok', spr: 'sign', start: 'a', nodes: {} };
   T.nodes.a = {
-    text: `Rent. Eleven hundred, weekly, cash, and the man who collects it does not come upstairs — he stands at the bottom and waits, which is worse.\n\nOperating account: $${Practice.Books.operating}.   Trust: $${Practice.Books.trust}.`,
+    text: `Rent. Eleven hundred, weekly, cash. The man who collects it does not come upstairs. He waits at the bottom of the stairs.\n\nOperating: $${Practice.Books.operating}.   Trust: $${Practice.Books.trust}.`,
     choices: () => [
       { label: `Pay the $${owed} out of the operating account.`,
         if: () => Practice.canPay(owed),
@@ -835,17 +835,17 @@ function rentDay() {
       { label: 'Tell him next week.', to: 'miss' },
     ],
   };
-  T.nodes.paid = { text: 'He counts it twice on the step, nods at nothing in particular, and goes back inside. That is the whole ceremony.' };
+  T.nodes.paid = { text: 'He counts it twice on the step, nods, and goes back inside.' };
   T.nodes.trustWarn = {
-    text: 'It is right there in the same bank, under a different word. Delgado will not look at it this week. Nobody looks at it any week — that is the entire reason it works, right up until it does not.',
+    text: 'Same bank, different word on the account. Delgado will not look at it this week. Nobody looks at it any week. That is why it works.',
     choices: [
       { label: 'Do it.', fx: () => doCommingle(owed), to: 'didIt' },
       { label: 'Don\'t. Tell him next week.', to: 'miss' },
     ],
   };
-  T.nodes.didIt = { text: 'The transfer takes eleven seconds. You are current on the rent. You are also, as of eleven seconds ago, holding less of your client\'s money than you are supposed to be holding.' };
+  T.nodes.didIt = { text: 'The transfer takes eleven seconds. You are current on the rent, and you are holding less of your client\'s money than you are supposed to be holding.' };
   T.nodes.miss = {
-    text: 'He does not argue. He writes something on the back of his hand and goes back inside, and that is somehow the part that gets you.',
+    text: 'He does not argue. He writes something on the back of his hand and goes back inside.',
     fx: () => {
       const n = Practice.missRent(Cal.day);
       say(n >= 2 ? 'Second missed week.' : 'Rent missed. One more and the tape comes off the buzzer.', 7);
@@ -864,7 +864,7 @@ function payrollDay() {
   const who = Practice.Firm.staff.map(id => Practice.STAFF[id].name).join(', ');
   const T = { who: 'PAYROLL', spr: 'sign', start: 'a', nodes: {} };
   T.nodes.a = {
-    text: `Friday, near enough. ${who} — $${owed} between them, and not one of them has asked you about it, which is worse than if they had.\n\nOperating account: $${Practice.Books.operating}.   Trust: $${Practice.Books.trust}.`,
+    text: `Friday, near enough. ${who} — $${owed} between them. None of them has asked you about it.\n\nOperating: $${Practice.Books.operating}.   Trust: $${Practice.Books.trust}.`,
     choices: () => [
       { label: `Pay the $${owed}.`,
         if: () => Practice.canPay(owed),
@@ -878,15 +878,15 @@ function payrollDay() {
   };
   T.nodes.paid = { text: 'Nobody says thank you and nobody should. It is a wage.' };
   T.nodes.trustWarn = {
-    text: 'The same button as last time, and it is easier this time, and it will be easier again. The money in that account belongs to people who are not in this room and cannot see it going.',
+    text: 'The same button as last time. It is easier this time. That money belongs to people who are not in this room.',
     choices: [
       { label: 'Do it.', fx: () => doCommingle(owed), to: 'didIt' },
       { label: 'Don\'t. Tell them Monday.', to: 'miss' },
     ],
   };
-  T.nodes.didIt = { text: 'Payroll is made. Three people go home able to make their own rent, on money that was never yours to make it with.' };
+  T.nodes.didIt = { text: 'Payroll is made. Three people go home able to make their own rent, on money that was not yours.' };
   T.nodes.miss = {
-    text: 'They take it well, which is how you know how many times it has happened to them before. By the end of the week the desks are clear and the redweld is gone off the second chair.',
+    text: 'They take it well, which tells you how often it has happened to them before. By the end of the week the desks are clear.',
     fx: () => {
       const gone = Practice.loseStaff(Cal.day);
       CASE_HOOKS.rep('strand', -2);
@@ -928,7 +928,7 @@ function openOffice(pr) {
   };
 
   T.nodes.hire = {
-    text: 'Three names, and all three of them are somebody\'s whole month.',
+    text: 'Three names. Each of them is somebody\'s whole month.',
     choices: () => {
       const out = Object.values(Practice.STAFF).map(s => ({
         label: `${s.name} — ${s.role}. $${s.hire} now, $${s.wage} a week. ${s.effect}`,
@@ -986,7 +986,7 @@ Practice.practiceHooks.onHire = s => {
   schedulePayroll();
   syncAlly();
   showBanner('ENGAGED', `${s.name.toUpperCase()} — ${s.role.toUpperCase()}`);
-  say(`${s.name} starts Monday and will want paying every week after that, which is the part nobody puts in the fantasy.`, 8);
+  say(`${s.name} starts Monday, and wants paying every week after that. That is the part nobody mentions.`, 8);
   syncHud(); refreshCasefile();
 };
 Practice.practiceHooks.onLoseStaff = gone => {
@@ -1025,7 +1025,7 @@ Practice.practiceHooks.onCommingle = (n, count) => {
 
 Practice.practiceHooks.onEvict = () => {
   showBanner('EVICTED', 'SUITE 2B — THE TAPE IS OFF THE BUZZER');
-  say('Two weeks down and the lock is changed. Your files are in four boxes on the sidewalk, which at least makes them portable.', 10);
+  say('Two weeks down and the lock is changed. Your files are in four boxes on the sidewalk.', 10);
   SFX.boom(); G.fx.addTrauma(0.8);
 };
 
@@ -1041,7 +1041,7 @@ function collapse() {
   G.fx.addTrauma(0.7);
   SFX.del();
   if (HAS_CLOCK()) {
-    say('You come to on the sidewalk with your own business cards scattered around you and no memory of the afternoon.', 8);
+    say('You come to on the sidewalk, your own business cards scattered around you, no memory of the afternoon.', 8);
     endDay(true);
   } else {
     // No day to lose here, so the building takes the only thing this layer has.
@@ -1049,8 +1049,8 @@ function collapse() {
     // and the entry is already written when you come round.
     const took = writeDown(COLLAPSE_TAKE, 'non-productive time, written off');
     say(took
-      ? `You come to at the same desk. The clock has not moved, because it does not. ${fmtHours(took)} hours have gone off the sheet, and the entry is in your handwriting.`
-      : 'You come to at the same desk. There was nothing on the sheet to take, which the building appears to find clarifying.', 9);
+      ? `You come to at the same desk. The clock has not moved. ${fmtHours(took)} hours have gone off the sheet and the entry is in your handwriting.`
+      : 'You come to at the same desk. There was nothing on the sheet to take.', 9);
     showBanner('TIME WRITTEN OFF', took ? '−' + fmtHours(took) + ' HOURS' : 'NOTHING LEFT TO TAKE');
   }
   // put some distance between you and whatever did it
@@ -1079,7 +1079,7 @@ function trustOwed() {
 function clearComplaint() {
   if (!G.complaint) return;
   G.complaint = null;
-  say('The trust account is whole. The grievance closes without a finding, which is the best result there is.', 8);
+  say('The trust account is whole. The grievance closes without a finding.', 8);
 }
 
 /**
