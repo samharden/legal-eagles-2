@@ -17,6 +17,7 @@ import { Cal, clockHooks, dateString, schedule, unschedule, allEntries, advanceD
 import * as Practice from '../engine/practice.js';
 import { Hours, hoursHooks, bill, lightUp, lightFree, isLit, writeDown, fmtHours, pressure, saveHours, loadHours, resetHours } from '../engine/hours.js';
 import { Bleed, bleedHooks, setBleed, witness, bleedAt, canCross, LEVEL_NAME, saveBleed, loadBleed, resetBleed } from '../engine/bleed.js';
+import { recordRun, runs, lastRun, hasRun, nextPath, nextLayer } from '../engine/run.js';
 import { Dialogue } from '../engine/dialogue.js';
 import { REGIONS, SPAWN } from './city.js';
 import { LAYERS, layerOf } from './layers.js';
@@ -24,7 +25,7 @@ import { AREAS, DEFAULT_AREA, areaOf, importLE1 } from './areas.js';
 import { actorDef } from './actors.js';
 import { drawWorld, drawPrompt } from './render.js';
 import { Intro } from './intro.js';
-import { Ending } from './ending.js';
+import { Ending, endingMeta } from './ending.js';
 import { npcDialogue, CASE_HOOKS } from './cases.js';
 import { Casefile } from './casefile.js';
 
@@ -50,6 +51,7 @@ export const G = {
   incoming: [],         // theirs
   area: DEFAULT_AREA,   // your practice area — the ranged attack IS the area
   served: 0,            // stacking, and it does not come off until you sleep
+  plus: 0,              // how many finished runs are behind this one
 };
 
 // what you tell yourself in an unlit corridor
@@ -165,6 +167,21 @@ CASE_HOOKS.rep = (d, n) => {
 CASE_HOOKS.ending = outcome => {
   Casefile.hide();
   Input.clearHeld();
+  // Written before the reel rather than after it, so a player who closes the tab
+  // on the stamp card still finished the game. The record is what NEW GAME +
+  // reads, and what puts this run's letter in the Annex boxes next time.
+  const closed = Quests.allQuests().filter(q => Quests.isDone(q.id) && !Quests.isFailed(q.id)).length;
+  recordRun({
+    path: G.path, layer: G.layer, ending: outcome, area: G.area,
+    plus: G.plus || 0,
+    closed,
+    lost: Quests.allQuests().filter(q => Quests.isFailed(q.id)).length,
+    crossings: Practice.Books.commingled || 0,
+    hours: Hours.billed,
+    crossed: Bleed.crossed,
+    bleed: Bleed.level,
+    days: HAS_CLOCK() ? Cal.day : 0,
+  });
   G.state = 'end';
   Ending.start(outcome, () => {
     // The reel is over; the accounting is not. The summary opens over the top of
@@ -181,7 +198,10 @@ CASE_HOOKS.ending = outcome => {
       // The save is left exactly as it was — a finished run is a thing you
       // should be able to load and stand around in, and there is a whole city
       // that reads differently once you know how it comes out.
-      if (hasSave()) el('continueBtn').style.display = '';
+      if (hasSave()) el('continueBtn').classList.add('on');
+      // the run that just ended is on the record now, so the offer to press the
+      // other key has to appear without needing a reload
+      syncPlusButton();
     };
     Casefile.showSummary(outcome);
   });
@@ -333,9 +353,10 @@ clockHooks.onDue = e => {
 };
 
 /* -------------------------------- boot --------------------------------- */
-function beginPath(layerId, path, area) {
+function beginPath(layerId, path, area, plus = 0) {
   G.path = path;
   G.layer = layerId;
+  G.plus = plus;
   Facts.resetFacts();
   Quests.resetQuests();
   G.world = new World(REGIONS, layerId);
@@ -406,11 +427,21 @@ function seedFreeLights() {
     if (def.layers.floor && def.layers.floor.litFree) lightFree(def.id);
 }
 
-function startNew() {
+/**
+ * A new run. `plus` forces the fork to the key the last run did not press —
+ * DESIGN §3 says both paths are full-length campaigns, so a second run is the
+ * other side of the fork rather than the same side with the numbers turned up.
+ *
+ * The reel still runs, and EXHIBIT C still asks what kind of lawyer you are.
+ * Only the fork is spent, and the reel says so.
+ */
+function startNew(plus = false) {
   audioInit();
   document.getElementById('menu').style.display = 'none';
   G.state = 'intro';
-  Intro.start((layerId, path, area) => beginPath(layerId, path, area));
+  const depth = plus ? runs().length : 0;
+  Intro.start((layerId, path, area) => beginPath(layerId, path, area, depth),
+    plus ? { forcePath: nextPath(), prev: lastRun() } : null);
 }
 
 function continueGame() {
@@ -1818,10 +1849,32 @@ Input.hooks.onCanvasTap = (x, y) => {
 };
 
 el('fsBtn').addEventListener('click', toggleFullscreen);
-el('startBtn').addEventListener('click', startNew);
+el('startBtn').addEventListener('click', () => startNew(false));
 el('continueBtn').addEventListener('click', continueGame);
+el('plusBtn').addEventListener('click', () => startNew(true));
 el('saveBtn').addEventListener('click', () => say(doSave() ? 'Saved.' : 'Save failed.', 2));
-if (hasSave()) el('continueBtn').style.display = '';
+if (hasSave()) el('continueBtn').classList.add('on');
+
+/**
+ * The title's NEW GAME + affordance. It only exists once a run has been
+ * finished, and it says which key is left rather than making the player work it
+ * out — the fork is the game's one irreversible decision and the offer to take
+ * the other side of it should be legible from the menu.
+ */
+function syncPlusButton() {
+  const prev = lastRun();
+  if (!prev) return;
+  const other = nextPath();
+  el('plusBtn').classList.add('on');
+  el('plusBtn').textContent = other === 'delete' ? 'DELETE IT INSTEAD' : 'SEND IT INSTEAD';
+  const note = el('plusNote');
+  note.classList.add('on');
+  const em = endingMeta(prev.ending);
+  note.innerHTML = `Last time you ${prev.path === 'send' ? 'sent it' : 'deleted it'}`
+    + ` and it ended <b>${em.stamp}</b>. ${runs().length} run${runs().length > 1 ? 's' : ''} on the record.`
+    + `<br>The letter you left is filed with the other four hundred.`;
+}
+syncPlusButton();
 if (DEV) el('hDev').style.display = '';
 
 // ?layer=floor jumps straight into a path without the reel — dev only

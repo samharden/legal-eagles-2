@@ -13,6 +13,7 @@
 import { defineFacts, learn, knows, knowsAny } from '../engine/facts.js';
 import { defineQuests, qResolve, isActive, isDone, isFailed as isFailedCase, started, outcomeOf, currentStage } from '../engine/quests.js';
 import { Bleed } from '../engine/bleed.js';
+import { runs } from '../engine/run.js';
 
 /* ================================ FACTS ================================ */
 
@@ -1082,6 +1083,22 @@ function annexBoxes() {
   const T = { who: 'FOUR HUNDRED BOXES', spr: 'dossier', nodes: {} };
   const stage = currentStage('sublevel');
 
+  // NEW GAME +. The building keeps four hundred letters and does not throw any
+  // of them away, so it did not throw away yours either. This is the whole of
+  // what a second run inherits, and it is a paragraph rather than a mechanic on
+  // purpose — the reward for finishing is being recognised, not being stronger.
+  const prior = runs();
+  if (prior.length) {
+    const p = prior[0];
+    const mine = p.path === 'send'
+      ? 'It is a resignation, dated, signed, and SENT — there is a transmission receipt stapled to it, which not one of the other three hundred and ninety-nine has.'
+      : 'It is a resignation, dated, signed, and struck out once, and filed the same evening. There is no receipt on it because there was never anything to receipt.';
+    T.nodes.mine = {
+      text: `One box near the end is out of sequence, pulled forward about an inch, the way a file is left when somebody has been in it recently.\n\n${mine}\n\nThe hand is yours. Not similar to yours. Yours, including the thing you do with the second letter of your own surname that you have never once noticed doing.`
+        + (prior.length > 1 ? `\n\nBehind it there are ${prior.length - 1} more in the same hand.` : ''),
+    };
+  }
+
   if (isDone('sublevel')) {
     T.start = 'a';
     T.nodes.a = {
@@ -1098,6 +1115,7 @@ function annexBoxes() {
     T.start = 'a';
     T.nodes.a = {
       text: 'Banker\'s boxes, end to end, the whole length of the run and round the corner. The lids are off and stacked separately, tidily, by somebody who intended to come back. In the nearest one, a single sheet of paper, folded once. You do not need to open it to know what it is, and you open it anyway, and you are right.',
+      to: prior.length ? 'mine' : null,
     };
     return T;
   }
@@ -1105,7 +1123,8 @@ function annexBoxes() {
   T.start = 'a';
   T.nodes.a = {
     text: 'One letter per box. Every one of them written, and signed, and folded once, and filed. Not sent. Filed — which is a thing you do with a document you have decided to keep rather than use, and which four hundred people independently decided was the correct disposition.',
-    choices: [
+    choices: () => [
+      ...(prior.length ? [{ tag: 'AGAIN', label: 'The box near the end that is out of sequence.', to: 'mine' }] : []),
       { tag: 'COUNT', label: 'Count them. All of them. Get the actual number.', to: 'do_count' },
       { label: 'Take your own card out of the index and keep it.', to: 'do_take' },
       { label: 'Put the lids back on. All four hundred.', to: 'do_close' },
@@ -2520,9 +2539,15 @@ const NPC_TREES = {
     }
 
     if (phase === 'first') {
+      // NEW GAME +. He has been presiding since 1959 on a docket with one matter
+      // on it, so of course he has seen you before. He does not make anything of
+      // it, which is worse than if he did.
+      const seen = runs().length
+        ? 'Counsellor. — He says it the way you say a name you have said before. — The court has had you in front of it. Different door, same matter; the caption did not change and I did not expect it to. '
+        : 'Counsellor. — ';
       T.start = 'a';
       T.nodes.a = {
-        text: 'Counsellor. — He does not ask how you got here and he does not ask which way you came, and after a moment you understand that both questions are ones he has stopped finding interesting. — Department 13. One matter, and it has been one matter since 1959, and the caption has not changed in that time. You have read the caption.',
+        text: seen + 'He does not ask how you got here and he does not ask which way you came, and after a moment you understand that both questions are ones he has stopped finding interesting. — Department 13. One matter, and it has been one matter since 1959, and the caption has not changed in that time. You have read the caption.',
         choices: [
           { label: '"It is my name. On both sides."', to: 'both' },
           { label: '"Which one of them am I?"', to: 'which' },

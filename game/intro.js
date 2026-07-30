@@ -149,9 +149,13 @@ const SCENES = [
   },
   {
     id: 'D', tag: 'EXHIBIT D', title: 'THE CHOICE', art: drawChoiceArt,
-    body: 'The cursor is in an empty To: field.\n'
-      + 'There is no confirmation dialog. There is no draft folder that forgives you.\n'
-      + 'Whichever key you press is the rest of your life.',
+    body: I => I.forced
+      ? 'The cursor is in an empty To: field and the draft is open and you have been at this desk before.\n'
+        + `Last time you ${I.prev && I.prev.path === 'send' ? 'sent it' : 'deleted it'}, and that is on the record, and the record is not a thing this building revises.\n`
+        + 'There is one key left. There was only ever going to be one key left.'
+      : 'The cursor is in an empty To: field.\n'
+        + 'There is no confirmation dialog. There is no draft folder that forgives you.\n'
+        + 'Whichever key you press is the rest of your life.',
     choices: [
       { key: 'send', label: 'SEND IT.', sub: 'Resign. Hang your own shingle. Survive it.' },
       { key: 'delete', label: 'DELETE IT.', sub: 'Close the draft. Put your head down. Just for a second.' },
@@ -185,10 +189,15 @@ export const Intro = {
 
   area: null,
   le1: null,
+  // NEW GAME +: the key the last run did not press, and the record of the one it did
+  forced: null,
+  prev: null,
 
-  start(onDone) {
+  start(onDone, plus = null) {
     this.active = true; this.i = 0; this.sceneT = 0; this.sel = 0;
     this.choice = null; this.outroT = 0; this.onDone = onDone;
+    this.forced = (plus && plus.forcePath) || null;
+    this.prev = (plus && plus.prev) || null;
     // DESIGN §6: the first game answers this if it can — but it does not get to
     // answer it FOR you. An LE1 save now pre-selects its area and says so; it
     // used to fill the blank in and skip the question entirely, which meant a
@@ -219,6 +228,13 @@ export const Intro = {
     // the note outside the box it belongs to.
     if (s.field === 'area' && this.le1)
       return s.choices.map(c => c.key === this.le1.area ? { ...c, mark: 'LAST TIME' } : c);
+    // The fork is spent on a second run. Both keys are still shown — the one you
+    // pressed last time has to be visible, or "the other one" means nothing —
+    // but only one of them is still a key you can press.
+    if (s.id === 'D' && this.forced)
+      return s.choices.map(c => c.key === this.forced
+        ? c
+        : { ...c, spent: true, sub: 'You did this. It is done and it does not undo.' });
     return s.choices;
   },
 
@@ -233,15 +249,33 @@ export const Intro = {
       const at = s.choices.findIndex(c => c.key === this.le1.area);
       this.sel = at >= 0 ? at : 0;
     }
+    // never leave the cursor on a key that cannot be pressed
+    if (s.id === 'D' && this.forced) {
+      const at = s.choices.findIndex(c => c.key === this.forced);
+      this.sel = at >= 0 ? at : 0;
+    }
+  },
+
+  /** Next selectable row in `dir`, skipping anything spent. */
+  _seek(list, dir) {
+    let i = this.sel;
+    for (let n = 0; n < list.length; n++) {
+      i = (i + dir + list.length) % list.length;
+      if (!list[i].spent) return i;
+    }
+    return this.sel;
   },
   finish() {
     this.active = false;
     document.body.classList.remove('reel');
-    const out = OUTCOMES[this.choice || 'send'];
+    // On a second run the fallback is the key that is still available, never the
+    // hardcoded 'send' — which on a NG+ following a SEND run is the spent one.
+    const key = this.choice || this.forced || 'send';
+    const out = OUTCOMES[key];
     // Skipping the reel never reaches the blank, so the LE1 answer is the best
     // one available before the hardcoded default.
     const area = this.area || (this.le1 && this.le1.area) || DEFAULT_AREA;
-    if (this.onDone) this.onDone(out.layer, this.choice || 'send', area);
+    if (this.onDone) this.onDone(out.layer, key, area);
   },
   skip() {
     // Esc/B before the fork still has to produce a fork — jump to it rather
@@ -265,6 +299,7 @@ export const Intro = {
     if (!list || this.choice) return;
     const c = list[n];
     if (!c) return;
+    if (c.spent) { SFX.del(); return; }   // the key you already pressed
 
     // A `field` scene records an answer and stays put — the letter re-types
     // itself with the blank filled, and the player reads their own sentence
@@ -304,8 +339,8 @@ export const Intro = {
     if (Input.pressed('cancel')) { this.skip(); return; }
     if (list && this.tw.done) {
       const nv = Input.nav();
-      if (nv === 'up') { this.sel = (this.sel + list.length - 1) % list.length; SFX.blip(); }
-      if (nv === 'down') { this.sel = (this.sel + 1) % list.length; SFX.blip(); }
+      if (nv === 'up') { this.sel = this._seek(list, -1); SFX.blip(); }
+      if (nv === 'down') { this.sel = this._seek(list, 1); SFX.blip(); }
       const n = Input.numberPressed();
       if (n >= 1 && n <= list.length) { this.pick(n - 1); return; }
       if (Input.pressed('confirm') || Input.pressed('interact')) { this.pick(this.sel); return; }
@@ -321,6 +356,7 @@ export const Intro = {
     if (this._choices() && this.tw.done) {
       for (let i = 0; i < this._rects.length; i++) {
         const r = this._rects[i];
+        if (!r) continue;      // spent row — no hit box
         if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) { this.pick(i); return; }
       }
       return;
@@ -408,13 +444,14 @@ export const Intro = {
       let cy = choicesTop;
       const tight = rowH < 54;
       list.forEach((c, i) => {
-        const on = i === this.sel;
+        const on = i === this.sel && !c.spent;
         // The five-wide layout gets a wider row than the fork's two: it carries a
         // label, a clause and possibly a mark on one line, and at 640 the clause
         // finished about twenty pixels short of the border.
         const rw = Math.min(W - 68, tight ? 780 : 520), rh = rowH - 8;
-        this._rects.push({ x: 34, y: cy - 4, w: rw, h: rh });
-        g.fillStyle = on ? 'rgba(240,199,94,0.13)' : 'rgba(255,255,255,0.03)';
+        // a spent row is not tappable either — null keeps its place in the index
+        this._rects.push(c.spent ? null : { x: 34, y: cy - 4, w: rw, h: rh });
+        g.fillStyle = on ? 'rgba(240,199,94,0.13)' : c.spent ? 'rgba(255,255,255,0.012)' : 'rgba(255,255,255,0.03)';
         g.fillRect(34, cy - 4, rw, rh);
         g.strokeStyle = on ? C.gold : C.rule; g.lineWidth = on ? 2 : 1;
         g.strokeRect(34, cy - 4, rw, rh);
@@ -437,10 +474,18 @@ export const Intro = {
           }
         } else {
           g.font = `bold ${FS}px "Courier New", monospace`;
-          g.fillStyle = on ? C.gold : C.muted;
-          g.fillText(`${i + 1}.  ${c.label}`, 48, cy + 12);
+          g.fillStyle = c.spent ? C.rule : on ? C.gold : C.muted;
+          const head = c.spent ? `—   ${c.label}` : `${i + 1}.  ${c.label}`;
+          g.fillText(head, 48, cy + 12);
+          // struck through, at the width of the text and not the row: this key
+          // was pressed, it is on the record, and the record does not get revised
+          if (c.spent) {
+            const w = g.measureText(head).width;
+            g.strokeStyle = C.rule; g.lineWidth = 2;
+            g.beginPath(); g.moveTo(48, cy + 13); g.lineTo(48 + w, cy + 13); g.stroke();
+          }
           g.font = `${FS - 4}px "Courier New", monospace`;
-          g.fillStyle = C.dim;
+          g.fillStyle = c.spent ? C.rule : C.dim;
           g.fillText(c.sub, 48, cy + 32);
         }
         cy += rowH;

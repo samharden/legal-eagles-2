@@ -223,7 +223,15 @@ The ending reel is the opening reel's own presentation — same typewriter, same
 
   **The bleed does not get a track.** `musicTick(want, bleed)` takes the same 0–1 the renderer lerps its palette with, and does to the music what the renderer does to the colour — one composition, different constants. Each song carries an `echo` and a `bleedInto`, so the bleed lerps the room toward the other layer's: THE FLOOR is reverberant and THE STREET is not, so on Path A the first thing to arrive is the wrong acoustics for the place you are standing in, before anything else is wrong. Then the other layer's chord fades in *underneath* the current one — they share roots an octave apart, which is why two pads sit together instead of fighting — and the lead goes progressively flat, in cents, so it reads as something wrong with the tuning and never as a key change.
 
-Still to do: the run summary (extend `coda()` in `game/ending.js` — it already reads the save), NG+ (the ending deliberately does not clear the save), and LEAnim cinematics. See DESIGN.md §8.
+- **The run summary** opens over the ending reel's close card, and *it* — not the reel — is what returns you to the title. It borrows the Casefile's own panel and every one of its renderers' classes, because a run summary **is** a casefile: the final one, no tabs, with the per-layer parts shown together. Nothing new is measured; every number was already being kept, and `coda()` already turned the interesting half into prose. There is deliberately no score.
+
+- **NEW GAME +** is the other key. A finished run writes a short record to `legalEagles2.runs.v1` — separate from the save, because clearing one should not erase the other — and the title then offers **DELETE IT INSTEAD** or **SEND IT INSTEAD** by name. DESIGN §3 says both paths are full-length campaigns, so a second run is the other side of the fork rather than the same side with the numbers turned up.
+
+  The reel still runs and EXHIBIT C still asks what kind of lawyer you are. Only the fork is spent, and it is shown spent: both keys are still on screen — the one you pressed has to be visible or "the other one" means nothing — but it is struck through, unnumbered, not tappable, and the narration says so.
+
+  What a second run inherits is a paragraph, not a mechanic. The building keeps four hundred letters and does not throw any away, so it kept yours: there is a box near the end pulled forward an inch, with your last resignation in it, marked SENT or struck out according to which key you pressed, and behind it one for every run before that. Bane has been presiding since 1959 on a docket with one matter on it, so of course he has seen you before, and he does not make anything of it.
+
+Still to do: LEAnim cinematics. See DESIGN.md §8.
 
 ---
 
