@@ -363,7 +363,7 @@ clockHooks.onDue = e => {
 };
 
 /* -------------------------------- boot --------------------------------- */
-function beginPath(layerId, path, area, plus = 0) {
+function beginPath(layerId, path, area, plus = 0, look = null) {
   G.path = path;
   G.layer = layerId;
   G.plus = plus;
@@ -388,18 +388,15 @@ function beginPath(layerId, path, area, plus = 0) {
     SFX.district();
     Quests.questEvent('reach', { region: def.id });
   };
-  // The practice area comes from the reel, which either asked you to finish a
-  // sentence in the resignation letter or found the answer in an LE1 save. The
-  // import is still read here for the FACE, and so that the dev `?layer=` jump —
-  // which skips the reel entirely — still gets a sensible lawyer.
+  // Both of these come from the reel, which ASKED. An LE1 save is only a
+  // fallback for the dev `?layer=` jump, which skips the reel entirely — it is
+  // no longer allowed to decide anything a player was going to be asked.
   const le1 = importLE1();
   G.area = (area && AREAS[area]) ? area : (le1 ? le1.area : DEFAULT_AREA);
   const s = SPAWN[layerId];
   G.player = makePlayer(s.x, s.y);
-  if (le1) G.player.spr = le1.spr;
-  say(le1
-    ? `Your bar card, your practice area and your face all came out of the last one. ${areaOf(G.area).name}. ${areaOf(G.area).attack}.`
-    : `${areaOf(G.area).name}. ${areaOf(G.area).attack}. It is what you put in the letter and it is what you have.`, 8);
+  G.player.spr = SPR[look] ? look : (le1 ? le1.spr : G.player.spr);
+  say(`${areaOf(G.area).name}. ${areaOf(G.area).attack}. It is what you put in the letter and it is what you have.`, 8);
   G.carried = [];
   G.complaint = null;
   G.ally = null;
@@ -454,7 +451,7 @@ function startNew(plus = false) {
   document.getElementById('menu').style.display = 'none';
   G.state = 'intro';
   const depth = plus ? runs().length : 0;
-  Intro.start((layerId, path, area) => beginPath(layerId, path, area, depth),
+  Intro.start((layerId, path, area, look) => beginPath(layerId, path, area, depth, look),
     plus ? { forcePath: nextPath(), prev: lastRun() } : null);
 }
 
@@ -467,6 +464,7 @@ function continueGame() {
   G.player.hp = d.hp ?? 100;
   G.carried = d.carried || [];
   if (d.area && AREAS[d.area]) G.area = d.area;
+  if (d.look && SPR[d.look]) G.player.spr = d.look;
   // restore knowledge, matters, the docket and the books BEFORE residency, so
   // quest markers and already-read props come back in the right state
   Facts.loadFacts(d.facts);
@@ -501,6 +499,9 @@ export function doSave() {
     x: G.player.x, y: G.player.y, hp: G.player.hp,
     carried: G.carried,
     area: G.area,
+    // never saved before, so a chosen face was silently replaced by the LE1
+    // import (or the default) every time a save was loaded
+    look: G.player.spr,
     facts: Facts.saveFacts(),
     quests: Quests.saveQuests(),
     clock: saveClock(),

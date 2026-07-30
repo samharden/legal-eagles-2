@@ -8,6 +8,7 @@
 //   DELETE -> layer 'floor'  -> WAS THIS ALL A DREAM?
 
 import { ctx, W, H, C, IS_TOUCH, wrapText } from '../engine/stage.js';
+import { SPR, drawSprite } from '../engine/sprites.js';
 import { Typewriter, Transition, Easing, clamp } from '../engine/anim.js';
 import { SFX } from '../engine/audio.js';
 import * as Input from '../engine/input.js';
@@ -88,6 +89,48 @@ function drawLetter(g, t) {
   g.restore();
 }
 
+/**
+ * The bar card, with both photographs on it. The portraits are the actual
+ * player sprites at size — you should be able to see which one you are picking
+ * rather than read a description of it and hope.
+ */
+function drawBarCard(g, t, I) {
+  const cx = W / 2, cy = H * 0.30;
+  const cw = Math.min(W * 0.62, 460), ch = 150;
+  g.save();
+  g.translate(cx, cy);
+  g.rotate(-0.015);
+  g.fillStyle = 'rgba(0,0,0,0.5)';
+  g.fillRect(-cw / 2 + 5, -ch / 2 + 6, cw, ch);
+  g.fillStyle = '#ddd6c4';
+  g.fillRect(-cw / 2, -ch / 2, cw, ch);
+  g.strokeStyle = '#b0a68e'; g.lineWidth = 2;
+  g.strokeRect(-cw / 2, -ch / 2, cw, ch);
+  g.font = 'bold 11px "Courier New", monospace';
+  g.textAlign = 'left'; g.textBaseline = 'middle';
+  g.fillStyle = '#6b6248';
+  g.fillText('STATE BAR — ADMITTED', -cw / 2 + 16, -ch / 2 + 18);
+  g.fillStyle = '#8a7f68';
+  for (let i = 0; i < 3; i++) g.fillRect(-cw / 2 + 16, ch / 2 - 40 + i * 11, cw * (0.30 + i * 0.06), 2);
+
+  // the two photographs, side by side, the live one lit
+  const list = I && I._choices();
+  const pick = I && I.look;
+  const px = [-cw * 0.16, cw * 0.22];
+  for (let i = 0; i < 2; i++) {
+    const key = ['p_f', 'p_m'][i];
+    const on = pick ? pick === key : !!(list && list[i] && I.sel === i);
+    g.fillStyle = on ? '#f4efe2' : '#c6bda7';
+    g.fillRect(px[i] - 34, -34, 68, 84);
+    g.strokeStyle = on ? '#caa84a' : '#a89e86'; g.lineWidth = on ? 3 : 1;
+    g.strokeRect(px[i] - 34, -34, 68, 84);
+    g.globalAlpha = on ? 1 : 0.45;
+    drawSprite(g, SPR[key], px[i], 4, 66);
+    g.globalAlpha = 1;
+  }
+  g.restore();
+}
+
 function drawChoiceArt(g, t) {
   const cx = W / 2, cy = H * 0.30;
   const bw = Math.min(W * 0.56, 420);
@@ -125,6 +168,21 @@ const SCENES = [
       + 'The first ten were arguments. This one is two paragraphs and it does not argue with anybody.',
   },
   {
+    // Who you are, asked rather than assumed. DESIGN §6 anticipates a short
+    // character creation when there is no LE1 save; there is no good reason for
+    // it to be shorter when there IS one, because most people will never have
+    // played the first game and the ones who did should still get to decide.
+    // The bar card is the diegetic place for a photograph.
+    id: 'P', tag: 'EXHIBIT C', title: 'THE BAR CARD', art: drawBarCard,
+    field: 'look',
+    body: 'Your bar card has been on this desk for nine years, under a coffee ring that has been there almost as long.\n'
+      + 'The photograph was taken the week you were admitted. It is of somebody who had no idea, and it is the only picture of you anybody at this firm has ever seen.',
+    choices: [
+      { key: 'p_f', label: 'THE DARK HAIR, THE WINE SUIT', sub: 'You have worn it to every hearing that mattered.' },
+      { key: 'p_m', label: 'THE SHORT HAIR, THE NAVY SUIT', sub: 'The tie was a gift. You never did replace it.' },
+    ],
+  },
+  {
     // The practice area is chosen HERE, by finishing a sentence in the letter.
     // It is the ranged attack for the whole game — DESIGN §3's practice area and
     // LE1's five classes — but the player is not picking a weapon, they are
@@ -133,7 +191,7 @@ const SCENES = [
     //
     // If an LE1 save exists it has already answered this, so the blank arrives
     // filled in and there is nothing to choose. That is the better beat anyway.
-    id: 'C', tag: 'EXHIBIT C', title: 'THE LETTER', art: drawLetter,
+    id: 'C', tag: 'EXHIBIT D', title: 'THE LETTER', art: drawLetter,
     field: 'area',
     body: I => {
       const head = 'Dear Managing Partner Hargrove:\n'
@@ -148,7 +206,7 @@ const SCENES = [
     choices: Object.values(AREAS).map(a => ({ key: a.id, label: a.name, sub: a.letter })),
   },
   {
-    id: 'D', tag: 'EXHIBIT D', title: 'THE CHOICE', art: drawChoiceArt,
+    id: 'D', fork: true, tag: 'EXHIBIT E', title: 'THE CHOICE', art: drawChoiceArt,
     body: I => I.forced
       ? 'The cursor is in an empty To: field and the draft is open and you have been at this desk before.\n'
         + `Last time you ${I.prev && I.prev.path === 'send' ? 'sent it' : 'deleted it'}, and that is on the record, and the record is not a thing this building revises.\n`
@@ -198,14 +256,13 @@ export const Intro = {
     this.choice = null; this.outroT = 0; this.onDone = onDone;
     this.forced = (plus && plus.forcePath) || null;
     this.prev = (plus && plus.prev) || null;
-    // DESIGN §6: the first game answers this if it can — but it does not get to
-    // answer it FOR you. An LE1 save now pre-selects its area and says so; it
-    // used to fill the blank in and skip the question entirely, which meant a
-    // player with an old save on the same origin was silently handed a practice
-    // area they never chose and could not change. The face still comes across
-    // without being asked, because a face is not a decision.
+    // DESIGN §6: the first game answers these if it can — but it does not get to
+    // answer them FOR you, and it does not get to put the cursor on its answer
+    // either. Most people will never have played LE1; the ones who did should
+    // still be the ones deciding. An LE1 save MARKS its rows and moves nothing.
     this.le1 = importLE1();
     this.area = null;
+    this.look = null;
     document.body.classList.add('reel');
     this._load();
   },
@@ -228,10 +285,12 @@ export const Intro = {
     // the note outside the box it belongs to.
     if (s.field === 'area' && this.le1)
       return s.choices.map(c => c.key === this.le1.area ? { ...c, mark: 'LAST TIME' } : c);
+    if (s.field === 'look' && this.le1)
+      return s.choices.map(c => c.key === this.le1.spr ? { ...c, mark: 'LAST TIME' } : c);
     // The fork is spent on a second run. Both keys are still shown — the one you
     // pressed last time has to be visible, or "the other one" means nothing —
     // but only one of them is still a key you can press.
-    if (s.id === 'D' && this.forced)
+    if (s.fork && this.forced)
       return s.choices.map(c => c.key === this.forced
         ? c
         : { ...c, spent: true, sub: 'You did this. It is done and it does not undo.' });
@@ -245,12 +304,13 @@ export const Intro = {
     // Land the cursor on what the last game said you were, so an LE1 player
     // confirms rather than hunts. Still a keystroke, and still theirs.
     const s = SCENES[this.i];
-    if (s.field === 'area' && this.le1 && !this.area) {
-      const at = s.choices.findIndex(c => c.key === this.le1.area);
-      this.sel = at >= 0 ? at : 0;
-    }
-    // never leave the cursor on a key that cannot be pressed
-    if (s.id === 'D' && this.forced) {
+    // The cursor starts at the top of every list for everybody. It used to land
+    // on whatever LE1 said you were, which is still a default however it is
+    // labelled — press confirm without looking and you get the last game's
+    // answer. The mark stays; the cursor does not move.
+    if (s.choices) this.sel = 0;
+    // ...except onto a key that cannot be pressed
+    if (s.fork && this.forced) {
       const at = s.choices.findIndex(c => c.key === this.forced);
       this.sel = at >= 0 ? at : 0;
     }
@@ -272,10 +332,11 @@ export const Intro = {
     // hardcoded 'send' — which on a NG+ following a SEND run is the spent one.
     const key = this.choice || this.forced || 'send';
     const out = OUTCOMES[key];
-    // Skipping the reel never reaches the blank, so the LE1 answer is the best
-    // one available before the hardcoded default.
+    // Skipping the reel never reaches either question, so the LE1 answer is the
+    // best one available before the hardcoded default.
     const area = this.area || (this.le1 && this.le1.area) || DEFAULT_AREA;
-    if (this.onDone) this.onDone(out.layer, key, area);
+    const look = this.look || (this.le1 && this.le1.spr) || 'p_f';
+    if (this.onDone) this.onDone(out.layer, key, area, look);
   },
   skip() {
     // Esc/B before the fork still has to produce a fork — jump to it rather
@@ -385,7 +446,7 @@ export const Intro = {
     g.save();
     const k = this.trans.kenBurns(this.sceneT, 0.04, 11);
     g.translate(W / 2, H / 2); g.scale(k, k); g.translate(-W / 2, -H / 2);
-    if (s.art) s.art(g, this.sceneT);
+    if (s.art) s.art(g, this.sceneT, this);
     g.restore();
 
     // ---- layout, bottom-up ----------------------------------------------
@@ -487,6 +548,15 @@ export const Intro = {
           g.font = `${FS - 4}px "Courier New", monospace`;
           g.fillStyle = c.spent ? C.rule : C.dim;
           g.fillText(c.sub, 48, cy + 32);
+          // the LE1 mark belongs on the fat rows too — the bar card is two rows,
+          // and it was the one scene where the mark silently did not render
+          if (c.mark) {
+            g.font = `bold ${FS - 5}px "Courier New", monospace`;
+            g.textAlign = 'right';
+            g.fillStyle = on ? C.gold : C.muted;
+            g.fillText(c.mark, 34 + rw - 14, cy + 12);
+            g.textAlign = 'left';
+          }
         }
         cy += rowH;
       });

@@ -132,7 +132,7 @@ Reputation is no longer two hard-coded districts — `Practice.seedRep()` takes 
 
 Melee is 18 a swing and requires standing next to a Collections Agent while it takes $140 off you, so ranged is deliberately a little weaker per second and much safer. That is the trade.
 
-**You choose it in the resignation letter.** EXHIBIT C has a blank in it —
+**You choose it in the resignation letter.** EXHIBIT D has a blank in it —
 
 > *For nine years I have been the person this firm sends when ______________________.*
 
@@ -140,7 +140,7 @@ Melee is 18 a swing and requires standing next to a Collections Agent while it t
 
 `game/areas.js` is also the answer to two other things DESIGN asked for:
 
-- **LE1 save import** (§6) — LE2 reads `legalEagles.save.v1` and takes your `classId` and `genderId`, so your practice area *and your face* carry over from the first game. The face arrives without being asked, because a face is not a decision. The practice area **pre-selects the row and says so** — it does not answer for you. It used to fill the blank in and skip the question entirely, which meant anybody with an old LE1 save on the same origin was silently handed an area they never picked and could not change, on the one screen the whole game forks on.
+- **LE1 save import** (§6) — LE2 reads `legalEagles.save.v1` for your `classId` and `genderId`, and uses them to **mark** the rows you picked last time. That is all it does. It does not fill either answer in, and it does not put the cursor on its own answer either: the cursor starts at the top of every list for everybody, because landing it on the last game's answer is still a default however it is labelled. **Assume nobody played part one** — most people did not, and the ones who did should still be the ones deciding.
   > `localStorage` is scoped to the **origin**, not the path. On GitHub Pages both games sit under `samharden.github.io`, so the import works. Running LE1 off `file://` and LE2 off `localhost:8142` are two different origins and it will never find the save — that is not a bug, and the no-save path is the designed one.
 - **Past Selves fight with your attack** (§4) — they literally do now. A litigator's past selves object at them constantly; a tax lawyer's arrive slowly and hit like a filing deadline.
 
