@@ -280,7 +280,14 @@
   .cfFacts.cfOpen li:before { content:"?"; color:var(--dim); }
   .cfDim { color:var(--dim); font-size:11px; }
   /* tabs */
-  #cfTabs { display:flex; gap:6px; margin-right:auto; }
+  /* Four tabs do not fit 375px on one line, and the head is a flex row, so the
+     last one was simply pushed off the right edge. Both wrap now. */
+  #cfTabs { display:flex; gap:6px; margin-right:auto; flex-wrap:wrap; }
+  @media (max-width: 620px) {
+    #cfHead { flex-wrap:wrap; row-gap:8px; }
+    #cfHead h2 { font-size:14px; letter-spacing:1px; }
+    .cfTab { font-size:10px; padding:5px 8px; }
+  }
   .cfTab { font-family:inherit; font-size:11px; font-weight:bold; letter-spacing:1px;
            padding:5px 12px; border-radius:5px; cursor:pointer;
            background:#171227; border:2px solid #2c2542; color:var(--muted); }
@@ -319,6 +326,10 @@
   .cfLedger .a.pos { color:#9be05e; }
   .cfLedger .a.neg { color:#e05e5e; }
   #cfBody h4 { margin-top:18px; }
+  /* The map scales with the panel — the viewBox is the city's own tile grid, so
+     the aspect ratio is the city's and never needs restating here. */
+  .cfMap { display:block; width:100%; max-width:760px; margin:6px auto 10px;
+           background:#0a0812; border:1px solid var(--rule); }
 
   /* ---- title / menu ---- */
   #menu {

@@ -18,6 +18,7 @@ import * as Practice from '../engine/practice.js';
 import { Hours, hoursHooks, bill, lightUp, lightFree, isLit, writeDown, fmtHours, pressure, saveHours, loadHours, resetHours } from '../engine/hours.js';
 import { Bleed, bleedHooks, setBleed, witness, bleedAt, canCross, LEVEL_NAME, saveBleed, loadBleed, resetBleed } from '../engine/bleed.js';
 import { recordRun, runs, lastRun, hasRun, nextPath, nextLayer } from '../engine/run.js';
+import { walkInto, hasWalked, saveAtlas, loadAtlas, resetAtlas } from '../engine/atlas.js';
 import { Dialogue } from '../engine/dialogue.js';
 import { REGIONS, SPAWN } from './city.js';
 import { LAYERS, layerOf } from './layers.js';
@@ -215,6 +216,15 @@ export function districtName(id) {
 
 function refreshCasefile() { if (Casefile.open) Casefile.render(G.layer); }
 
+// Where the map should put the dot. Global tiles, because that is the only
+// coordinate space this city has.
+Casefile.hooks.player = () => {
+  if (!G.player || !G.world) return null;
+  const gx = Math.floor(G.player.x / TILE), gy = Math.floor(G.player.y / TILE);
+  const b = G.world.regionAt(gx, gy);
+  return { gx, gy, region: b ? b.id : null };
+};
+
 /* ================================ THE DOCKET ============================= */
 // THE FLOOR has no clock — its calendar reads the same date forever, so the
 // whole survival layer is Path A's alone. This is the one predicate that says so.
@@ -367,6 +377,9 @@ function beginPath(layerId, path, area, plus = 0) {
   G.world.onEnter = (def, built) => {
     const L = built.layerData;
     const unlit = G.layer === 'floor' && !isLit(def.id);
+    // onEnter fires exactly once per arrival, which makes it the one honest
+    // place to record that you have actually been somewhere.
+    walkInto(G.layer, def.id);
     showBanner(def.name, layerOf(G.layer).name + (unlit ? ' · UNLIT' : ''));
     // a district you have not paid for describes itself differently, and the
     // line you get after you light it is the one that was always written for it
@@ -398,6 +411,7 @@ function beginPath(layerId, path, area, plus = 0) {
   Practice.seedRep(REGIONS.map(r => r.id));
   resetHours();
   resetBleed();
+  resetAtlas();
   if (layerId === 'street') {
     Practice.post(4100, 'Opening balance — everything you had', 'operating', 1);
     scheduleRent();
@@ -462,6 +476,7 @@ function continueGame() {
   Practice.seedRep(REGIONS.map(r => r.id));   // a save made before a district existed
   if (d.hours) loadHours(d.hours);
   loadBleed(d.bleed);
+  loadAtlas(d.atlas);
   bleedTick();                                // a save made before a gate existed
   G.world.loadDeltas(d.deltas);
   // rebuild residency at the restored position so deltas apply to fresh builds
@@ -492,6 +507,7 @@ export function doSave() {
     practice: Practice.savePractice(),
     hours: saveHours(),
     bleed: saveBleed(),
+    atlas: saveAtlas(),
     complaint: !!G.complaint,
     deltas: G.world.saveDeltas(),
   });

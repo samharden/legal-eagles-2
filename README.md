@@ -231,6 +231,14 @@ The ending reel is the opening reel's own presentation — same typewriter, same
 
   What a second run inherits is a paragraph, not a mechanic. The building keeps four hundred letters and does not throw any away, so it kept yours: there is a box near the end pulled forward an inch, with your last resignation in it, marked SENT or struck out according to which key you pressed, and behind it one for every run before that. Bane has been presiding since 1959 on a docket with one matter on it, so of course he has seen you before, and he does not make anything of it.
 
+- **The map** (`MAP`, in the Casefile on both layers) is drawn from `REGIONS`' own origins, so it is the city rather than a picture of one — adding a district puts it on the map and nothing in the renderer changes. A district you have not walked is an **empty dashed rectangle with no name in it**: you can see there is something there and you are not told what.
+
+  What fills it in is `engine/atlas.js`, and deliberately not `Bleed.seen` — the nearest existing thing, which means *you read the evidence there*, not *you were ever in it*. The atlas is keyed `"<layer>:<region>"` exactly like region deltas, and for the same reason, which buys the best thing on the panel for free:
+
+  > **Cross over and the map is blank again.** Four districts you know intimately on THE STREET are dashed rectangles on THE FLOOR. The one that fills in first is wherever you came through.
+
+  A walked district carries its state — `ON THE LIGHTS`/`DARK` on the floor, your standing on the street, and how far through it has bled — and a ring marks a district with a crossing in it once the bleed has put one there.
+
 Still to do: LEAnim cinematics. See DESIGN.md §8.
 
 ---

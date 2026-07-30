@@ -20,6 +20,7 @@ import { Cal, dateString, relative, allEntries } from '../engine/clock.js';
 import { Books, Rep, Office, repLabel, Firm, STAFF, UPGRADES, payrollTotal, hasUpgrade } from '../engine/practice.js';
 import { Hours, fmtHours, isLit, pressureStep } from '../engine/hours.js';
 import { Bleed, bleedAt, witnessed, canCross, LEVEL_NAME } from '../engine/bleed.js';
+import { hasWalked, walkedIn } from '../engine/atlas.js';
 import { coda, endingMeta, endingSide } from './ending.js';
 import { REGIONS } from './city.js';
 
@@ -29,6 +30,9 @@ export const Casefile = {
   // the run summary borrows this whole panel; non-null while it is up
   summary: null,
   onSummaryClose: null,
+  // The map needs to know where the player is standing, and casefile.js cannot
+  // import main.js. Same hooks idiom the engine uses to ask the game questions.
+  hooks: { player: () => null },
 };
 
 function cfBuild() {
@@ -96,16 +100,104 @@ Casefile.render = function (layer) {
 
   // Each layer gets the tabs its systems justify and no others. THE STREET has
   // dates and money; THE FLOOR has neither and has the timesheet instead.
-  const tabs = this.hasClock ? ['matters', 'docket', 'accounts'] : ['matters', 'hours'];
+  // MAP is on both layers: it is the one panel that is about the city itself
+  // rather than about a system only one layer has.
+  const tabs = this.hasClock ? ['matters', 'map', 'docket', 'accounts'] : ['matters', 'map', 'hours'];
   if (!tabs.includes(this.tab)) this.tab = 'matters';
   cfTabs.innerHTML = tabs.map(t =>
     `<button data-tab="${t}" class="cfTab${t === this.tab ? ' on' : ''}">${t === 'hours' ? 'THE HOURS' : t.toUpperCase()}</button>`).join('');
 
+  if (this.tab === 'map') return renderMap(layer);
   if (this.tab === 'docket') return renderDocket();
   if (this.tab === 'accounts') return renderAccounts();
   if (this.tab === 'hours') return renderHours();
   renderMatters(layer);
 };
+
+/* -------------------------------- THE MAP ------------------------------ */
+// Drawn from REGIONS' own origins, so it is the city rather than a picture of
+// the city: adding a district puts it on the map and nothing here changes.
+//
+// A district you have not walked is an empty dashed rectangle with no name in
+// it. That is the whole requirement — you can see there is something there and
+// you are not told what — and it is why this reads off engine/atlas.js and not
+// off `Bleed.seen`, which means you found the evidence somewhere, not that you
+// were ever in it.
+
+/** Does this district have a crossing authored on this layer? */
+const hasCrossing = (r, layer) =>
+  !!(r.layers && r.layers[layer] && (r.layers[layer].props || []).some(p => p.cross));
+
+function renderMap(layer) {
+  const here = (Casefile.hooks.player && Casefile.hooks.player()) || null;
+  const PAD = 2;
+  let mx = 0, my = 0;
+  for (const r of REGIONS) {
+    mx = Math.max(mx, r.ox + r.rows[0].length);
+    my = Math.max(my, r.oy + r.rows.length);
+  }
+
+  let svg = `<svg class="cfMap" viewBox="${-PAD} ${-PAD} ${mx + PAD * 2} ${my + PAD * 2}" `
+    + `xmlns="http://www.w3.org/2000/svg" role="img" aria-label="city map">`;
+
+  for (const r of REGIONS) {
+    const w = r.rows[0].length, h = r.rows.length;
+    const known = hasWalked(layer, r.id);
+    const cur = here && here.region === r.id;
+    const amt = bleedAt(r.id);
+
+    if (!known) {
+      svg += `<rect x="${r.ox}" y="${r.oy}" width="${w}" height="${h}" fill="none"`
+        + ` stroke="rgba(107,92,143,.30)" stroke-width=".35" stroke-dasharray="1.6 1.6"/>`;
+      continue;
+    }
+
+    // a walked district is filled, and warmer the further through it has bled
+    const tint = amt > 0 ? `rgba(201,162,224,${(0.10 + amt * 0.20).toFixed(3)})` : 'rgba(107,92,143,.20)';
+    svg += `<rect x="${r.ox}" y="${r.oy}" width="${w}" height="${h}" fill="${tint}"`
+      + ` stroke="${cur ? '#f0c75e' : '#6b5c8f'}" stroke-width="${cur ? '.7' : '.4'}"/>`;
+
+    // `paint-order` puts the dark stroke behind the glyphs, so the name stays
+    // readable when the player dot happens to land on top of it — which it can,
+    // because the dot is at a real tile and the label is at the centre.
+    svg += `<text x="${r.ox + w / 2}" y="${r.oy + h / 2 - 1}" text-anchor="middle"`
+      + ` font-size="2.3" font-family="Courier New, monospace" font-weight="bold"`
+      + ` paint-order="stroke" stroke="#0a0812" stroke-width=".7"`
+      + ` fill="${cur ? '#f0c75e' : '#b6a9d0'}">${r.name}</text>`;
+
+    // `repLabel` returns "unknown" at neutral, which on a MAP reads as the
+    // district being unknown rather than your standing in it being nothing yet.
+    // Qualified, and omitted entirely at neutral — a walked district needs no
+    // caption to say you have no reputation there.
+    const state = layer === 'floor'
+      ? (isLit(r.id) ? 'ON THE LIGHTS' : 'DARK')
+      : (r.id in Rep && Math.abs(Rep[r.id]) >= 2 ? 'YOU ARE ' + repLabel(Rep[r.id]).toUpperCase() : '');
+    const sub = [state, amt > 0 ? `BLED ${Math.round(amt * 100)}%` : ''].filter(Boolean).join('  ·  ');
+    if (sub)
+      svg += `<text x="${r.ox + w / 2}" y="${r.oy + h / 2 + 2.6}" text-anchor="middle"`
+        + ` font-size="1.7" font-family="Courier New, monospace" fill="#8d82a8">${sub}</text>`;
+
+    // a way through, once the bleed has put one there
+    if (Bleed.level >= 2 && hasCrossing(r, layer))
+      svg += `<circle cx="${r.ox + w - 3}" cy="${r.oy + 3}" r="1.1" fill="none"`
+        + ` stroke="${canCross() ? '#5ee0c7' : '#6b5c8f'}" stroke-width=".45"/>`;
+  }
+
+  // you, at your actual tile
+  if (here && here.region && hasWalked(layer, here.region))
+    svg += `<circle cx="${here.gx}" cy="${here.gy}" r="1.5" fill="#f0c75e"/>`;
+
+  svg += `</svg>`;
+
+  const known = REGIONS.filter(r => hasWalked(layer, r.id));
+  let html = svg;
+  html += `<div class="cfCount">${known.length} of ${REGIONS.length} districts walked</div>`;
+  if (known.length < REGIONS.length)
+    html += `<p class="cfFoot">The rest of it is on the map because it is there, not because you have been. Nothing fills a district in but going to it.</p>`;
+  if (Bleed.level >= 2 && REGIONS.some(r => hasCrossing(r, layer)))
+    html += `<p class="cfFoot">A ring marks a district with a way through in it. ${canCross() ? 'They are open.' : 'They are not open yet.'}</p>`;
+  cfBody.innerHTML = html;
+}
 
 /* ------------------------------ THE SUMMARY ---------------------------- */
 // Shown once, after the ending reel, over the top of it. Everything in here is
