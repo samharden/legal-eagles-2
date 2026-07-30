@@ -120,7 +120,7 @@ const ENDINGS = {
 // doors, are what the game says back to you at the end. Nothing here scores
 // the run; Phase 5 gets the run summary. This is the game noticing.
 
-function coda() {
+export function coda() {
   const lines = [];
 
   if (Books.commingled)
@@ -329,3 +329,17 @@ export const Ending = {
 };
 
 export const ENDING_IDS = Object.keys(ENDINGS);
+
+/**
+ * The stamp, title and part for an ending id, without the prose. The run summary
+ * has to name the verdict it is summarising, and it should not get to invent its
+ * own wording for one — there is one table of endings in this game.
+ */
+export const endingMeta = id => {
+  const d = ENDINGS[id] || ENDINGS.settle;
+  return { id, stamp: d.stamp, title: d.title, part: d.part, color: d.color };
+};
+
+/** Which list an ending belongs to — DESIGN §3's four, or §4's three. */
+export const STREET_ENDINGS = ['win', 'settle', 'countersue', 'goback'];
+export const endingSide = id => (STREET_ENDINGS.includes(id) ? 'THE SOLO SHINGLE' : 'WAS THIS ALL A DREAM?');

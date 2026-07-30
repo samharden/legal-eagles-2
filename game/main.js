@@ -167,12 +167,23 @@ CASE_HOOKS.ending = outcome => {
   Input.clearHeld();
   G.state = 'end';
   Ending.start(outcome, () => {
-    // Back to the title. The save is left exactly as it was — a finished run is
-    // a thing you should be able to load and stand around in, and there is a
-    // whole city that reads differently once you know how it comes out.
-    G.state = 'menu';
-    document.getElementById('menu').style.display = '';
-    document.getElementById('hud').style.display = 'none';
+    // The reel is over; the accounting is not. The summary opens over the top of
+    // the close card and is the last thing the run does, so IT is what returns
+    // the player to the title rather than the reel.
+    G.state = 'summary';
+    Input.clearHeld();     // the key that dismissed the reel must not also close this
+    Casefile.onSummaryClose = () => {
+      G.state = 'menu';
+      Casefile.onSummaryClose = null;
+      document.body.classList.remove('reel');
+      document.getElementById('menu').style.display = '';
+      document.getElementById('hud').style.display = 'none';
+      // The save is left exactly as it was — a finished run is a thing you
+      // should be able to load and stand around in, and there is a whole city
+      // that reads differently once you know how it comes out.
+      if (hasSave()) el('continueBtn').style.display = '';
+    };
+    Casefile.showSummary(outcome);
   });
 };
 
@@ -1737,6 +1748,15 @@ function step(now) {
     Ending.step(dt);
     Ending.draw();
     musicTick('ending');
+  } else if (G.state === 'summary') {
+    // The panel is DOM and opaque, so nothing needs drawing under it — but the
+    // ending's track keeps running, because the run has not been put down yet.
+    musicTick('ending');
+    if (Input.pressed('casefile') || Input.pressed('cancel')
+      || Input.pressed('confirm') || Input.pressed('interact')) {
+      Casefile.hide();
+      Input.clearHeld();
+    }
   } else if (G.state === 'dialog') {
     // the world holds still behind the conversation, but keeps drawing
     G.fx.step(dt);

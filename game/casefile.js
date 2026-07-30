@@ -20,17 +20,25 @@ import { Cal, dateString, relative, allEntries } from '../engine/clock.js';
 import { Books, Rep, Office, repLabel, Firm, STAFF, UPGRADES, payrollTotal, hasUpgrade } from '../engine/practice.js';
 import { Hours, fmtHours, isLit, pressureStep } from '../engine/hours.js';
 import { Bleed, bleedAt, witnessed, canCross, LEVEL_NAME } from '../engine/bleed.js';
+import { coda, endingMeta, endingSide } from './ending.js';
 import { REGIONS } from './city.js';
 
-let cfRoot, cfBody, cfTabs;
-export const Casefile = { open: false, tab: 'matters', hasClock: true, _layer: 'street' };
+let cfRoot, cfBody, cfTabs, cfTitle, cfCloseBtn;
+export const Casefile = {
+  open: false, tab: 'matters', hasClock: true, _layer: 'street',
+  // the run summary borrows this whole panel; non-null while it is up
+  summary: null,
+  onSummaryClose: null,
+};
 
 function cfBuild() {
   if (cfRoot) return;
   cfRoot = document.getElementById('casefile');
   cfBody = document.getElementById('cfBody');
   cfTabs = document.getElementById('cfTabs');
-  document.getElementById('cfClose').addEventListener('click', () => Casefile.hide());
+  cfTitle = cfRoot.querySelector('#cfHead h2');
+  cfCloseBtn = document.getElementById('cfClose');
+  cfCloseBtn.addEventListener('click', () => Casefile.hide());
   cfTabs.addEventListener('click', e => {
     const b = e.target.closest('[data-tab]');
     if (!b) return;
@@ -48,8 +56,32 @@ Casefile.show = function (layer, hasClock) {
 };
 Casefile.hide = function () {
   cfBuild();
+  const wasSummary = this.summary;
   this.open = false;
+  this.summary = null;
   cfRoot.classList.remove('open');
+  cfTitle.textContent = 'THE CASEFILE';
+  cfCloseBtn.innerHTML = 'CLOSE &nbsp;C';
+  // Closing the summary is the last input of a run, so it is the thing that
+  // finally puts the player back at the title — not the ending reel, which is
+  // still on screen behind this panel.
+  if (wasSummary && this.onSummaryClose) this.onSummaryClose();
+};
+
+/**
+ * The run, accounted for. Borrows the Casefile's own panel and every one of its
+ * renderers' CSS classes, because a run summary IS a casefile — the final one,
+ * with no tabs, and with the parts that were per-layer shown side by side.
+ */
+Casefile.showSummary = function (endingId) {
+  cfBuild();
+  this.open = true;
+  this.summary = endingId || 'settle';
+  cfRoot.classList.add('open');
+  cfTitle.textContent = 'THE FILE, CLOSED';
+  cfTabs.innerHTML = '';
+  cfCloseBtn.textContent = 'CLOSE';
+  renderSummary(this.summary);
 };
 Casefile.toggle = function (layer, hasClock) {
   this.open ? this.hide() : this.show(layer, hasClock);
@@ -57,6 +89,9 @@ Casefile.toggle = function (layer, hasClock) {
 
 Casefile.render = function (layer) {
   cfBuild();
+  // refreshCasefile() fires on every fact, fee and stage change; none of that
+  // may redraw over a finished run's summary.
+  if (this.summary) return;
   this._layer = layer;
 
   // Each layer gets the tabs its systems justify and no others. THE STREET has
@@ -71,6 +106,121 @@ Casefile.render = function (layer) {
   if (this.tab === 'hours') return renderHours();
   renderMatters(layer);
 };
+
+/* ------------------------------ THE SUMMARY ---------------------------- */
+// Shown once, after the ending reel, over the top of it. Everything in here is
+// read off the same state the game has been keeping all along — there is no
+// separate scorekeeping, and deliberately no score.
+
+// Grouped on the quest's own `layer`, with a third bucket for the one matter
+// that has none. `(q.layer || layer) === layer` would have been the obvious
+// line and it puts In re Yourself in BOTH lists, because that is what having no
+// layer means to it.
+const DOCKETS = [
+  ['street', 'THE STREET'],
+  ['floor', 'THE FLOOR'],
+  ['both', 'BOTH'],
+];
+
+function renderSummary(endingId) {
+  const E = endingMeta(endingId);
+  const all = allQuests();
+  const closed = all.filter(q => isDone(q.id) && !isFailed(q.id));
+  const lost = all.filter(q => isFailed(q.id));
+  const openM = all.filter(q => started(q.id) && !isDone(q.id));
+  const never = all.filter(q => !started(q.id));
+
+  // facts, summed over every case that has any
+  let fk = 0, ft = 0;
+  for (const q of all) { const n = factCount(q.id); fk += n.known; ft += n.total; }
+
+  let html = '';
+
+  // ---- the verdict ----
+  html += `<section class="cfCase">`;
+  html += `<h3>${E.stamp}<span class="cfStatus">${endingSide(endingId)}</span></h3>`;
+  html += `<p class="cfBlurb">${E.title}</p>`;
+  html += `<p class="cfFoot">Entered by the court. The court did not entertain an amendment.</p>`;
+  html += `</section>`;
+
+  // ---- the docket, both of them ----
+  html += `<h4>THE DOCKET</h4>`;
+  html += `<div class="cfAccts">`;
+  html += `<div class="cfAcct"><div class="lbl">CLOSED</div><div class="val">${closed.length}</div><div class="sub">of ${all.length} matters</div></div>`;
+  html += `<div class="cfAcct trust"><div class="lbl">ESTABLISHED</div><div class="val">${fk}</div><div class="sub">of ${ft} things to know</div></div>`;
+  html += `</div>`;
+  if (lost.length)
+    html += `<p class="cfWarn">${lost.length} matter${lost.length > 1 ? 's' : ''} lost on the date. There is no version of the game in which those come back.</p>`;
+
+  for (const [key, label] of DOCKETS) {
+    const mine = all.filter(q => (q.layer || 'both') === key && started(q.id));
+    if (!mine.length) continue;
+    html += `<h4>${label}</h4><ul class="cfFacts">`;
+    for (const q of mine) {
+      const failed = isFailed(q.id), done = isDone(q.id);
+      const status = failed ? `<span class="bad">LOST</span>`
+        : done ? `<b>${String(outcomeOf(q.id) || 'closed').toUpperCase()}</b>`
+          : `<span class="cfDim">still open</span>`;
+      html += `<li>${q.name} — ${status}</li>`;
+    }
+    html += `</ul>`;
+  }
+  if (openM.length || never.length)
+    html += `<p class="cfFoot">${openM.length} left open, ${never.length} never opened at all. A docket is not a checklist and was never going to be finished.</p>`;
+
+  // ---- the books, if there was ever an economy ----
+  if (Books.entries.length) {
+    html += `<h4>THE BOOKS</h4><div class="cfAccts">`;
+    html += `<div class="cfAcct"><div class="lbl">OPERATING</div><div class="val${Books.operating < 0 ? ' bad' : ''}">$${Books.operating}</div><div class="sub">yours</div></div>`;
+    html += `<div class="cfAcct trust"><div class="lbl">CLIENT TRUST</div><div class="val">$${Books.trust}</div><div class="sub">theirs</div></div>`;
+    html += `</div>`;
+    html += `<ul class="cfFacts">`;
+    html += `<li>Trust account crossed — <b>${Books.commingled || 'never'}</b>${Books.commingled ? ' time' + (Books.commingled > 1 ? 's' : '') : ''}</li>`;
+    html += `<li>Suite 2B — <b>${Office.held ? 'held' : 'lost'}</b>${Books.arrears ? ` <span class="cfDim">(${Books.arrears} week${Books.arrears > 1 ? 's' : ''} behind)</span>` : ''}</li>`;
+    html += `<li>On the payroll at the end — <b>${Firm.staff.length ? Firm.staff.map(id => STAFF[id].name).join(', ') : 'nobody but you'}</b></li>`;
+    const bought = Object.values(UPGRADES).filter(u => hasUpgrade(u.id));
+    if (bought.length) html += `<li>The room — <b>${bought.map(u => u.name).join(' · ')}</b></li>`;
+    html += `</ul>`;
+    html += `<p class="cfFoot">${allEntries().length ? `Day ${Cal.day} — ${dateString()}.` : ''} ${Books.entries.length} entries in the ledger.</p>`;
+  }
+
+  // ---- the hours, if the building ever billed ----
+  if (Hours.billed > 0) {
+    const lit = REGIONS.filter(r => r.layers && r.layers.floor && isLit(r.id));
+    html += `<h4>THE HOURS</h4><div class="cfAccts">`;
+    html += `<div class="cfAcct"><div class="lbl">BANKED</div><div class="val">${fmtHours(Hours.banked)}</div><div class="sub">left over</div></div>`;
+    html += `<div class="cfAcct trust"><div class="lbl">BILLED, TOTAL</div><div class="val">${fmtHours(Hours.billed)}</div><div class="sub">this never went down</div></div>`;
+    html += `</div>`;
+    html += `<p class="cfFoot">${lit.length} of ${REGIONS.length} floors on the lights at the end. Nothing gives hours back.</p>`;
+  }
+
+  // ---- standing ----
+  const rep = REGIONS.filter(r => r.id in Rep);
+  if (rep.length) {
+    html += `<h4>STANDING</h4><ul class="cfFacts">`;
+    for (const r of rep)
+      html += `<li>${r.name} — <b>${repLabel(Rep[r.id])}</b> <span class="cfDim">(${Rep[r.id] > 0 ? '+' : ''}${Rep[r.id]})</span></li>`;
+    html += `</ul>`;
+  }
+
+  // ---- the city ----
+  html += `<h4>THE CITY</h4><ul class="cfFacts">`;
+  html += `<li>The bleed reached — <b>${LEVEL_NAME[Bleed.level]}</b></li>`;
+  html += `<li>Districts you found it in — <b>${REGIONS.filter(r => witnessed(r.id)).length} of ${REGIONS.length}</b></li>`;
+  html += `<li>Times you went through — <b>${Bleed.crossed || 'none'}</b></li>`;
+  html += `</ul>`;
+
+  // ---- and what the game makes of it ----
+  const lines = coda();
+  if (lines.length) {
+    html += `<h4>THE RECORD</h4>`;
+    for (const l of lines) html += `<p class="cfBlurb">${l}</p>`;
+  }
+  html += `<p class="cfFoot">A motion to withdraw shall state the reasons therefor, unless the reasons are obvious.</p>`;
+
+  cfBody.innerHTML = html;
+  cfBody.scrollTop = 0;
+}
 
 /* ------------------------------- THE BLEED ----------------------------- */
 // Sits above MATTERS rather than in a tab of its own, because it is not a
