@@ -77,11 +77,39 @@ window.addEventListener('keyup', e => { src.key[e.key.toLowerCase()] = false; })
 // a tab-out must not leave a key stuck down
 window.addEventListener('blur', () => { for (const k in src.key) src.key[k] = false; });
 
+/* ---------------------------- screen -> board --------------------------- */
+/**
+ * A client point in canvas coordinates.
+ *
+ * The naive version — divide by the element's own rect — is wrong wherever the
+ * element box is not the same shape as the backing store, and one place it is
+ * not is the intro: `body.reel canvas` is `width:100%; height:100%;
+ * object-fit:contain`, so on a phone the 720x1010 board is drawn 390x547 inside
+ * an 390x844 element with a 148px letterbox above and below it. Mapping through
+ * the element rect there put a tap on an intro choice row ~140px above the row
+ * it was aimed at, which on the two-choice scenes meant it hit nothing at all
+ * and the reel simply refused to go on.
+ *
+ * Everywhere else the canvas is `height:auto`, which preserves the intrinsic
+ * ratio exactly, so the contain box IS the element box and this is the old
+ * arithmetic to the pixel. That is why it is unconditional: there is no mode
+ * where the letterbox correction is the wrong thing to do.
+ */
+function toCanvas(clientX, clientY) {
+  const r = cv.getBoundingClientRect();
+  const boardAR = W / H, elemAR = r.width / r.height;
+  const dw = elemAR > boardAR ? r.height * boardAR : r.width;
+  const dh = elemAR > boardAR ? r.height : r.width / boardAR;
+  return {
+    x: (clientX - r.left - (r.width - dw) / 2) * (W / dw),
+    y: (clientY - r.top - (r.height - dh) / 2) * (H / dh),
+  };
+}
+
 /* -------------------------------- mouse ------------------------------- */
 cv.addEventListener('mousemove', e => {
-  const r = cv.getBoundingClientRect();
-  mouse.x = (e.clientX - r.left) * (W / r.width);
-  mouse.y = (e.clientY - r.top) * (H / r.height);
+  const p = toCanvas(e.clientX, e.clientY);
+  mouse.x = p.x; mouse.y = p.y;
   mouse.over = true;
 });
 cv.addEventListener('mouseleave', () => { mouse.over = false; });
@@ -89,8 +117,8 @@ cv.addEventListener('mousedown', () => { mouse.down = true; });
 window.addEventListener('mouseup', () => { mouse.down = false; });
 cv.addEventListener('click', e => {
   if (!hooks.onCanvasTap) return;
-  const r = cv.getBoundingClientRect();
-  hooks.onCanvasTap((e.clientX - r.left) * (W / r.width), (e.clientY - r.top) * (H / r.height));
+  const p = toCanvas(e.clientX, e.clientY);
+  hooks.onCanvasTap(p.x, p.y);
 });
 cv.addEventListener('wheel', e => {
   e.preventDefault();
@@ -148,8 +176,8 @@ if (IS_TOUCH) {
   cv.addEventListener('touchstart', e => {
     if (e.touches.length === 2) { pinchD = spread(e); pinchZ = view.zoom; return; }
     e.preventDefault();
-    const t = e.changedTouches[0], r = cv.getBoundingClientRect();
-    if (hooks.onCanvasTap) hooks.onCanvasTap((t.clientX - r.left) * (W / r.width), (t.clientY - r.top) * (H / r.height));
+    const t = e.changedTouches[0], p = toCanvas(t.clientX, t.clientY);
+    if (hooks.onCanvasTap) hooks.onCanvasTap(p.x, p.y);
   }, { passive: false });
   cv.addEventListener('touchmove', e => {
     if (e.touches.length !== 2 || !pinchD) return;

@@ -65,12 +65,15 @@ const DARK_BARKS = [
 ];
 
 const SPEED = 205, DASH_SPD = 880, DASH_T = 0.16, DASH_CD = 1.1;
+// Spin: strike reaches 28px on one bearing for 18; this reaches 54px on all of
+// them for 26, and pays about three strikes of cooldown for the privilege.
+const SPIN_R = 54, SPIN_DMG = 26, SPIN_CD = 1.15;
 
 function makePlayer(x, y) {
   return {
     x, y, spr: 'p_f', face: { x: 0, y: 1 }, r: 14,
     hp: 100, maxhp: 100, moving: false,
-    dashT: 0, dashCd: 0, meleeCd: 0, hurtCd: 0, fireCd: 0,
+    dashT: 0, dashCd: 0, meleeCd: 0, hurtCd: 0, fireCd: 0, spinCd: 0,
     rig: new Rig(),
   };
 }
@@ -1404,6 +1407,7 @@ function updatePlay(dt) {
   if (p.meleeCd > 0) p.meleeCd -= dt;
   if (p.fireCd > 0) p.fireCd -= dt;
   if (p.hurtCd > 0) p.hurtCd -= dt;
+  if (p.spinCd > 0) p.spinCd -= dt;
 
   // dashing from a standstill is allowed — it lunges along the way you face
   if (Input.pressed('dash') && p.dashCd <= 0 && p.dashT <= 0) {
@@ -1480,6 +1484,42 @@ function updatePlay(dt) {
     }
     SFX.melee();
     if (hit) { fx.addTrauma(0.35); fx.stop(0.05); SFX.hit(); }
+  }
+
+  // --- spin ---
+  // The rig has had a `spin` state since the animation pass and the input layer
+  // has had the binding, but nothing ever connected the two, so the SPIN button
+  // on the thumb shelf was decoration. It is the answer to being SURROUNDED,
+  // which is the one thing strike is bad at: strike is a 28px circle thrown 32px
+  // along your facing and it can only ever answer one direction at a time.
+  //
+  // So: everything within reach, no facing, knocked outward from you rather than
+  // away from your nose. It hits harder than strike and costs a long cooldown —
+  // roughly three strikes' worth — so it stays the thing you spend when you are
+  // in trouble rather than the button you lean on.
+  if (Input.pressed('spin') && p.spinCd <= 0) {
+    p.spinCd = SPIN_CD; p.rig.spin();
+    let hit = false;
+    for (const a of [...world.allActors()]) {
+      const d = actorDef(a.type);
+      const dx = a.x - p.x, dy = a.y - p.y, m = Math.hypot(dx, dy);
+      if (m < d.r + SPIN_R) {
+        // dead-centre overlap has no direction to be thrown in; pick your facing
+        const kx = m > 0.001 ? dx / m : p.face.x, ky = m > 0.001 ? dy / m : p.face.y;
+        a.hp -= SPIN_DMG; hit = true;
+        (a.rig || (a.rig = new Rig())).hurt(kx, ky, 1.35);
+        moveEntity(world, a, kx * 240 * 0.11, ky * 240 * 0.11, d.r);
+        fx.number(a.x, a.y - d.r - 6, SPIN_DMG, '#f0c75e');
+        fx.spark(a.x, a.y, 5);
+        if (a.hp <= 0) downActor(a, d);
+      }
+    }
+    SFX.melee(); SFX.dash();
+    // a ring, not dust: dust takes a direction, and atan2(0,0) is 0, so a spin
+    // asking for dust with no bearing throws all of it due west. The ring is
+    // also the honest picture of the move — it is drawn at the reach.
+    fx.ring(p.x, p.y, C.gold, SPIN_R + 16, 0.3, 3);
+    if (hit) { fx.addTrauma(0.5); fx.stop(0.07); SFX.hit(); }
   }
 
   // --- actors ---

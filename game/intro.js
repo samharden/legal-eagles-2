@@ -463,7 +463,23 @@ export const Intro = {
     // fork's height would push the letter off the top of the board — so the row
     // shrinks with the count rather than the letter being cut.
     const list = this._choices();
-    const rowH = list && list.length > 3 ? 38 : 54;
+    const many = !!list && list.length > 3;
+    // The five-wide scene's one-line row needs a label column AND a clause
+    // column beside it, and that only fits on the 960-wide desktop board. The
+    // portrait board is 720, where INTELLECTUAL PROPERTY — the longest label —
+    // pushed its clause clean through the right border of the row. So a narrow
+    // board gives the five the same two-line card the fork uses, which portrait
+    // can now afford the height for.
+    const wide = W >= 900;
+    // On touch these rows are the ONLY way to answer — body.reel hides the thumb
+    // shelf, so there is no d-pad and no confirm button to fall back on. At the
+    // desktop heights that is a 46px row drawn about 25 physical px tall on a
+    // phone, roughly half a fingertip. The board maps to the screen as a whole,
+    // so a fraction of H is the portable way to ask for a ~44px target without
+    // the reel knowing anything about the display scale.
+    const rowH = IS_TOUCH
+      ? Math.max(54, Math.min(96, Math.round(H * (many ? 0.078 : 0.088))))
+      : (many ? 38 : 54);
     const showChoices = !!(list && this.tw.done);
     const choicesH = list ? list.length * rowH : 0;
     const choicesTop = H - 26 - choicesH;
@@ -503,7 +519,12 @@ export const Intro = {
     this._rects = [];
     if (showChoices) {
       let cy = choicesTop;
-      const tight = rowH < 54;
+      // The one-line layout belongs to the FIVE-WIDE SCENE on a board with room
+      // for it, not to short rows. Deriving it from rowH was the same test by
+      // accident (38 < 54 exactly when the count was over three) right up until
+      // touch made the five-wide rows tall, at which point the practice areas
+      // would have silently switched to the fork's card mid-layout.
+      const tight = many && wide;
       list.forEach((c, i) => {
         const on = i === this.sel && !c.spent;
         // The five-wide layout gets a wider row than the fork's two: it carries a
@@ -522,9 +543,15 @@ export const Intro = {
           g.fillStyle = on ? C.gold : C.muted;
           const head = `${i + 1}.  ${c.label}`;
           g.fillText(head, 48, cy + rh / 2 - 2);
+          // Measured HERE, while the head's own font is still set. Measuring it
+          // after the switch to the clause font asked how wide the label would
+          // be if it were three points smaller than it is, which is 45px short
+          // on INTELLECTUAL PROPERTY — the longest of the five — and ran the
+          // clause 21px into the back of the label.
+          const headW = g.measureText(head).width;
           g.font = `${FS - 5}px "Courier New", monospace`;
           g.fillStyle = C.dim;
-          g.fillText(c.sub, 48 + Math.max(230, g.measureText(head).width + 24), cy + rh / 2 - 2);
+          g.fillText(c.sub, 48 + Math.max(230, headW + 24), cy + rh / 2 - 2);
           // right-aligned inside the row, so it cannot run past the border no
           // matter how long the clause beside it is
           if (c.mark) {
@@ -534,27 +561,32 @@ export const Intro = {
             g.textAlign = 'left';
           }
         } else {
+          // Both lines hang off the row's MIDDLE. They used to be measured from
+          // its top, which is the same place while the row is 46px tall and
+          // drifts to the ceiling once touch makes it 88 — the label and the
+          // clause would have sat in the top third of a very tall card.
+          const mid = cy + rh / 2;
           g.font = `bold ${FS}px "Courier New", monospace`;
           g.fillStyle = c.spent ? C.rule : on ? C.gold : C.muted;
           const head = c.spent ? `—   ${c.label}` : `${i + 1}.  ${c.label}`;
-          g.fillText(head, 48, cy + 12);
+          g.fillText(head, 48, mid - 11);
           // struck through, at the width of the text and not the row: this key
           // was pressed, it is on the record, and the record does not get revised
           if (c.spent) {
             const w = g.measureText(head).width;
             g.strokeStyle = C.rule; g.lineWidth = 2;
-            g.beginPath(); g.moveTo(48, cy + 13); g.lineTo(48 + w, cy + 13); g.stroke();
+            g.beginPath(); g.moveTo(48, mid - 10); g.lineTo(48 + w, mid - 10); g.stroke();
           }
           g.font = `${FS - 4}px "Courier New", monospace`;
           g.fillStyle = c.spent ? C.rule : C.dim;
-          g.fillText(c.sub, 48, cy + 32);
+          g.fillText(c.sub, 48, mid + 9);
           // the LE1 mark belongs on the fat rows too — the bar card is two rows,
           // and it was the one scene where the mark silently did not render
           if (c.mark) {
             g.font = `bold ${FS - 5}px "Courier New", monospace`;
             g.textAlign = 'right';
             g.fillStyle = on ? C.gold : C.muted;
-            g.fillText(c.mark, 34 + rw - 14, cy + 12);
+            g.fillText(c.mark, 34 + rw - 14, mid - 11);
             g.textAlign = 'left';
           }
         }
