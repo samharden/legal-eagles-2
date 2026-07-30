@@ -7,7 +7,16 @@
 <style>
   :root {
     --muted:#b6a9d0; --dim:#8d82a8; --line:#6b5c8f; --rule:#2e2745;
-    --shelf:262px; --chrome:52px;
+    /* --chrome and --shelf describe the TOUCH layout: the masthead, and the thumb
+       shelf whose height #touch also uses. They MUST stay on :root — engine/
+       stage.js reads them off document.documentElement to size the portrait
+       canvas, and it runs before anything has added body.touch, so moving them
+       onto body.touch leaves stage.js reading the desktop numbers and building a
+       backing store for a board shape that does not exist. */
+    --chrome:52px; --shelf:262px;
+    /* ...and these are the desktop page's own chrome, which stage.js has no
+       opinion about: the masthead, and the controls row under the board. */
+    --deskchrome:74px; --deskui:34px;
     --board-ar:960 / 600; --board-k:1.6;
   }
   @media (max-height: 720px) { :root { --shelf:220px; --chrome:44px; } }
@@ -15,14 +24,28 @@
   body {
     background:#120f1c; color:#e8e0f0; font-family:"Courier New", monospace;
     display:flex; flex-direction:column; align-items:center; min-height:100vh; padding:12px;
+    /* The one width the masthead, the board and the controls row all share, so
+       the page stays a single column when height forces the board narrower than
+       966. `--board-k` is the board's live aspect ratio — stage.js overwrites it
+       on a portrait phone, where the board is not 960x600 — so this tracks
+       whatever shape the canvas actually is. */
+    --boardw: min(966px, calc((100vh - var(--deskchrome) - var(--deskui)) * var(--board-k)));
   }
+  body.touch { --boardw: min(966px, calc((100vh - var(--chrome) - var(--shelf)) * var(--board-k))); }
   #head {
-    width:100%; max-width:966px; display:flex; align-items:baseline; gap:14px;
+    width:100%; max-width:var(--boardw); display:flex; align-items:baseline; gap:14px;
     border-bottom:2px solid var(--line); padding-bottom:6px; margin-bottom:8px; white-space:nowrap;
   }
   h1 { font-size:17px; letter-spacing:2px; color:#f0c75e; font-weight:bold; }
   .tagline { color:var(--muted); font-style:italic; font-size:12px; overflow:hidden; text-overflow:ellipsis; }
-  #wrap { position:relative; width:100%; max-width:966px; }
+  /* The board is width-driven (`canvas { width:100% }`), so it needs a ceiling
+     that knows about the height available or it simply runs off the bottom — and
+     the HUD, absolutely positioned over the top of it, then covers most of what
+     you can still see. At 990x430 the board was 966x605: 222px of it below the
+     fold, and 43% of the remainder under the HUD.
+     The ceiling goes on the WRAP rather than the canvas, because #hud is
+     positioned against the wrap and has to keep lining up with the board edges. */
+  #wrap { position:relative; width:100%; max-width:var(--boardw); margin:0 auto; }
   canvas { background:#08060f; border:2px solid var(--line); display:block;
            width:100%; height:auto; touch-action:none; }
   #wrap:fullscreen { max-width:none; display:flex; align-items:center; justify-content:center; background:#000; }
@@ -132,18 +155,6 @@
   body.touch #touch { display:block; }
   body.touch { padding:6px; }
 
-  /* ---- the board needs a ceiling that knows about height ----
-     `canvas { width:100%; height:auto }` is width-driven, so on a landscape
-     phone it computed 812x507 inside a 375-tall viewport — and the 220px shelf
-     then covered 384px of a 502px board, leaving no visible playfield at all.
-     The WRAP is constrained rather than the canvas, because #hud is absolutely
-     positioned to the wrap and has to keep lining up with the board's edges.
-     `--chrome` was declared at the top of this file and never used; this is
-     what it was for. */
-  body.touch #wrap {
-    max-width: min(966px, calc((100vh - var(--chrome) - var(--shelf)) * var(--board-k)));
-  }
-
   /* ---- landscape phone: the controls overlay the board, they do not sit under it ----
      A 220px band out of 375px of height is 59% of the screen. In landscape there
      is no band: #touch becomes a transparent full-viewport layer (it is already
@@ -160,21 +171,40 @@
     body.touch #tbFire { width:70px; height:70px; bottom:38px; font-size:12px; }
     body.touch #tbStrike { width:58px; height:58px; right:74px; }
     body.touch #tbSpin { width:48px; height:48px; bottom:112px; font-size:10px; }
+  }
 
-    /* The board is only ~330px tall here and the HUD was taking 39% of it. Same
-       rows, same information, tighter — this is the one layout where the cost of
-       a line of chrome is measured against the playfield rather than the page. */
-    body.touch #hud { padding:5px 8px 8px; }
-    body.touch #hTop { margin-bottom:2px; }
-    body.touch #hName { font-size:11px; }
-    body.touch #hLedger { margin-bottom:2px; }
-    body.touch #hMoney, body.touch #hDay { font-size:10px; }
-    body.touch #hHpbar { height:13px; max-width:250px; }
-    body.touch #hHpLabel { font-size:9px; }
-    body.touch #hMatterBox { margin-top:3px; }
-    body.touch #hMatter { font-size:8px; }
-    body.touch #hObjective { font-size:11px; line-height:1.25; }
-    body.touch #hCarry { font-size:9px; margin-top:2px; }
+  /* ---- short viewport: the HUD shrinks with the board ----
+     #hud is absolutely positioned over the top of the board — that is the LE1
+     look and it is fine over 600px of playfield. Over 320px it was 52% of it.
+     Same rows and the same information, tighter. Keyed on height alone and not
+     on touch: a half-height desktop window has exactly the same problem and it
+     is how this got reported. */
+  @media (max-height: 700px) {
+    /* The title bar and the tagline are decoration during play, and at this
+       height every pixel of them is a pixel of playfield. Trimming them lets the
+       board's ceiling rise, so --chrome and --shelf are re-stated to match. */
+    body { padding:6px; }
+    h1 { font-size:13px; letter-spacing:1px; }
+    .tagline { display:none; }
+    #head { padding-bottom:4px; margin-bottom:5px; }
+    #ui { font-size:10px; }
+    /* --deskui is the controls row, which wraps to two lines once the board is
+       narrow — measured at 33px, so 42 leaves it real headroom rather than the
+       4px it fitted in on the first pass. */
+    :root { --deskchrome:48px; --deskui:42px; }
+
+    #hud { padding:5px 8px 8px; }
+    #hTop { margin-bottom:2px; }
+    #hName { font-size:11px; }
+    #hLedger { margin-bottom:2px; }
+    #hMoney, #hDay { font-size:10px; }
+    #hHpbar { height:13px; max-width:250px; }
+    #hHpLabel { font-size:9px; }
+    #hMatterBox { margin-top:3px; }
+    #hMatter { font-size:8px; }
+    #hObjective { font-size:11px; line-height:1.25; }
+    #hCarry { font-size:9px; margin-top:2px; }
+    #hMsg { font-size:11px; padding:5px 8px; }
   }
   body.touch h1 { font-size:13px; letter-spacing:1px; }
   body.touch .tagline, body.touch #ui { display:none; }
@@ -308,7 +338,7 @@
   #menu button:hover { box-shadow:0 0 18px rgba(240,199,94,.6); }
   .padsel { outline:3px solid #5ec8f0; outline-offset:2px; border-radius:8px; }
 
-  #ui { width:100%; max-width:966px; display:flex; justify-content:space-between; gap:16px;
+  #ui { width:100%; max-width:var(--boardw); display:flex; justify-content:space-between; gap:16px;
         margin-top:8px; padding-top:6px; border-top:2px solid var(--rule);
         font-size:11px; color:var(--dim); letter-spacing:.3px; }
   #ui b { color:#f0c75e; }
