@@ -96,4 +96,9 @@ createServer(async (req, res) => {
   } catch (e) {
     res.writeHead(e.code === 'ENOENT' ? 404 : 500).end(String(e.code || e));
   }
-}).listen(PORT, () => console.log(`LE2 dev server  http://localhost:${PORT}  (no-store)`));
+// Bound to loopback on purpose. Node's default with no host is 0.0.0.0 — every
+// interface — which puts the whole project directory on the local network the
+// moment you work from a coffee shop. Nothing here is meant to be reachable by
+// anyone but you; the traversal guard above keeps the server inside ROOT, and
+// this keeps it inside the machine.
+}).listen(PORT, '127.0.0.1', () => console.log(`LE2 dev server  http://localhost:${PORT}  (no-store)`));
