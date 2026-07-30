@@ -91,7 +91,7 @@ const NT = n => 440 * Math.pow(2, (n - 69) / 12);
 export const SONGS = {
   // the resignation letter, 2:47 a.m. — one hand, no drums, a lot of space
   letter: {
-    bpm: 68,
+    bpm: 68, echo: 0.30,
     chords: [[45, 48, 52], [43, 46, 50], [41, 45, 48], [40, 44, 47]],
     bass: [33, 0, 0, 0, 0, 0, 0, 0, 33, 0, 0, 0, 40, 0, 0, 0,
       31, 0, 0, 0, 0, 0, 0, 0, 31, 0, 0, 0, 38, 0, 0, 0,
@@ -105,7 +105,7 @@ export const SONGS = {
   // THE STREET — daylight, traffic, somebody's radio. Walking-pace and hopeful
   // in a way the player has not earned yet.
   street: {
-    bpm: 108, swing: 0.14,
+    bpm: 108, swing: 0.14, echo: 0.16, bleedInto: 'floor',
     kick: 'x...x...x...x...', snare: '....x.......x...', hat: '..x...x...x...xx',
     chords: [[50, 54, 57], [48, 52, 55], [45, 49, 52], [47, 50, 54]],
     bass: [38, 0, 38, 0, 45, 0, 42, 0, 38, 0, 38, 0, 43, 0, 40, 0,
@@ -121,7 +121,7 @@ export const SONGS = {
   // octave down, no drums, no lead until you earn one. The recognition is the
   // point: it should take a moment to notice it's the same tune.
   floor: {
-    bpm: 72,
+    bpm: 72, echo: 0.46, bleedInto: 'street',
     chords: [[38, 42, 45], [36, 40, 43], [33, 37, 40], [35, 38, 42]],
     bass: [26, 0, 0, 0, 0, 0, 0, 0, 26, 0, 0, 0, 0, 0, 33, 0,
       24, 0, 0, 0, 0, 0, 0, 0, 24, 0, 0, 0, 0, 0, 31, 0,
@@ -132,6 +132,50 @@ export const SONGS = {
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
       0, 0, 0, 0, 61, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
   },
+};
+
+// THE OPPOSITION — the city's own progression with the thirds flattened and
+// nowhere to breathe. Same roots as `street` and `floor`, so a boss fight is
+// audibly happening in the district it is happening in.
+SONGS.boss = {
+  bpm: 132, echo: 0.20,
+  kick: 'x..x..x.x..x..x.', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.xx',
+  chords: [[50, 53, 57], [48, 51, 55], [45, 48, 52], [47, 50, 54]],
+  bass: [38, 38, 0, 38, 45, 0, 38, 0, 38, 38, 0, 38, 43, 0, 45, 0,
+    36, 36, 0, 36, 43, 0, 36, 0, 36, 36, 0, 36, 41, 0, 43, 0,
+    33, 33, 0, 33, 40, 0, 33, 0, 33, 33, 0, 33, 38, 0, 40, 0,
+    35, 35, 0, 35, 42, 0, 35, 0, 35, 35, 0, 35, 40, 0, 42, 0],
+  lead: [74, 0, 0, 0, 74, 0, 73, 0, 0, 0, 0, 0, 74, 0, 0, 0,
+    72, 0, 0, 0, 72, 0, 71, 0, 0, 0, 0, 0, 72, 0, 0, 0,
+    69, 0, 0, 0, 69, 0, 68, 0, 0, 0, 0, 0, 69, 0, 0, 0,
+    71, 0, 0, 0, 71, 0, 74, 0, 0, 0, 0, 0, 71, 0, 0, 0],
+};
+
+// IN RE YOURSELF — and this one is not composed so much as assembled, because
+// the finale's whole argument is that both of these were always the same city.
+// It is THE FLOOR's bass and chords under THE STREET's lead, at a tempo between
+// them, over a kick that is just a pulse. Nothing new is written; the two halves
+// are put in the same room and told to account for themselves.
+SONGS.yourself = {
+  bpm: 92, echo: 0.36,
+  kick: 'x.......x.......',
+  chords: SONGS.floor.chords,
+  bass: SONGS.floor.bass,
+  lead: SONGS.street.lead,
+};
+
+// THE ENDINGS — the letter's own progression and its own bass, finished. Its
+// lead trails off unresolved because at 2:47 a.m. nothing was resolved; this
+// one goes up to the tonic and stops there, which is the only difference and is
+// the entire point of it.
+SONGS.ending = {
+  bpm: 58, echo: 0.34,
+  chords: SONGS.letter.chords,
+  bass: SONGS.letter.bass,
+  lead: [0, 0, 0, 0, 69, 0, 0, 0, 0, 0, 72, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 74, 0, 0, 0, 0, 0, 70, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 72, 0, 0, 0, 0, 0, 69, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 68, 0, 0, 0, 69, 0, 0, 0, 0, 0, 0, 0],
 };
 
 function kickAt(when, vol = 0.34) { tone({ f: 130, f2: 40, type: 'sine', t: 0.13, vol, when, dest: AU.mus }); }
@@ -150,11 +194,11 @@ function bassNote(f, t, when, vol = 0.17) {
   o.connect(flt); flt.connect(g); g.connect(AU.mus);
   o.start(st); o.stop(st + t + 0.02);
 }
-function leadNote(f, t, when, vol = 0.045) {
+function leadNote(f, t, when, vol = 0.045, bend = 0) {
   const C = AU.ctx, st = C.currentTime + when, g = C.createGain();
   g.gain.setValueAtTime(vol, st); g.gain.exponentialRampToValueAtTime(0.001, st + t);
   for (const det of [-4, 4]) {
-    const o = C.createOscillator(); o.type = 'square'; o.frequency.value = f; o.detune.value = det;
+    const o = C.createOscillator(); o.type = 'square'; o.frequency.value = f; o.detune.value = det + bend;
     o.connect(g); o.start(st); o.stop(st + t + 0.02);
   }
   g.connect(AU.mus); g.connect(AU.echo);
@@ -173,8 +217,22 @@ function padChord(notes, dur, when, vol = 0.02) {
   }
 }
 
-// `want` is the song id the game currently wants, or null for silence.
-export function musicTick(want) {
+/**
+ * `want` is the song id the game currently wants, or null for silence.
+ *
+ * `bleed` is 0..1 and is the SAME number the renderer lerps its palette with —
+ * so the music comes apart on exactly the schedule the city looks like it is
+ * coming apart on. It does not swap tracks. Two things happen instead:
+ *
+ *   - the room changes. Each song carries an `echo`, and the bleed lerps toward
+ *     the other layer's: THE FLOOR is a reverberant building and THE STREET is
+ *     not, so on Path A the first thing that arrives is the wrong acoustics for
+ *     the place you are standing in, before anything else is wrong.
+ *   - the other layer's chord fades in UNDER the current one, and the lead goes
+ *     progressively flat. Both songs use the same roots an octave apart, which
+ *     is why the two pads sit together at all instead of fighting.
+ */
+export function musicTick(want, bleed = 0) {
   if (!AU.ctx || !AU.on) return;
   const C = AU.ctx;
   if (!want || !SONGS[want]) { AU.nextT = Math.max(AU.nextT, C.currentTime); AU.song = null; return; }
@@ -189,15 +247,28 @@ export function musicTick(want) {
   const song = SONGS[AU.song];
   const spb = 60 / song.bpm / 2;
   AU.echoDelay.delayTime.value = Math.min(0.9, spb * 3);
+
+  const bl = Math.max(0, Math.min(1, bleed));
+  const other = song.bleedInto ? SONGS[song.bleedInto] : null;
+  const base = song.echo ?? 0.3;
+  AU.echo.gain.value = other ? base + ((other.echo ?? base) - base) * bl : base;
+  // cents, not semitones: this must read as something being wrong with the
+  // tuning, never as a key change
+  const bend = -24 * bl;
+
   while (AU.nextT < C.currentTime + 0.15) {
     const s = AU.step, when = AU.nextT - C.currentTime + (s % 2 ? (song.swing || 0) * spb : 0);
     const b = song.bass[s % song.bass.length]; if (b) bassNote(NT(b), spb * 0.95, when);
-    const l = song.lead[s % song.lead.length]; if (l) leadNote(NT(l), spb * 0.85, when);
+    const l = song.lead[s % song.lead.length]; if (l) leadNote(NT(l), spb * 0.85, when, 0.045, bend);
     const d = s % 16;
     if (song.kick && song.kick[d] === 'x') kickAt(when);
     if (song.snare && song.snare[d] === 'x') snareAt(when);
     if (song.hat && song.hat[d] === 'x') hatAt(when);
-    if (song.chords && d === 0) padChord(song.chords[(s >> 4) % song.chords.length], spb * 16, when);
+    if (song.chords && d === 0) {
+      padChord(song.chords[(s >> 4) % song.chords.length], spb * 16, when);
+      if (other && bl > 0.02)
+        padChord(other.chords[(s >> 4) % other.chords.length], spb * 16, when, 0.024 * bl);
+    }
     AU.step++; AU.nextT += spb;
   }
 }

@@ -7,7 +7,7 @@
 import { ctx, cam, camFollow, view, setZoom, cycleZoom, toggleFullscreen, TILE, W, H, C, IS_TOUCH, DEV } from '../engine/stage.js';
 import { SPR, drawSprite } from '../engine/sprites.js';
 import { Rig, FX } from '../engine/anim.js';
-import { audioInit, musicTick, toggleMute, SFX } from '../engine/audio.js';
+import { audioInit, musicTick, toggleMute, SFX, AU, SONGS } from '../engine/audio.js';
 import * as Input from '../engine/input.js';
 import { World, moveEntity } from '../engine/region.js';
 import { saveGame, loadGame, hasSave } from '../engine/save.js';
@@ -44,6 +44,8 @@ export const G = {
   complaint: null,      // the Bar Complaint, once you have earned one
   ally: null,           // the paralegal, if she is on the payroll
   dark: false,          // standing on an unlit floor
+  bleedAmt: 0,          // how far through the district under you has gone
+  boss: null,           // the live boss, if there is one — drives the HUD bar and the music
   shots: [],            // your argument, in the air
   incoming: [],         // theirs
   area: DEFAULT_AREA,   // your practice area — the ranged attack IS the area
@@ -1308,6 +1310,17 @@ function updateShots(dt) {
   }
 }
 
+/**
+ * Which song the game wants right now. A live boss takes the music the same way
+ * it takes the objective line — everything else you were doing can wait — and
+ * In re Yourself gets its own, because it is the only fight in the game that is
+ * about both layers at once and the track is built that way.
+ */
+function currentTrack() {
+  if (G.boss && G.boss.hp > 0) return G.boss.type === 'yourself' ? 'yourself' : 'boss';
+  return layerOf(G.layer).music;
+}
+
 /** The nearest awake boss, if one is on the board. Drives the HUD bar. */
 function bossInPlay() {
   if (!G.world || !G.player) return null;
@@ -1368,6 +1381,9 @@ function updatePlay(dt) {
   // the whole argument for paying the panel — you CAN cross a dark district,
   // you just cannot work in one.
   const here = world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
+  // Read once a frame and kept on G: the HUD, the renderer and the music all
+  // want this and none of them should be recomputing it for themselves.
+  G.bleedAmt = here ? bleedAt(here.id) : 0;
   G.dark = HAS_HOURS() && !!here && !isLit(here.id);
   if (G.dark) {
     p.hp -= DARK_DRAIN * dt;
@@ -1601,6 +1617,7 @@ function updatePlay(dt) {
 
   // --- fx ---
   fx.step(dt);
+  G.boss = bossInPlay();
   if (G.msg.t > 0) G.msg.t -= dt;
   if (G.banner.t > 0) G.banner.t -= dt;
   syncHudLight();
@@ -1668,7 +1685,9 @@ function syncHudLight() {
   const obj = Quests.objective();
   // A live boss takes over the objective line. Everything else you are doing
   // can wait, and a 340hp fight with no readout is just a long silence.
-  const boss = bossInPlay();
+  // `hp > 0` guards the one frame between the killing blow and updatePlay
+  // clearing G.boss — otherwise the bar reads 0% over a corpse.
+  const boss = G.boss && G.boss.hp > 0 ? G.boss : null;
   if (boss) {
     const d = actorDef(boss.type);
     const pct = Math.max(0, Math.round((boss.hp / d.hp) * 100));
@@ -1717,14 +1736,15 @@ function step(now) {
   } else if (G.state === 'end') {
     Ending.step(dt);
     Ending.draw();
-    musicTick('letter');
+    musicTick('ending');
   } else if (G.state === 'dialog') {
     // the world holds still behind the conversation, but keeps drawing
     G.fx.step(dt);
     G.player.rig.step(dt, { moving: false });
     drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G);
     stepDialogueInput();
-    musicTick(layerOf(G.layer).music);
+    // a conversation does not lift the bleed or dismiss the boss standing behind it
+    musicTick(currentTrack(), G.bleedAmt);
   } else if (G.state === 'play') {
     if (Casefile.open) {
       // the casefile is a reading screen; freeze play under it
@@ -1738,7 +1758,7 @@ function step(now) {
       drawBanner();
       if (Input.pressed('casefile')) { Casefile.show(G.layer, HAS_CLOCK()); Input.clearHeld(); }
     }
-    musicTick(layerOf(G.layer).music);
+    musicTick(currentTrack(), G.bleedAmt);
   } else {
     musicTick(null);
   }
@@ -1796,6 +1816,7 @@ window.LE2 = {
   Dialogue, Casefile, talkTo, useProp, endDay, Intro, Ending,
   Hrs: { Hours, bill, lightUp, isLit, fmtHours, pressure },
   Bld: { Bleed, setBleed, witness, bleedAt, canCross, cross: () => crossLayers() },
+  Aud: { AU, SONGS, musicTick, currentTrack, SFX },
   Areas: { AREAS, areaOf, importLE1, set: id => { if (AREAS[id]) G.area = id; return G.area; } },
   Clock: { Cal, dateString, allEntries, advanceDay, schedule, unschedule, resetClock },
 };

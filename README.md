@@ -212,9 +212,18 @@ The ending reel is the opening reel's own presentation — same typewriter, same
 
   The HUD's two-column rows also stacked below 700px instead of forcing the name to wrap to four lines, and the utility buttons — which sit *above* the HUD at `z-index:6` — now have their strip reserved on `body.touch` rather than at a width breakpoint, since that is exactly when they exist.
 
-- **Audio is mostly built**: a full chiptune engine, the SFX set, and three songs (`letter`, `street`, `floor`). What is missing is narrower than "audio" — no boss track, no ending track, and nothing for the bleed, which currently changes every colour on screen and not one sound.
+- **Audio** was mostly built already — a full chiptune engine and the SFX set — and had three songs. It has six, and two of them are assembled out of the others rather than composed, because that is what they are *about*:
 
-Still to do: those three tracks, the run summary (extend `coda()` in `game/ending.js` — it already reads the save), NG+ (the ending deliberately does not clear the save), and LEAnim cinematics. See DESIGN.md §8.
+  | | |
+  |---|---|
+  | `letter` · `street` · `floor` | as before. `floor` is `street`'s chord roots an octave down |
+  | `boss` | the city's own progression with the thirds flattened and nowhere to breathe — same roots, so a boss fight is audibly happening in the district it is happening in |
+  | `yourself` | THE FLOOR's bass and chords under THE STREET's lead, at a tempo between them, over a kick that is just a pulse. Nothing new is written: the two halves are put in the same room and told to account for themselves |
+  | `ending` | the letter's own progression and bass, *finished*. Its lead trails off unresolved because at 2:47 a.m. nothing was; this one goes up to the tonic and stops |
+
+  **The bleed does not get a track.** `musicTick(want, bleed)` takes the same 0–1 the renderer lerps its palette with, and does to the music what the renderer does to the colour — one composition, different constants. Each song carries an `echo` and a `bleedInto`, so the bleed lerps the room toward the other layer's: THE FLOOR is reverberant and THE STREET is not, so on Path A the first thing to arrive is the wrong acoustics for the place you are standing in, before anything else is wrong. Then the other layer's chord fades in *underneath* the current one — they share roots an octave apart, which is why two pads sit together instead of fighting — and the lead goes progressively flat, in cents, so it reads as something wrong with the tuning and never as a key change.
+
+Still to do: the run summary (extend `coda()` in `game/ending.js` — it already reads the save), NG+ (the ending deliberately does not clear the save), and LEAnim cinematics. See DESIGN.md §8.
 
 ---
 
