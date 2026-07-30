@@ -1646,8 +1646,9 @@ function syncHud() {
     money.textContent = '';
     el('hDay').textContent = '';
   }
-  el('hCarry').innerHTML = (G.carried.length ? 'CARRYING: ' + G.carried.join(' · ') : '')
-    + (G.served ? ` <span class="bad">SERVED ×${G.served}</span>` : '');
+  const carry = G.carried.length ? 'CARRYING: ' + G.carried.join(' · ') : '';
+  el('hCarry').innerHTML = carry
+    + (G.served ? `${carry ? ' &nbsp;·&nbsp; ' : ''}<span class="bad">SERVED ×${G.served}</span>` : '');
   syncHudLight();
 }
 function syncHudLight() {

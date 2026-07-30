@@ -202,7 +202,19 @@ Which list you can reach is never decided by the key you pressed in the reel; by
 
 The ending reel is the opening reel's own presentation — same typewriter, same slate, same stamp. Its last scene is not written: it is read off the save. DESIGN §5 says which of you is real depends on what you did with the trust account, the letters and the four hundred who did not leave, so those are what the game says back to you.
 
-Not built yet: Phase 5 (audio, LEAnim cinematics, mobile/gamepad parity, NG+, run summary). See DESIGN.md §8.
+---
+
+**Phase 5** is the last one, and two of its five items turned out to be smaller than DESIGN §8 implies:
+
+- **Input parity was already done** in Phase 0, as §6 asked — keyboard, mouse, touch buttons plus joystick, and gamepad on the standard mapping, all through one action layer. What Phase 5 owed was not plumbing but a *layout* pass, and that has landed:
+
+  > On a landscape phone the board is width-driven, so at 812×375 it computed 812×507 in a 375-tall viewport and the 220px control shelf covered 384px of a 502px board — there was no visible playfield at all. Landscape now has no shelf: `#touch` becomes a transparent full-viewport layer, the thumbs land in the screen's own bottom corners, and the board is capped by the height it actually has. The cap is on `#wrap` rather than the canvas, because the HUD is positioned against the wrap and has to keep lining up with the board's edges.
+
+  The HUD's two-column rows also stacked below 700px instead of forcing the name to wrap to four lines, and the utility buttons — which sit *above* the HUD at `z-index:6` — now have their strip reserved on `body.touch` rather than at a width breakpoint, since that is exactly when they exist.
+
+- **Audio is mostly built**: a full chiptune engine, the SFX set, and three songs (`letter`, `street`, `floor`). What is missing is narrower than "audio" — no boss track, no ending track, and nothing for the bleed, which currently changes every colour on screen and not one sound.
+
+Still to do: those three tracks, the run summary (extend `coda()` in `game/ending.js` — it already reads the save), NG+ (the ending deliberately does not clear the save), and LEAnim cinematics. See DESIGN.md §8.
 
 ---
 
