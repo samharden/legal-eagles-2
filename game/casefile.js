@@ -14,7 +14,7 @@
 // On THE FLOOR only MATTERS exists. That layer has no clock and no books, and
 // offering tabs that would read $0 forever would be a lie about the game.
 
-import { allQuests, isDone, isFailed, started, currentStage, outcomeOf, qstate } from '../engine/quests.js';
+import { allQuests, isDone, isFailed, started, currentStage, outcomeOf, qstate, hintText } from '../engine/quests.js';
 import { knownFacts, openFacts, factCount } from '../engine/facts.js';
 import { Cal, dateString, relative, allEntries } from '../engine/clock.js';
 import { Books, Rep, Office, repLabel, Firm, STAFF, UPGRADES, payrollTotal, hasUpgrade } from '../engine/practice.js';
@@ -371,7 +371,8 @@ function renderMatters(layer) {
     html += `<h3>${q.name}<span class="cfStatus">${status}</span></h3>`;
     html += `<p class="cfBlurb">${q.blurb}</p>`;
 
-    if (!done && stage && stage.hint) html += `<p class="cfNext"><b>NEXT</b> ${stage.hint}</p>`;
+    const next = done ? null : hintText(stage);
+    if (next) html += `<p class="cfNext"><b>NEXT</b> ${next}</p>`;
 
     if (!done && q.due) {
       const e = allEntries().find(x => x.ref === q.id && x.kind === 'deadline');

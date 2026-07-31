@@ -1126,6 +1126,33 @@ const ACTOR_NEEDS = {
 const actorAwake = d => !d.needs || !ACTOR_NEEDS[d.needs] || ACTOR_NEEDS[d.needs]();
 
 /**
+ * Fill in what the engine cannot know about a freshly built actor: what it is
+ * worth, and whether it is on the board at all. region.js leaves `hp` null on
+ * purpose — it has no actor table — and it knows nothing about `needs`, so a
+ * new actor arrives with `hp: null` and NO `asleep` property. render.js's guard
+ * is `if (a.asleep) continue`, and that does not skip `undefined`.
+ *
+ * Harmless while the play update is running, because it sets both before
+ * anything is drawn. Not harmless on a CROSSING: crossLayers() rebuilds the
+ * world and says its piece in the same breath, and the dialog branch draws the
+ * world WITHOUT running the play update. So THE PARTY OF THE SECOND PART stood
+ * in Courthouse Square for exactly as long as the door's message was open, and
+ * went out on the first play frame after it — a boss that appears when you
+ * cross and vanishes when you close the message.
+ *
+ * Runs ahead of the state branch so no drawing path can get in front of it, and
+ * fills only what is unset: the play update still re-evaluates `asleep` every
+ * frame, and a conversation still does not dismiss the boss standing behind it.
+ */
+function initActors(world) {
+  for (const a of world.allActors()) {
+    const d = actorDef(a.type);
+    if (a.hp == null) a.hp = d.hp;
+    if (a.asleep === undefined) a.asleep = !actorAwake(d);
+  }
+}
+
+/**
  * Something reached you. Not every enemy in LE2 wants the same thing off you —
  * a Collections Agent wants $140 and does not care about your energy, a Process
  * Server wants to hand you a piece of paper that stays handed. One place, so
@@ -1455,10 +1482,9 @@ function updatePlay(dt) {
     if (p.hp <= 0) collapse();
   }
 
-  // --- actor hp, filled from the table the first frame we see one ---
-  // The region builder cannot know what a `server` is worth, so this is where
-  // an actor stops being coordinates and becomes a thing with a health bar.
-  for (const a of world.allActors()) if (a.hp == null) a.hp = actorDef(a.type).hp;
+  // --- actor hp and roster gating: see initActors(), which runs every frame
+  // ahead of the state branch. It used to be done here, which meant a world
+  // built during a state that does not run this update was drawn uninitialised.
 
   // --- fire ---
   // Held, not tapped: LE1's attacks are all automatic and the cooldown IS the
@@ -1827,6 +1853,7 @@ function step(now) {
   last = now;
 
   Input.frame();
+  if (G.world) initActors(G.world);
 
   if (G.state === 'intro') {
     Intro.step(dt);

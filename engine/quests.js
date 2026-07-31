@@ -177,11 +177,23 @@ export function qTick() {
   }
 }
 
+/**
+ * A stage's hint, as text. Authored as a plain string almost everywhere, but a
+ * `learn` stage that counts its facts out loud cannot be a constant — it went
+ * on saying "you have found one" to a player holding two, which reads as the
+ * quest having failed to notice, and the only way to find out otherwise was to
+ * go and find the third one on faith.
+ */
+export function hintText(stage) {
+  if (!stage || !stage.hint) return null;
+  return typeof stage.hint === 'function' ? stage.hint() : stage.hint;
+}
+
 /** The one-line objective for the HUD — the active stage's own hint. */
 export function objective() {
   for (const q of activeQuests()) {
-    const stage = currentStage(q.id);
-    if (stage && stage.hint) return { quest: q, text: stage.hint };
+    const text = hintText(currentStage(q.id));
+    if (text) return { quest: q, text };
   }
   return null;
 }

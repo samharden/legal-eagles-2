@@ -11,7 +11,7 @@
 //                                      what does filing one actually take.
 
 import { defineFacts, learn, knows, knowsAny } from '../engine/facts.js';
-import { defineQuests, qResolve, isActive, isDone, isFailed as isFailedCase, started, outcomeOf, currentStage } from '../engine/quests.js';
+import { defineQuests, qResolve, isActive, isDone, isFailed as isFailedCase, started, outcomeOf, currentStage, questDef, qstate } from '../engine/quests.js';
 import { Bleed } from '../engine/bleed.js';
 import { runs } from '../engine/run.js';
 
@@ -524,8 +524,24 @@ defineQuests([
     // matter is about having gone through one.
     prereq: () => Bleed.crossed > 0,
     stages: [
+      // The one hint in the game that counts, so the one that cannot be a
+      // constant: it said "you have found one" to a player holding two, and the
+      // only way to learn otherwise was to go and find the third on faith. It
+      // names the district still owed, because "three districts" is not a clue
+      // in a city with six of them.
       { type: 'learn', facts: ['iry_door', 'iry_same', 'iry_dept13'],
-        hint: 'Three doors in three districts, and all three of them are the same door. You have found one.' },
+        hint: () => {
+          const left = [
+            ['iry_door', 'Courthouse Square'],
+            ['iry_same', 'The Tower District'],
+            ['iry_dept13', 'the Annex'],
+          ].filter(([f]) => !knows(f));
+          const found = 3 - left.length;
+          const count = ['none of them', 'one', 'two', 'all three'][found];
+          return 'Three doors in three districts, and all three of them are the same door. '
+            + `You have found ${count}.`
+            + (left.length ? ` Still to find: ${left.map(([, where]) => where).join(', ')}.` : '');
+        } },
       { type: 'talk', npc: 'bane',
         hint: 'Department 13, Courthouse Square. It has been in session since 1959 and the caption on it is your name.' },
       { type: 'kill', enemy: 'yourself',
@@ -2524,12 +2540,31 @@ const NPC_TREES = {
     // after, which is what lets one conversation satisfy the talk stage and
     // answer the resolve behind it. Keying the judgment off `stage.type ===
     // 'resolve'` therefore never fires: at build time the quest is still parked
-    // on the talk. The discriminator is the fact the first conversation taught,
-    // which is the same way Hargrove tells his two apart.
+    // on the talk.
+    //
+    // It used to discriminate on `knows('iry_caption')` — the fact the first
+    // conversation teaches — and that was wrong in a way that cost the game its
+    // finale. That fact answers "have I spoken to Bane before", not "is the
+    // fight behind me", and the first conversation is reachable from the very
+    // first stage. So: talk to him once on arrival, learn the caption, talk to
+    // him again, and he passes judgment on a matter in which THE PARTY OF THE
+    // SECOND PART has never been on the board — the boss is asleep for the whole
+    // run because `yourselfopen` only ever wakes it on the `kill` stage, which
+    // nothing has reached. The seven endings were offered over an empty plaza.
+    //
+    // The stage INDEX is the honest question and it is available at build time,
+    // which is the constraint that ruled out `stage.type` in the first place:
+    // both talks are `talk`, but one is before the kill and one is after it.
     const stage = currentStage('yourself');
+    const past = q => {
+      const def = questDef('yourself'), s = qstate['yourself'];
+      if (!def || !s) return false;
+      const i = def.stages.findIndex(x => x.type === q);
+      return i >= 0 && s.stage > i;
+    };
     const phase = !stage ? 'idle'
       : stage.type === 'kill' ? 'waiting'
-        : knows('iry_caption') ? 'judgment'
+        : past('kill') ? 'judgment'
           : 'first';
 
     if (phase === 'idle') {
