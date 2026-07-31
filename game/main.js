@@ -1846,6 +1846,50 @@ function drawBanner() {
   g.globalAlpha = 1;
 }
 
+/* ----------------------------- the title ------------------------------- */
+/**
+ * The one screen a controller could not reach. The three title buttons are DOM
+ * and `menu` had no branch in step(), so the pad was polled every frame with
+ * nothing listening: you could play the whole game on an Xbox pad except start
+ * it, which meant getting up to find a mouse and then sitting back down.
+ *
+ * It walks the row that is actually ON SCREEN. RESUME REPRESENTATION and the
+ * NEW GAME + button are `display:none` until `.on` reveals them, so the row is
+ * one, two or three buttons wide depending on what you have done, and asking
+ * for a fixed three would let you land the cursor on a button nobody can see.
+ * `offsetParent` is the honest test — it answers for the rendered element and
+ * cannot be got wrong the way reading `style.display` can.
+ *
+ * The highlight only appears once there is a pad or once somebody has actually
+ * steered, so a mouse player's title screen looks exactly as it always did.
+ */
+const MENU_BTNS = ['continueBtn', 'startBtn', 'plusBtn'];
+let menuSel = 0, menuSteered = false;
+
+function stepMenu() {
+  const btns = MENU_BTNS.map(el).filter(b => b && b.offsetParent !== null);
+  if (!btns.length) return;
+  if (menuSel > btns.length - 1) menuSel = btns.length - 1;
+
+  // The row is horizontal, but a thumb that pushes up expects to move — both
+  // axes walk it rather than one of them being silently inert.
+  const nv = Input.nav();
+  if (nv === 'right' || nv === 'down') { menuSel = (menuSel + 1) % btns.length; menuSteered = true; }
+  else if (nv === 'left' || nv === 'up') { menuSel = (menuSel + btns.length - 1) % btns.length; menuSteered = true; }
+
+  const show = menuSteered || Input.pad.on;
+  for (const [i, b] of btns.entries()) b.classList.toggle('padsel', show && i === menuSel);
+
+  if (Input.pressed('confirm')) {
+    // The same press must not also turn the letter's first page: `confirm` is
+    // what the intro advances on, and it is still held when the intro starts.
+    Input.consume('confirm');
+    Input.clearHeld();
+    for (const b of btns) b.classList.remove('padsel');
+    btns[menuSel].click();
+  }
+}
+
 /* -------------------------------- loop --------------------------------- */
 let last = performance.now();
 function step(now) {
@@ -1855,7 +1899,9 @@ function step(now) {
   Input.frame();
   if (G.world) initActors(G.world);
 
-  if (G.state === 'intro') {
+  if (G.state === 'menu') {
+    stepMenu();
+  } else if (G.state === 'intro') {
     Intro.step(dt);
     Intro.draw();
     musicTick('letter');
