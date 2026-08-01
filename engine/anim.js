@@ -123,7 +123,14 @@ export class Rig {
       bob = -up * 3.4 * this.bounce;
       tsx = 1 + (1 - up) * 0.07 * this.bounce;
       tsy = 1 - (1 - up) * 0.09 * this.bounce;
-      tlean = (mv.faceX || 0) * 0.05;
+      // CLAMPED, because `faceX` is a facing and half the callers hand it a
+      // distance. The player passes a unit vector component and leans 3°; every
+      // caller that passes a raw pixel delta — the allies, the grievance, any
+      // actor walking to a wander point — was multiplying 0.05 by 40 or 200 and
+      // rotating the sprite through whole turns. It only showed while walking,
+      // because this is the only line that reads faceX, and it looked like the
+      // sprite was spinning rather than like a units bug.
+      tlean = clamp(mv.faceX || 0, -1, 1) * 0.05;
     } else if (this.state === 'idle') {
       const b = Math.sin(this.stateT * 2.2) * 0.022 * this.breathe;
       tsy = 1 + b; tsx = 1 - b * 0.5;

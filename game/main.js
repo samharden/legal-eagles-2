@@ -1827,7 +1827,9 @@ function updatePlay(dt) {
       // crosses zero constantly, so the sprite was flipping every frame or two
       // and reading as a pirouette. Turn only for a real horizontal gap, which a
       // stopped or vertically-drifting ally never has.
-      if (Math.abs(ax) > ALLY_TURN) al.face = ax;
+      // Math.sign, not the delta. `face` is which way they are pointing; the
+      // rig also leans by it, and a lean of "199 pixels" is a cartwheel.
+      if (Math.abs(ax) > ALLY_TURN) al.face = Math.sign(ax);
     }
 
     // the nearest thing worth a letter — each of them picks their own
@@ -1848,7 +1850,7 @@ function updatePlay(dt) {
       // right to keep up, face left to throw, back again. Two clean turns a
       // second still reads as a flap. On the move they throw over a shoulder.
       const towards = Math.cos(ang);
-      if (!alMoving && Math.abs(towards) > 0.35) al.face = towards;
+      if (!alMoving && Math.abs(towards) > 0.35) al.face = Math.sign(towards);
       al.rig.strike();
       // Straight into the player's own shot array: updateFired() already does
       // travel, walls, collision, the damage number and downActor. `spare` is
