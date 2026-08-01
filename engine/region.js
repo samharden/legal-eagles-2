@@ -204,10 +204,28 @@ export class World {
     if (b) b.pickups = b.pickups.filter(q => q !== p);
     this.markTaken(p.region, p.id);
   }
+  /**
+   * Put an actor into a resident region after it was built. Authored actors come
+   * off `L.actors` at build time; this is for the ones the host decides on while
+   * the game is running.
+   *
+   * They are marked `transient`, and that flag is load-bearing in killActor:
+   * they have no authored id, so remembering that one died would write a
+   * meaningless entry into the region's killed set on every kill, forever. The
+   * save would grow without recording anything.
+   */
+  addActor(regionId, a) {
+    const b = this.built.get(regionId);
+    if (!b) return null;
+    const actor = { ...a, region: regionId, transient: true, rig: null };
+    b.actors.push(actor);
+    return actor;
+  }
+
   killActor(a) {
     const b = this.built.get(a.region);
     if (b) b.actors = b.actors.filter(q => q !== a);
-    this.markKilled(a.region, a.id);
+    if (!a.transient) this.markKilled(a.region, a.id);
   }
 
   /* ------------------------- serialization ------------------------- */

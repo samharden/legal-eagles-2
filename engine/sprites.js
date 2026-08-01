@@ -481,6 +481,48 @@ SPR.paralegal = makeSprite([
   ".....kk..kk.....",
 ], { b: '#3a2a3e', f: '#c99a6e', k: K, t: '#3f4a5e', r: '#a8562c' });
 
+// Perla Ocampo, receptionist. The headset never comes off, and the cardigan is
+// the one thing in Suite 2B that was chosen rather than inherited.
+SPR.receptionist = makeSprite([
+  "................",
+  "......dddd......",
+  ".....dddddd.....",
+  "....ddffffdd....",
+  "....hffkkffh....",
+  "....wffffffw....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....cccccccc....",
+  "...ccccccccccc..",
+  "...cccccccccc...",
+  "...cc.cccc.cc...",
+  "....cccccccc....",
+  ".....pp..pp.....",
+  ".....pp..pp.....",
+  ".....kk..kk.....",
+], { d: '#2a1a16', f: '#c98d63', k: K, c: '#b8724e', p: '#3a3a46', h: '#d8d2c0', w: '#d8d2c0' });
+
+// Desmond Achebe, associate. Two years out. The suit is the good one and it is
+// the only one, and he has already learned to keep the jacket on.
+SPR.associate = makeSprite([
+  "................",
+  ".....kkkkkk.....",
+  "....kkkkkkkk....",
+  "....kkffffkk....",
+  "....kffkkffk....",
+  "....kffffffk....",
+  ".....ffffff.....",
+  "......ffff......",
+  "....ssssssss....",
+  "...sssswtwsss...",
+  "...sssswtwssss..",
+  "...ss.ssssss.s..",
+  "....ssssssss....",
+  ".....ss..ss.....",
+  ".....ss..ss.....",
+  ".....kk..kk.....",
+], { k: '#141419', f: '#8a5a3a', s: '#25304a', w: WHT, t: '#5ec8f0' });
+
 // Iris Nakamura — tenants' council, The Flats. Six weeks of clipboard, thirty
 // signatures, and the same cardigan on both layers, which is the point of her.
 SPR.iris = makeSprite([

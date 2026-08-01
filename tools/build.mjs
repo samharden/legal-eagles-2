@@ -137,6 +137,14 @@ function checkDuplicates(order) {
 const htmlPath = resolve(ROOT, 'index.html');
 let html = readFileSync(htmlPath, 'utf8');
 
+// Every id the source markup declares, taken BEFORE anything is stripped. The
+// build's worst failure mode is losing markup quietly — a stripping regex that
+// reaches too far leaves a file that still parses, still opens and is missing
+// something you only notice by playing it. The ids are the cheapest census of
+// "is the page still all there".
+const idsIn = s => new Set([...s.matchAll(/<[a-z][\w-]*\s[^>]*\bid="([^"]+)"/g)].map(m => m[1]));
+const srcIds = idsIn(html);
+
 const tagRe = /<script\s+type="module"\s+src="([^"?]+)(?:\?[^"]*)?"\s*><\/script>\s*/g;
 const entries = [...html.matchAll(tagRe)].map(m => resolve(ROOT, m[1]));
 if (!entries.length) throw new Error('no <script type="module" src=…> tags found in index.html');
@@ -173,10 +181,15 @@ html = html.replace(tagRe, '');
 // tell the player to go and open the file they already have open.
 // The leading `<!--…-->` clause takes the tag's explanatory comment with it: it
 // is about a mechanism that does not exist in the shipped file, so leaving it
-// there would document a thing dist cannot do. It only ever eats a comment
-// immediately before the tag — the inner match stops at the first `-->`, so an
-// unrelated comment earlier in the file fails the `<script` that must follow.
-const devOnlyRe = /(?:<!--[\s\S]*?-->\s*)?<script\s+data-dev-only\s*>[\s\S]*?<\/script>\s*/g;
+// there would document a thing dist cannot do.
+// The comment body is `(?!-->)`-tempered so the clause can only ever eat ONE
+// comment — the one against the tag. Written as `[\s\S]*?` it looked like it
+// stopped at the first `-->`, and lazy matching does try that first, but on
+// failure it BACKTRACKS to a later one: adding an ordinary comment anywhere
+// earlier in the body made the clause swallow the comment, the tag, and every
+// element in between. dist/index.html shipped with no dialogue box and no
+// casefile, and the emitted bundle still parsed, so nothing complained.
+const devOnlyRe = /(?:<!--(?:(?!-->)[\s\S])*-->\s*)?<script\s+data-dev-only\s*>[\s\S]*?<\/script>\s*/g;
 const devOnly = (html.match(devOnlyRe) || []).length;
 html = html.replace(devOnlyRe, '');
 // Anchored on the TAG, not the bare string — the first version of this check
@@ -195,6 +208,15 @@ html = html.replace('</body>', () => `<script>\n${bundle}\n</script>\n</body>`);
 const a = html.lastIndexOf('<script>'), b = html.lastIndexOf('</script>');
 try { new Function(html.slice(a + 8, b)); }
 catch (e) { throw new Error(`emitted bundle does not parse: ${e.message}`); }
+
+// Nothing above this line notices missing MARKUP. The stripping regexes are the
+// only things that delete any, so if an id went in and did not come out, one of
+// them reached past its tag.
+const outIds = idsIn(html);
+const lostIds = [...srcIds].filter(id => !outIds.has(id));
+if (lostIds.length)
+  throw new Error('markup lost between index.html and dist: ' + lostIds.join(', ')
+    + '\n(a stripping regex ate more than its own tag)');
 
 mkdirSync(resolve(ROOT, 'dist'), { recursive: true });
 writeFileSync(resolve(ROOT, 'dist/index.html'), html);

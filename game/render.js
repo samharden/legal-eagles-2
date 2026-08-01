@@ -69,12 +69,12 @@ function dress(layer, amt) {
 
 /**
  * `ent` is the bag of things that are not in the world's own arrays — the
- * grievance, the paralegal, paper in the air. It is an object rather than four
+ * grievance, the payroll, paper in the air. It is an object rather than four
  * more positional parameters because render.js cannot import G (main.js imports
  * render.js, and the bundler forbids the cycle).
  */
 export function drawWorld(world, layer, player, fx, gameT, ent = {}) {
-  const { complaint, ally, incoming, shots } = ent;
+  const { complaint, allies, incoming, shots } = ent;
   const g = ctx;
   const Z = view.zoom;
 
@@ -265,10 +265,12 @@ export function drawWorld(world, layer, player, fx, gameT, ent = {}) {
     g.restore();
   }
 
-  // ---- the paralegal ----
-  // Drawn before the player so she reads as standing behind you, which is
-  // where she is and roughly what she is for.
-  if (ally) ally.rig.draw(g, SPR.paralegal, ally.x - cam.x, ally.y - cam.y, 34, ally.face < 0);
+  // ---- the payroll ----
+  // Drawn before the player so they read as standing behind you, which is where
+  // they are and roughly what they are for. Each carries its own sprite key:
+  // three staff drawn as three paralegals would make the hire screen a lie.
+  if (allies) for (const al of allies)
+    al.rig.draw(g, SPR[al.spr] || SPR.paralegal, al.x - cam.x, al.y - cam.y, 34, al.face < 0);
 
   // ---- player ----
   player.rig.draw(g, SPR[player.spr], player.x - cam.x, player.y - cam.y, 36, player.face.x < 0);

@@ -15,7 +15,7 @@ import * as Facts from '../engine/facts.js';
 import * as Quests from '../engine/quests.js';
 import { Cal, clockHooks, dateString, schedule, unschedule, allEntries, advanceDay, saveClock, loadClock, resetClock } from '../engine/clock.js';
 import * as Practice from '../engine/practice.js';
-import { Hours, hoursHooks, bill, lightUp, lightFree, isLit, writeDown, fmtHours, pressure, saveHours, loadHours, resetHours } from '../engine/hours.js';
+import { Hours, hoursHooks, bill, lightUp, lightFree, isLit, writeDown, fmtHours, pressure, pressureStep, saveHours, loadHours, resetHours } from '../engine/hours.js';
 import { Bleed, bleedHooks, setBleed, witness, bleedAt, canCross, LEVEL_NAME, saveBleed, loadBleed, resetBleed } from '../engine/bleed.js';
 import { recordRun, runs, lastRun, hasRun, nextPath, nextLayer } from '../engine/run.js';
 import { walkInto, hasWalked, saveAtlas, loadAtlas, resetAtlas } from '../engine/atlas.js';
@@ -43,8 +43,14 @@ export const G = {
   banner: { text: '', sub: '', t: 0 },
   carried: [],
   prompt: null,
+  // Seconds until the next arrival. Set for real in beginPath(), which every
+  // route into play goes through — SPAWN_FIRST is declared far below this
+  // object and reading it here would be a temporal-dead-zone crash at load.
+  spawnT: 0,
+  spawnSeq: 0,
+  seenSpawn: {},        // types that have turned up this run, for the one-time line
   complaint: null,      // the Bar Complaint, once you have earned one
-  ally: null,           // the paralegal, if she is on the payroll
+  allies: [],           // everybody on the payroll, walking with you
   dark: false,          // standing on an unlit floor
   bleedAmt: 0,          // how far through the district under you has gone
   boss: null,           // the live boss, if there is one — drives the HUD bar and the music
@@ -330,10 +336,15 @@ hoursHooks.onPressure = step => {
 let RENT = 1100;
 const RENT_EVERY = 7;
 const ALLY_SPD = 190;
-// Her reach must comfortably EXCEED the distance she stands off at, or the one
-// thing she is paid to do — hit whatever has closed on you — is the one thing
-// she cannot reach. Station 44, reach 44 + the target's radius.
-const ALLY_STATION = 44, ALLY_REACH = 44;
+// Reach is 44 plus the target's radius, and they close to 26 past it, so what
+// they are paid to do — hit the thing that reached you — is always inside it.
+// ENGAGE is measured from YOU, not from them: it is how close something has to
+// get to you before the payroll leaves your shoulder to deal with it. Wider and
+// they chase things across the street and you walk alone.
+const ALLY_REACH = 44, ALLY_CD = 1.05, ALLY_ENGAGE = 210;
+// Where each of them walks. Without a per-person slot a firm of three occupies
+// one pixel and reads as a single smeared employee.
+const ALLY_SLOTS = [{ x: -44, y: 26 }, { x: 44, y: 26 }, { x: 0, y: 48 }];
 
 function scheduleRent() {
   unschedule('rent');
@@ -402,7 +413,9 @@ function beginPath(layerId, path, area, plus = 0, look = null) {
   say(`${areaOf(G.area).name}. ${areaOf(G.area).attack}. It is what you put in the letter and it is what you have.`, 8);
   G.carried = [];
   G.complaint = null;
-  G.ally = null;
+  G.allies = [];
+  G.spawnT = SPAWN_FIRST;
+  G.seenSpawn = {};
   G.incoming = [];
   G.shots = [];
   G.served = 0;
@@ -490,7 +503,7 @@ function continueGame() {
   // that disagreed with itself about who is on the payroll would be the worst
   // kind of bug to reproduce
   applyUpgrades();
-  syncAlly();
+  syncAllies();
   syncHud();
   say(`Representation resumed. ${dateString()}.`, 4);
 }
@@ -931,10 +944,11 @@ function openOffice(pr) {
   };
 
   T.nodes.hire = {
-    text: 'Three names. Each of them is somebody\'s whole month.',
+    text: 'Three names. Each of them is somebody\'s whole month.\n'
+      + 'Whoever you take on walks out of the building with you. What they are worth in a doorway is what you paid for them.',
     choices: () => {
       const out = Object.values(Practice.STAFF).map(s => ({
-        label: `${s.name} — ${s.role}. $${s.hire} now, $${s.wage} a week. ${s.effect}`,
+        label: `${s.name} — ${s.role}. $${s.hire} now, $${s.wage} a week. Swings for ${Practice.staffPower(s)}. ${s.effect}`,
         if: () => !Practice.hasStaff(s.id) && Practice.canPay(s.hire),
         showLocked: true,
         lockedNote: Practice.hasStaff(s.id) ? 'already on the payroll' : `you do not have $${s.hire}`,
@@ -975,26 +989,41 @@ function applyUpgrades() {
   G.player.hp = Math.min(G.player.hp, want);
 }
 
-/** The paralegal exists in the world or she does not. Derived, never saved. */
-function syncAlly() {
-  const want = Practice.hasStaff('paralegal') && G.player;
-  if (want && !G.ally) {
-    const p = G.player;
-    G.ally = { x: p.x - 44, y: p.y + 28, rig: new Rig(), cd: 0, face: 1 };
-    G.ally.rig.spawn();
-  } else if (!want) G.ally = null;
+/**
+ * Everybody on the payroll, in the world. Derived from Firm.staff, never saved.
+ *
+ * It used to be one person: the paralegal, because DESIGN §3 gave her the combat
+ * line and gave the other two paperwork. But a receptionist who is at the office
+ * while you are on the courthouse steps is a line item you never see, and this
+ * is a game about what a payroll costs. So they all come with you, and the hire
+ * fee is the swing — see Practice.staffPower.
+ */
+function syncAllies() {
+  if (!G.player) { G.allies = []; return; }
+  G.allies = G.allies.filter(al => Practice.hasStaff(al.id));
+  Practice.Firm.staff.forEach((id, i) => {
+    if (G.allies.some(al => al.id === id)) return;
+    const s = Practice.STAFF[id], p = G.player;
+    const slot = ALLY_SLOTS[i % ALLY_SLOTS.length];
+    const al = {
+      id, spr: SPR[s.spr] ? s.spr : 'paralegal', dmg: Practice.staffPower(s),
+      x: p.x + slot.x, y: p.y + slot.y, rig: new Rig(), cd: 0, face: 1,
+    };
+    al.rig.spawn();
+    G.allies.push(al);
+  });
 }
 
 Practice.practiceHooks.onHire = s => {
   schedulePayroll();
-  syncAlly();
+  syncAllies();
   showBanner('ENGAGED', `${s.name.toUpperCase()} — ${s.role.toUpperCase()}`);
   say(`${s.name} starts Monday, and wants paying every week after that. That is the part nobody mentions.`, 8);
   syncHud(); refreshCasefile();
 };
 Practice.practiceHooks.onLoseStaff = gone => {
   unschedule('payroll');
-  syncAlly();
+  syncAllies();
   showBanner('PAYROLL NOT MADE', gone.map(s => s.name.toUpperCase()).join(' · '));
   G.fx.addTrauma(0.5); SFX.del();
   syncHud(); refreshCasefile();
@@ -1095,7 +1124,11 @@ function downActor(a, d) {
   G.fx.stamp(a.x, a.y - 10, d.harmless ? 'EXCUSED' : 'DISMISSED', d.harmless ? '#9be05e' : C.red);
   SFX.die();
   G.world.killActor(a);              // <- the delta: this one stays gone
-  Quests.questEvent('kill', { enemy: a.type });
+  // Arrivals do not close matters. A kill stage names a specific thing standing
+  // in a specific place — the covenant in the plaza, the third review — and a
+  // faucet that can hand you a past_junior anywhere would let the docket clear
+  // itself while you stood still.
+  if (!a.transient) Quests.questEvent('kill', { enemy: a.type });
   // The Unbilled are your own hours, itemized. Putting one down is the only way
   // to get time back rather than earn it, and it is why the dark has anything
   // in it worth walking into.
@@ -1124,6 +1157,122 @@ const ACTOR_NEEDS = {
   },
 };
 const actorAwake = d => !d.needs || !ACTOR_NEEDS[d.needs] || ACTOR_NEEDS[d.needs]();
+
+/* ---------------------------- arrivals ---------------------------------- */
+// Until now every enemy in the game was authored into a region and stayed dead
+// once you put it down, so a district you had cleared was a district that was
+// over. Nine days into a practice the city was emptier than it was on day one,
+// which is the opposite of how any of this goes.
+//
+// So the opposition also ARRIVES. Not waves and not a horde — a slow faucet,
+// off-screen, that opens as you get further in. What "further in" means is
+// heat(): matters closed, how far the bleed has come, and time (days on the
+// street, billed hours on the floor). At heat 0 that is one process server
+// every twenty-odd seconds and never more than two on the board. At heat 1 it
+// is one every seven and up to nine, out of a roster that has grown.
+
+const SPAWN_FIRST = 30;              // grace at the top of a run
+const SPAWN_EVERY = [26, 7];         // seconds between arrivals, cold .. hot
+const SPAWN_CAP = [2, 9];            // how many arrivals may stand on the board
+const SPAWN_MIN = 340, SPAWN_MAX = 780;
+// `ramp`, not `lerp`: engine/anim.js already has a top-level lerp, and the
+// bundler flat-concatenates modules, so a second one is a redeclaration.
+const ramp = (a, b, t) => a + (b - a) * t;
+
+// `at` is the heat the type unlocks at. Deliberately absent: the Landlord and
+// every boss (they are `needs`-gated events, not weather), and the Ambulance
+// Chaser. She costs you a day off a deadline in whatever district she reaches,
+// and one of those arriving unannounced two streets away is a tax you cannot
+// see coming. She stays where the design put her.
+const SPAWN_POOL = {
+  street: [
+    { type: 'server', at: 0 },
+    { type: 'collections', at: 0.22 },
+    { type: 'depo', at: 0.45 },
+    { type: 'retrieval', at: 0.62 },
+  ],
+  floor: [
+    { type: 'unbilled', at: 0 },
+    { type: 'stayed', at: 0.30 },
+    { type: 'past_junior', at: 0.52 },
+    { type: 'past_counsel', at: 0.74 },
+    { type: 'past_partner', at: 0.90 },
+  ],
+};
+
+// Said once per run, the first time each one turns up. A difficulty ramp nobody
+// is told about is just a game that got harder for no reason.
+const SPAWN_LINE = {
+  server: 'Somebody at the corner is holding a folded paper and checking a photograph.',
+  collections: 'A second car has been parked across the street all morning.',
+  depo: 'A notice went up on the wall behind you. It has your name on it and a date.',
+  retrieval: 'Two people from the firm are on this street and they are not here for the coffee.',
+  unbilled: 'Something on this floor is itemising you.',
+  stayed: 'A desk lamp came on down the corridor. Somebody is at it.',
+  past_junior: 'You know that walk. You had that walk.',
+  past_counsel: 'She has read everything you are about to say. She read it when you did.',
+  past_partner: 'The one who made partner is on this floor and he is not sorry.',
+};
+
+/** How far in you are, 0..1. Drives everything the faucet decides. */
+function heat() {
+  const closed = Quests.allQuests().filter(q => Quests.isDone(q.id)).length;
+  const time = HAS_HOURS() ? pressureStep() * 0.06 : (Cal.day - 1) * 0.02;
+  return Math.min(1, closed * 0.13 + Bleed.level * 0.11 + time);
+}
+
+/**
+ * Somewhere to put one: standing room, inside a district that is actually
+ * built, and off the edge of the screen. `view` is the visible board in world
+ * pixels and it changes with the zoom, so this reads it rather than assuming a
+ * radius — at 3x zoom a fixed 340px ring is comfortably on camera.
+ */
+function findSpawnPoint(world, p) {
+  for (let i = 0; i < 26; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const rad = SPAWN_MIN + Math.random() * (SPAWN_MAX - SPAWN_MIN);
+    const x = p.x + Math.cos(ang) * rad, y = p.y + Math.sin(ang) * rad;
+    if (Math.abs(x - p.x) < view.w / 2 + 40 && Math.abs(y - p.y) < view.h / 2 + 40) continue;
+    const b = world.regionAt(Math.floor(x / TILE), Math.floor(y / TILE));
+    if (!b) continue;
+    // room to stand AND room to leave. A spawn wedged in a doorway is a fight
+    // you have one tile at a time, which flatters nobody.
+    if (world.solidAtPx(x, y)) continue;
+    if (world.solidAtPx(x - 16, y) || world.solidAtPx(x + 16, y)) continue;
+    if (world.solidAtPx(x, y - 16) || world.solidAtPx(x, y + 16)) continue;
+    return { x, y, region: b.id };
+  }
+  return null;
+}
+
+function stepSpawner(dt, world) {
+  // A boss is a duel. LE1 threw chaff into its boss rooms and the fights were
+  // worse for it: you cannot read a pattern through a crowd.
+  if (G.boss) return;
+
+  G.spawnT -= dt;
+  if (G.spawnT > 0) return;
+  const h = heat();
+  // jittered, so arrivals do not land on a metronome
+  G.spawnT = ramp(SPAWN_EVERY[0], SPAWN_EVERY[1], h) * (0.7 + Math.random() * 0.6);
+
+  let live = 0;
+  for (const a of world.allActors()) if (a.transient) live++;
+  if (live >= Math.round(ramp(SPAWN_CAP[0], SPAWN_CAP[1], h))) return;
+
+  const pool = (SPAWN_POOL[G.layer] || []).filter(e => h >= e.at);
+  if (!pool.length) return;
+  const type = pool[(Math.random() * pool.length) | 0].type;
+  const d = actorDef(type);
+  const at = findSpawnPoint(world, G.player);
+  if (!at) return;
+
+  world.addActor(at.region, { type, id: `arr${G.spawnSeq++}`, x: at.x, y: at.y, hp: d.hp });
+  if (!G.seenSpawn[type] && SPAWN_LINE[type]) {
+    G.seenSpawn[type] = true;
+    say(SPAWN_LINE[type], 7);
+  }
+}
 
 /**
  * Fill in what the engine cannot know about a freshly built actor: what it is
@@ -1486,6 +1635,9 @@ function updatePlay(dt) {
   // ahead of the state branch. It used to be done here, which meant a world
   // built during a state that does not run this update was drawn uninitialised.
 
+  // --- who else turned up ---
+  stepSpawner(dt, world);
+
   // --- fire ---
   // Held, not tapped: LE1's attacks are all automatic and the cooldown IS the
   // rate of fire. Tapping a 0.26s litigation attack would be miserable.
@@ -1636,39 +1788,66 @@ function updatePlay(dt) {
   // --- paper in the air ---
   updateShots(dt);
 
-  // --- the paralegal ---
-  // She keeps station off your shoulder and swings at whatever is on you. She
-  // cannot be hurt and does not need managing — a companion you have to babysit
-  // would be a worse deal than the $420 a week, and the $420 a week is the
-  // mechanic. If geometry loses her, she catches up off-screen, because a
-  // paralegal stuck behind a bollard is a bug and not a characterisation.
-  if (G.ally) {
-    const al = G.ally;
-    const ax = p.x - al.x, ay = p.y - al.y, am = Math.hypot(ax, ay) || 1;
+  // --- the payroll, walking ---
+  // They keep station off your shoulder and swing at whatever is on you. They
+  // cannot be hurt and do not need managing — a companion you have to babysit
+  // would be a worse deal than the wage, and the wage is the mechanic. If
+  // geometry loses one, they catch up off-screen: an employee stuck behind a
+  // bollard is a bug and not a characterisation.
+  //
+  // What each of them hits for is Practice.staffPower(), which is the hire fee
+  // divided by 60. The cadence is the same for everybody, so the fee buys damage
+  // and nothing else, and the office price list reads as the power curve it is.
+  // They GO AT it rather than swinging from where they stand. Keeping station
+  // and hitting whatever wandered into arm's reach sounds equivalent and is not:
+  // standing 44px off your shoulder with 58px of reach, they could only touch a
+  // thing that closed on the same side of you they happened to be on. Anything
+  // that reached you from the far side was, from the payroll's point of view,
+  // not happening. One shared target, so three people converge on the thing that
+  // is on you instead of each picking a different fight.
+  let threat = null, threatDef = null;
+  for (const t of world.allActors()) {
+    const td = actorDef(t.type);
+    if (td.harmless || t.asleep) continue;
+    const d2 = Math.hypot(t.x - p.x, t.y - p.y);
+    if (d2 < (threat ? Math.hypot(threat.x - p.x, threat.y - p.y) : ALLY_ENGAGE)) { threat = t; threatDef = td; }
+  }
+  G.allies.forEach((al, i) => {
+    const slot = ALLY_SLOTS[i % ALLY_SLOTS.length];
+    // The thing that is on you, or your shoulder when nothing is. Each of them
+    // closes on their OWN bearing off the target — the slot doubles as an
+    // approach angle — because one shared goal point puts three people on one
+    // pixel and draws them as a single smeared employee.
+    const sm = Math.hypot(slot.x, slot.y) || 1;
+    const stand = threat ? threatDef.r + 26 : 0;
+    const gx = threat ? threat.x + (slot.x / sm) * stand : p.x + slot.x;
+    const gy = threat ? threat.y + (slot.y / sm) * stand : p.y + slot.y;
+    const hold = threat ? 10 : 18;
+    const ax = gx - al.x, ay = gy - al.y, am = Math.hypot(ax, ay) || 1;
     let alMoving = false;
-    if (am > 560) { al.x = p.x - 40; al.y = p.y + 26; }
-    else if (am > ALLY_STATION) {
-      moveEntity(world, al, (ax / am) * ALLY_SPD * dt, (ay / am) * ALLY_SPD * dt, 13);
+    if (Math.hypot(p.x - al.x, p.y - al.y) > 560) { al.x = p.x + slot.x; al.y = p.y + slot.y; }
+    else if (am > hold) {
+      // never overshoot the goal in one frame, or a stopped firm vibrates
+      const stepD = Math.min(ALLY_SPD * dt, am - hold);
+      moveEntity(world, al, (ax / am) * stepD, (ay / am) * stepD, 13);
       al.face = ax; alMoving = true;
     }
     al.cd -= dt;
-    if (al.cd <= 0) {
-      for (const t of [...world.allActors()]) {
-        const td = actorDef(t.type);
-        if (td.harmless) continue;
-        if (Math.hypot(t.x - al.x, t.y - al.y) > td.r + ALLY_REACH) continue;
-        t.hp -= 14; al.cd = 1.05;
-        al.rig.strike();
-        (t.rig || (t.rig = new Rig())).hurt(Math.sign(t.x - al.x), Math.sign(t.y - al.y));
-        fx.number(t.x, t.y - td.r - 6, 14, '#c9a2e0');
-        fx.spark(t.x, t.y, 2);
-        SFX.melee();
-        if (t.hp <= 0) downActor(t, td);
-        break;
-      }
+    if (al.cd <= 0 && threat && Math.hypot(threat.x - al.x, threat.y - al.y) <= threatDef.r + ALLY_REACH) {
+      threat.hp -= al.dmg; al.cd = ALLY_CD;
+      al.rig.strike();
+      (threat.rig || (threat.rig = new Rig())).hurt(Math.sign(threat.x - al.x), Math.sign(threat.y - al.y));
+      fx.number(threat.x, threat.y - threatDef.r - 6, al.dmg, '#c9a2e0');
+      fx.spark(threat.x, threat.y, 2);
+      SFX.melee();
+      // Clearing the shared target is not tidiness. downActor takes it off the
+      // board; the next ally in this same loop would otherwise swing at an actor
+      // that is no longer in the world and put it down a second time — two
+      // stamps, and the hours credited twice.
+      if (threat.hp <= 0) { downActor(threat, threatDef); threat = null; threatDef = null; }
     }
     al.rig.step(dt, { moving: alMoving, speed: ALLY_SPD, faceX: al.face || 0 });
-  }
+  });
 
   // --- the Bar Complaint ---
   // It is not an enemy. It cannot be hit, it does not care about walls, and it
@@ -1913,6 +2092,7 @@ function step(now) {
     // The panel is DOM and opaque, so nothing needs drawing under it — but the
     // ending's track keeps running, because the run has not been put down yet.
     musicTick('ending');
+    stepCasefileInput(dt);
     if (Input.pressed('casefile') || Input.pressed('cancel')
       || Input.pressed('confirm') || Input.pressed('interact')) {
       Casefile.hide();
@@ -1930,6 +2110,7 @@ function step(now) {
     if (Casefile.open) {
       // the casefile is a reading screen; freeze play under it
       drawWorld(G.world, layerOf(G.layer), G.player, G.fx, G.t, G);
+      stepCasefileInput(dt);
       if (Input.pressed('casefile') || Input.pressed('cancel')) { Casefile.hide(); Input.clearHeld(); }
     } else {
       if (G.fx.hitStop > 0) G.fx.hitStop -= dt;
@@ -1944,6 +2125,27 @@ function step(now) {
     musicTick(null);
   }
 }
+/**
+ * The casefile, from a stick.
+ *
+ * Scrolling is CONTINUOUS off `Input.vec()` rather than edge-triggered off
+ * `Input.nav()`: nav gives one event per push, which is right for a choice list
+ * and useless for a page — reading the summary would be a hundred separate
+ * flicks. vec is the merged movement vector, so the same held-down analog
+ * deflection that walks the player reads the panel, and W/S and the arrow keys
+ * get the scroll they have never actually had.
+ *
+ * Tabs stay on nav(), because those ARE a list: one push, one tab.
+ */
+const CF_SCROLL = 1400;   // px/s at full deflection — a screenful in about half a second
+function stepCasefileInput(dt) {
+  const v = Input.vec();
+  if (Math.abs(v.y) > 0.2) Casefile.scrollBy(v.y * CF_SCROLL * dt);
+  const nv = Input.nav();
+  if (nv === 'left' && Casefile.cycleTab(-1)) SFX.blip();
+  else if (nv === 'right' && Casefile.cycleTab(1)) SFX.blip();
+}
+
 // Dialogue is DOM and takes clicks on its own, but it must also be fully
 // drivable from the keyboard and the pad — the choice list is the game's
 // primary verb, not a mouse-only convenience.

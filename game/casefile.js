@@ -17,14 +17,14 @@
 import { allQuests, isDone, isFailed, started, currentStage, outcomeOf, qstate, hintText } from '../engine/quests.js';
 import { knownFacts, openFacts, factCount } from '../engine/facts.js';
 import { Cal, dateString, relative, allEntries } from '../engine/clock.js';
-import { Books, Rep, Office, repLabel, Firm, STAFF, UPGRADES, payrollTotal, hasUpgrade } from '../engine/practice.js';
+import { Books, Rep, Office, repLabel, Firm, STAFF, UPGRADES, payrollTotal, hasUpgrade, staffPower } from '../engine/practice.js';
 import { Hours, fmtHours, isLit, pressureStep } from '../engine/hours.js';
 import { Bleed, bleedAt, witnessed, canCross, LEVEL_NAME } from '../engine/bleed.js';
 import { hasWalked, walkedIn } from '../engine/atlas.js';
 import { coda, endingMeta, endingSide } from './ending.js';
 import { REGIONS } from './city.js';
 
-let cfRoot, cfBody, cfTabs, cfTitle, cfCloseBtn;
+let cfRoot, cfBody, cfTabs, cfTitle, cfCloseBtn, cfHint;
 export const Casefile = {
   open: false, tab: 'matters', hasClock: true, _layer: 'street',
   // the run summary borrows this whole panel; non-null while it is up
@@ -41,6 +41,7 @@ function cfBuild() {
   cfBody = document.getElementById('cfBody');
   cfTabs = document.getElementById('cfTabs');
   cfTitle = cfRoot.querySelector('#cfHead h2');
+  cfHint = cfRoot.querySelector('#cfHead .hint');
   cfCloseBtn = document.getElementById('cfClose');
   cfCloseBtn.addEventListener('click', () => Casefile.hide());
   cfTabs.addEventListener('click', e => {
@@ -65,6 +66,7 @@ Casefile.hide = function () {
   this.summary = null;
   cfRoot.classList.remove('open');
   cfTitle.textContent = 'THE CASEFILE';
+  cfHint.textContent = '';
   cfCloseBtn.innerHTML = 'CLOSE &nbsp;C';
   // Closing the summary is the last input of a run, so it is the thing that
   // finally puts the player back at the title — not the ending reel, which is
@@ -84,11 +86,50 @@ Casefile.showSummary = function (endingId) {
   cfRoot.classList.add('open');
   cfTitle.textContent = 'THE FILE, CLOSED';
   cfTabs.innerHTML = '';
+  cfHint.textContent = '↑ ↓ scroll';
   cfCloseBtn.textContent = 'CLOSE';
   renderSummary(this.summary);
 };
 Casefile.toggle = function (layer, hasClock) {
   this.open ? this.hide() : this.show(layer, hasClock);
+};
+
+// Each layer gets the tabs its systems justify and no others. THE STREET has
+// dates and money; THE FLOOR has neither and has the timesheet instead.
+// MAP is on both layers: it is the one panel that is about the city itself
+// rather than about a system only one layer has.
+const tabsFor = hasClock => hasClock
+  ? ['matters', 'map', 'docket', 'accounts']
+  : ['matters', 'map', 'hours'];
+
+/* ------------------------------ driving it ----------------------------- */
+// The casefile is DOM, so a mouse gets all of this for free — the wheel
+// scrolls it and the tabs are buttons. A pad gets NONE of it for free: the
+// panel is not in the tab order, `navigator.getGamepads()` moves no scrollbar,
+// and until these existed the only thing a controller could do with an open
+// casefile was close it again. Which made a stick the one way to open a screen
+// you then could not read.
+//
+// The keyboard was in the same position and it did not look it: input.js
+// preventDefaults the arrow keys, so they never reached the scroller either.
+
+/** Scroll the panel body. `dy` is in pixels; the scroller clamps its own ends. */
+Casefile.scrollBy = function (dy) {
+  cfBuild();
+  cfBody.scrollTop += dy;
+};
+
+/** Move `n` tabs along, stopping at the ends. No-op on the summary, which has none. */
+Casefile.cycleTab = function (n) {
+  cfBuild();
+  if (this.summary) return false;
+  const tabs = tabsFor(this.hasClock);
+  const i = tabs.indexOf(this.tab), j = Math.max(0, Math.min(tabs.length - 1, i + n));
+  if (j === i) return false;
+  this.tab = tabs[j];
+  this.render(this._layer);
+  cfBody.scrollTop = 0;
+  return true;
 };
 
 Casefile.render = function (layer) {
@@ -98,12 +139,12 @@ Casefile.render = function (layer) {
   if (this.summary) return;
   this._layer = layer;
 
-  // Each layer gets the tabs its systems justify and no others. THE STREET has
-  // dates and money; THE FLOOR has neither and has the timesheet instead.
-  // MAP is on both layers: it is the one panel that is about the city itself
-  // rather than about a system only one layer has.
-  const tabs = this.hasClock ? ['matters', 'map', 'docket', 'accounts'] : ['matters', 'map', 'hours'];
+  const tabs = tabsFor(this.hasClock);
   if (!tabs.includes(this.tab)) this.tab = 'matters';
+  // Said once, in the panel's own header, because nothing else in the game
+  // teaches it: the tabs look clickable and the body looks scrollable, and on a
+  // pad neither is reachable by the means they advertise.
+  cfHint.textContent = '← → tabs  ·  ↑ ↓ scroll';
   cfTabs.innerHTML = tabs.map(t =>
     `<button data-tab="${t}" class="cfTab${t === this.tab ? ' on' : ''}">${t === 'hours' ? 'THE HOURS' : t.toUpperCase()}</button>`).join('');
 
@@ -514,7 +555,7 @@ function renderAccounts() {
     html += `<ul class="cfFacts">`;
     for (const id of Firm.staff) {
       const s = STAFF[id];
-      html += `<li>${s.name} — <b>${s.role}</b> <span class="cfDim">$${s.wage}/wk</span><br><span class="cfDim">${s.effect}</span></li>`;
+      html += `<li>${s.name} — <b>${s.role}</b> <span class="cfDim">$${s.wage}/wk · swings for ${staffPower(s)}</span><br><span class="cfDim">${s.effect}</span></li>`;
     }
     html += `</ul><p class="cfFoot">Payroll runs $${wages} a week, on top of $1,100 rent. That is $${wages + 1100} a week before you have eaten.</p>`;
   } else {

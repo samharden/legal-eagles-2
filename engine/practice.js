@@ -48,24 +48,35 @@ export const Office = { held: true, upgrades: [] };
 
 export const STAFF = {
   receptionist: {
-    id: 'receptionist', name: 'Perla Ocampo', role: 'Receptionist',
+    id: 'receptionist', name: 'Perla Ocampo', role: 'Receptionist', spr: 'receptionist',
     hire: 500, wage: 280,
     blurb: 'Answers the phone you are never at. Knows every clerk in the building by their first name and which of them means it.',
-    effect: 'A lapsed deadline gets one day of grace — she gets somebody on the phone before the file closes. Once per matter.',
+    effect: 'A lapsed deadline gets one day of grace. Once per matter.',
   },
   paralegal: {
-    id: 'paralegal', name: 'Renata Vosloo', role: 'Paralegal',
+    id: 'paralegal', name: 'Renata Vosloo', role: 'Paralegal', spr: 'paralegal',
     hire: 900, wage: 420,
     blurb: 'Fifteen years of other people\'s filings. Carries a redweld the way other people carry a weapon, which is a coincidence.',
-    effect: 'Walks with you and does not stand there while something is happening to you.',
+    effect: 'Does not stand there while something is happening to you.',
   },
   associate: {
-    id: 'associate', name: 'Desmond Achebe', role: 'Associate',
+    id: 'associate', name: 'Desmond Achebe', role: 'Associate', spr: 'associate',
     hire: 1600, wage: 900,
     blurb: 'Two years out, one year in a job he could describe to his parents. Wants the work. Will take the work.',
-    effect: 'Works a second matter overnight — you wake up to a fact you did not go and get.',
+    effect: 'Works a second matter overnight. You wake up to a fact you did not go and get.',
   },
 };
+
+/**
+ * What somebody on the payroll swings for.
+ *
+ * Everybody you hire walks with you now, so the roster needed a combat stat and
+ * there was already an honest one on the table: the hire fee. $60 of fee is one
+ * point of damage, which puts Perla at 8, Renata at 15 and Desmond at 27 — and
+ * means the price list IS the power curve. Nothing to tune twice, and no hidden
+ * number: the expensive one hits harder, on the screen where you pay for them.
+ */
+export const staffPower = s => Math.max(6, Math.round(s.hire / 60));
 
 export const UPGRADES = {
   bed: {

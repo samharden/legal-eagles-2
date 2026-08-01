@@ -59,7 +59,8 @@ This is the survival layer the pitch asks for, and it's what stops an open world
 
 ### Growth
 - **Reputation, per district** — replaces a single XP bar. The Flats trusting you and the Tower District trusting you are different currencies and mildly incompatible.
-- **The practice** — hire staff (paralegal = combat ally, receptionist = intake throughput, an associate = a second case in flight), upgrade the office, unlock practice areas beyond your LE1 pick.
+- **The practice** — hire staff, upgrade the office, unlock practice areas beyond your LE1 pick. Everybody you hire walks with you and swings for the hire fee divided by 60, so the price list is the power curve; they keep their paperwork effect on top (receptionist = intake throughput, an associate = a second case in flight).
+- **Arrivals** — the opposition is not a fixed roster to be cleared. It arrives off-screen on a timer that opens up as you get further in (matters closed, the bleed, days on the street or hours billed), out of a pool that widens with it.
 - **Referral network** — every satisfied client is a node; the graph is the real progression system.
 
 ### Opposition
