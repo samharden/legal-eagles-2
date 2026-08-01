@@ -69,16 +69,30 @@ export class Rig {
     this.dashDir = 0;
   }
 
-  strike() { if (this.state === 'die') return; this.state = 'strike'; this.stateT = 0; }
-  spin() { if (this.state === 'die') return; this.state = 'spin'; this.stateT = 0; this.rot = 0; }
+  /**
+   * Leaving `spawn` early has to finish the fade it started.
+   *
+   * `spawn()` sets alpha to 0 and ONLY the spawn branch of step() puts it back.
+   * Anything that interrupted the fade — an enemy hit in its first fifth of a
+   * second, an ally that fires on the frame it is hired — kept alpha 0 and was
+   * invisible for the rest of its life, while walking, fighting and dying
+   * perfectly normally. Every state change that can land mid-spawn goes
+   * through here.
+   */
+  _leaveSpawn() { if (this.state === 'spawn') this.alpha = 1; }
+
+  strike() { if (this.state === 'die') return; this._leaveSpawn(); this.state = 'strike'; this.stateT = 0; }
+  spin() { if (this.state === 'die') return; this._leaveSpawn(); this.state = 'spin'; this.stateT = 0; this.rot = 0; }
   dash(dx) {
     if (this.state === 'die') return;
+    this._leaveSpawn();
     this.state = 'dash'; this.stateT = 0;
     this.dashDir = Math.sign(dx) || this.dashDir;
     this.after.length = 0;
   }
   hurt(dx = 0, dy = 0, power = 1) {
     if (this.state === 'die') return;
+    this._leaveSpawn();
     this.state = 'hurt'; this.stateT = 0; this.flash = 1;
     this._popV -= 9 * power;
     this._rvx += dx * 220 * power;

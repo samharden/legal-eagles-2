@@ -555,7 +555,7 @@ function renderAccounts() {
     html += `<ul class="cfFacts">`;
     for (const id of Firm.staff) {
       const s = STAFF[id];
-      html += `<li>${s.name} — <b>${s.role}</b> <span class="cfDim">$${s.wage}/wk · swings for ${staffPower(s)}</span><br><span class="cfDim">${s.effect}</span></li>`;
+      html += `<li>${s.name} — <b>${s.role}</b> <span class="cfDim">$${s.wage}/wk · throws for ${staffPower(s)}</span><br><span class="cfDim">${s.effect}</span></li>`;
     }
     html += `</ul><p class="cfFoot">Payroll runs $${wages} a week, on top of $1,100 rent. That is $${wages + 1100} a week before you have eaten.</p>`;
   } else {

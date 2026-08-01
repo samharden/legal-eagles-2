@@ -68,7 +68,7 @@ export const STAFF = {
 };
 
 /**
- * What somebody on the payroll swings for.
+ * What one throw from somebody on the payroll is worth.
  *
  * Everybody you hire walks with you now, so the roster needed a combat stat and
  * there was already an honest one on the table: the hire fee. $60 of fee is one

@@ -336,12 +336,13 @@ hoursHooks.onPressure = step => {
 let RENT = 1100;
 const RENT_EVERY = 7;
 const ALLY_SPD = 190;
-// Reach is 44 plus the target's radius, and they close to 26 past it, so what
-// they are paid to do — hit the thing that reached you — is always inside it.
-// ENGAGE is measured from YOU, not from them: it is how close something has to
-// get to you before the payroll leaves your shoulder to deal with it. Wider and
-// they chase things across the street and you walk alone.
-const ALLY_REACH = 44, ALLY_CD = 1.05, ALLY_ENGAGE = 210;
+// RANGE is measured from the employee, not from you, and comfortably outstrips
+// the distance they stand off at — they answer anything that has got near you
+// without having to leave your shoulder to do it.
+// TURN is the facing deadzone: below it the sprite keeps the way it was already
+// pointing. See the note in the payroll block; it is what stopped the spinning.
+const ALLY_CD = 1.05, ALLY_RANGE = 340, ALLY_SHOT_SPD = 430;
+const ALLY_HOLD = 16, ALLY_TURN = 26, ALLY_COLOR = '#c9a2e0';
 // Where each of them walks. Without a per-person slot a firm of three occupies
 // one pixel and reads as a single smeared employee.
 const ALLY_SLOTS = [{ x: -44, y: 26 }, { x: 44, y: 26 }, { x: 0, y: 48 }];
@@ -948,7 +949,7 @@ function openOffice(pr) {
       + 'Whoever you take on walks out of the building with you. What they are worth in a doorway is what you paid for them.',
     choices: () => {
       const out = Object.values(Practice.STAFF).map(s => ({
-        label: `${s.name} — ${s.role}. $${s.hire} now, $${s.wage} a week. Swings for ${Practice.staffPower(s)}. ${s.effect}`,
+        label: `${s.name} — ${s.role}. $${s.hire} now, $${s.wage} a week. Throws for ${Practice.staffPower(s)}. ${s.effect}`,
         if: () => !Practice.hasStaff(s.id) && Practice.canPay(s.hire),
         showLocked: true,
         lockedNote: Practice.hasStaff(s.id) ? 'already on the payroll' : `you do not have $${s.hire}`,
@@ -1116,9 +1117,10 @@ function clearComplaint() {
 
 /**
  * One actor, off the board. Everything that follows from a thing going down
- * lives here and nowhere else, because there are two callers now — you and the
- * paralegal — and a quest stage that only counted YOUR kills would be a bug
- * nobody would find until the district that needs a kill stage.
+ * lives here and nowhere else, because it is not always you that did it — the
+ * payroll throws paper too, and its shots resolve through the same
+ * updateFired() your own do. A quest stage that only counted YOUR kills would
+ * be a bug nobody would find until the district that needs a kill stage.
  */
 function downActor(a, d) {
   G.fx.stamp(a.x, a.y - 10, d.harmless ? 'EXCUSED' : 'DISMISSED', d.harmless ? '#9be05e' : C.red);
@@ -1512,6 +1514,11 @@ function updateFired(dt) {
     for (const a of [...world.allActors()]) {
       if (a.asleep) continue;
       const d = actorDef(a.type);
+      // Yours pass through nobody. The payroll's `spare` them: staff fire on
+      // their own initiative, constantly, and a receptionist putting a client
+      // down in the street because he wandered into the line is not a decision
+      // you made. Your own shots keep hitting whatever you point them at.
+      if (s.spare && d.harmless) continue;
       if (Math.hypot(a.x - s.x, a.y - s.y) > d.r + s.r) continue;
       if (a.hp == null) a.hp = d.hp;
       a.hp -= s.dmg;
@@ -1789,62 +1796,71 @@ function updatePlay(dt) {
   updateShots(dt);
 
   // --- the payroll, walking ---
-  // They keep station off your shoulder and swing at whatever is on you. They
-  // cannot be hurt and do not need managing — a companion you have to babysit
-  // would be a worse deal than the wage, and the wage is the mechanic. If
-  // geometry loses one, they catch up off-screen: an employee stuck behind a
+  // They keep station off your shoulder and throw paper at whatever is near you.
+  // They cannot be hurt and do not need managing — a companion you have to
+  // babysit would be a worse deal than the wage, and the wage is the mechanic.
+  // If geometry loses one, they catch up off-screen: an employee stuck behind a
   // bollard is a bug and not a characterisation.
   //
-  // What each of them hits for is Practice.staffPower(), which is the hire fee
-  // divided by 60. The cadence is the same for everybody, so the fee buys damage
-  // and nothing else, and the office price list reads as the power curve it is.
-  // They GO AT it rather than swinging from where they stand. Keeping station
-  // and hitting whatever wandered into arm's reach sounds equivalent and is not:
-  // standing 44px off your shoulder with 58px of reach, they could only touch a
-  // thing that closed on the same side of you they happened to be on. Anything
-  // that reached you from the far side was, from the payroll's point of view,
-  // not happening. One shared target, so three people converge on the thing that
-  // is on you instead of each picking a different fight.
-  let threat = null, threatDef = null;
-  for (const t of world.allActors()) {
-    const td = actorDef(t.type);
-    if (td.harmless || t.asleep) continue;
-    const d2 = Math.hypot(t.x - p.x, t.y - p.y);
-    if (d2 < (threat ? Math.hypot(threat.x - p.x, threat.y - p.y) : ALLY_ENGAGE)) { threat = t; threatDef = td; }
-  }
+  // The attack is RANGED, and it is the reason they hold station instead of
+  // closing. They used to walk onto the target to swing at it, which put them
+  // between you and the thing hitting you and dragged them all over the street.
+  // From the shoulder they answer anything inside ALLY_RANGE without leaving.
+  //
+  // What each throw does is Practice.staffPower(): the hire fee over 60. The
+  // cadence is the same for everybody, so the fee buys damage and nothing else,
+  // and the office price list reads as the power curve it is.
   G.allies.forEach((al, i) => {
     const slot = ALLY_SLOTS[i % ALLY_SLOTS.length];
-    // The thing that is on you, or your shoulder when nothing is. Each of them
-    // closes on their OWN bearing off the target — the slot doubles as an
-    // approach angle — because one shared goal point puts three people on one
-    // pixel and draws them as a single smeared employee.
-    const sm = Math.hypot(slot.x, slot.y) || 1;
-    const stand = threat ? threatDef.r + 26 : 0;
-    const gx = threat ? threat.x + (slot.x / sm) * stand : p.x + slot.x;
-    const gy = threat ? threat.y + (slot.y / sm) * stand : p.y + slot.y;
-    const hold = threat ? 10 : 18;
+    const gx = p.x + slot.x, gy = p.y + slot.y;
     const ax = gx - al.x, ay = gy - al.y, am = Math.hypot(ax, ay) || 1;
     let alMoving = false;
-    if (Math.hypot(p.x - al.x, p.y - al.y) > 560) { al.x = p.x + slot.x; al.y = p.y + slot.y; }
-    else if (am > hold) {
-      // never overshoot the goal in one frame, or a stopped firm vibrates
-      const stepD = Math.min(ALLY_SPD * dt, am - hold);
+    if (Math.hypot(p.x - al.x, p.y - al.y) > 560) { al.x = gx; al.y = gy; }
+    else if (am > ALLY_HOLD) {
+      // never overshoot the station in one frame, or a stopped firm vibrates
+      const stepD = Math.min(ALLY_SPD * dt, am - ALLY_HOLD);
       moveEntity(world, al, (ax / am) * stepD, (ay / am) * stepD, 13);
-      al.face = ax; alMoving = true;
+      alMoving = true;
+      // Facing is DEADZONED, and that is the whole fix for the spin. `face` is a
+      // number whose sign flips the sprite, and walking beside you it is the
+      // difference between the ally and a station point that moves with you: it
+      // crosses zero constantly, so the sprite was flipping every frame or two
+      // and reading as a pirouette. Turn only for a real horizontal gap, which a
+      // stopped or vertically-drifting ally never has.
+      if (Math.abs(ax) > ALLY_TURN) al.face = ax;
+    }
+
+    // the nearest thing worth a letter — each of them picks their own
+    let best = null, bd = ALLY_RANGE;
+    for (const t of world.allActors()) {
+      const td = actorDef(t.type);
+      if (td.harmless || t.asleep) continue;
+      const d2 = Math.hypot(t.x - al.x, t.y - al.y);
+      if (d2 < bd) { bd = d2; best = t; }
     }
     al.cd -= dt;
-    if (al.cd <= 0 && threat && Math.hypot(threat.x - al.x, threat.y - al.y) <= threatDef.r + ALLY_REACH) {
-      threat.hp -= al.dmg; al.cd = ALLY_CD;
+    if (best && al.cd <= 0) {
+      al.cd = ALLY_CD;
+      const ang = Math.atan2(best.y - al.y, best.x - al.x);
+      // Turn to what you are answering — but only when standing. Walking beside
+      // you they are already facing their direction of travel, and letting the
+      // shot re-point them fought the walk for the sprite once a second: face
+      // right to keep up, face left to throw, back again. Two clean turns a
+      // second still reads as a flap. On the move they throw over a shoulder.
+      const towards = Math.cos(ang);
+      if (!alMoving && Math.abs(towards) > 0.35) al.face = towards;
       al.rig.strike();
-      (threat.rig || (threat.rig = new Rig())).hurt(Math.sign(threat.x - al.x), Math.sign(threat.y - al.y));
-      fx.number(threat.x, threat.y - threatDef.r - 6, al.dmg, '#c9a2e0');
-      fx.spark(threat.x, threat.y, 2);
-      SFX.melee();
-      // Clearing the shared target is not tidiness. downActor takes it off the
-      // board; the next ally in this same loop would otherwise swing at an actor
-      // that is no longer in the world and put it down a second time — two
-      // stamps, and the hours credited twice.
-      if (threat.hp <= 0) { downActor(threat, threatDef); threat = null; threatDef = null; }
+      // Straight into the player's own shot array: updateFired() already does
+      // travel, walls, collision, the damage number and downActor. `spare` is
+      // the one thing it did not do — your staff do not shoot bystanders.
+      G.shots.push({
+        x: al.x, y: al.y,
+        vx: Math.cos(ang) * ALLY_SHOT_SPD, vy: Math.sin(ang) * ALLY_SHOT_SPD,
+        dmg: al.dmg, r: 4, color: ALLY_COLOR, homing: false, spare: true,
+        life: 1.4, hit: new Set(),
+      });
+      fx.muzzle(al.x + Math.cos(ang) * 14, al.y + Math.sin(ang) * 14, ang, ALLY_COLOR);
+      SFX.page();
     }
     al.rig.step(dt, { moving: alMoving, speed: ALLY_SPD, faceX: al.face || 0 });
   });
