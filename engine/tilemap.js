@@ -24,6 +24,15 @@ export const TILES = {
   'o': { name: 'fence',    cls: 'fence',  solid: true },
   ':': { name: 'lot',      cls: 'lot',    solid: false },
   '~': { name: 'water',    cls: 'water',  solid: true },
+  // ---- inside ----
+  // A room is not a street with walls round it, and the paint has to say so
+  // before any writing does. `|` is the partition a layer can open: it is a
+  // wall on THE STREET and `sub`s to floor on THE FLOOR, which is how a room
+  // gets to be deeper on one side than the building it is in.
+  '_': { name: 'room',      cls: 'inside',    solid: false },
+  '%': { name: 'concourse', cls: 'stone',     solid: false },
+  '|': { name: 'partition', cls: 'partition', solid: true },
+  'c': { name: 'furniture', cls: 'furn',      solid: true },
 };
 
 export const VOID = ' ';   // unbuilt space — solid, drawn as nothing

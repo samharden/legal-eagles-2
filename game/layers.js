@@ -18,6 +18,10 @@ export const LAYERS = {
       door: '#8a6a3a', build: '#4a3f63', glass: '#5e7fa8', tree: '#3f6b45', prop: '#5a4a6e',
       fence: '#6a5f7d', lot: '#242032',
       water: '#2f4a63',
+      // Inside is WARM and the city is cool, which is the whole job: a room
+      // has to stop reading as an alley the moment you are in it, before any
+      // writing says so. A partition is a wall and paints like one.
+      inside: '#54423a', stone: '#3f3a4e', partition: '#4a3f63', furn: '#7d6242',
     },
     edge: '#71619a',        // top-edge highlight on solid tiles
     grid: 'rgba(0,0,0,0.16)',
@@ -35,6 +39,7 @@ export const LAYERS = {
       door: '#4a3a2a', build: '#2e2740', glass: '#2b3a48', tree: '#33303c', prop: '#332c44',
       fence: '#3b3550', lot: '#17141f',
       water: '#141a24',
+      inside: '#2a2028', stone: '#1f1c26', partition: '#2e2740', furn: '#3d3128',
     },
     edge: '#463c66',
     grid: 'rgba(0,0,0,0.24)',

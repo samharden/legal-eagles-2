@@ -82,7 +82,7 @@ export function drawWorld(world, layer, player, fx, gameT, ent = {}) {
   // same way it decides its own tiles — so walking from a bled district into a
   // sealed one is a change you feel at the line rather than a global setting.
   const here = world.regionAt(Math.floor(player.x / TILE), Math.floor(player.y / TILE));
-  const hereAmt = here ? bleedAt(here.id) : 0;
+  const hereAmt = here ? bleedAt(here.def.of || here.id) : 0;
 
   g.setTransform(1, 0, 0, 1, 0, 0);
   g.fillStyle = mix(layer.bg, otherLayer(layer).bg, hereAmt);
@@ -107,7 +107,9 @@ export function drawWorld(world, layer, player, fx, gameT, ent = {}) {
     for (let tx = x0; tx <= x1; tx++) {
       const b = world.regionAt(tx, ty);
       if (!b) continue;
-      if (b !== curB) { curB = b; D = dress(layer, bleedAt(b.id)); }
+      // a room bleeds as much as the district it is in — the bleed is measured
+      // per district and Suite 2B is not one
+      if (b !== curB) { curB = b; D = dress(layer, bleedAt(b.def.of || b.id)); }
       const ch = b.grid[ty - b.oy][tx - b.ox];
       if (ch === VOID) continue;
       const def = TILES[ch];
@@ -184,7 +186,7 @@ export function drawWorld(world, layer, player, fx, gameT, ent = {}) {
   // is the cheapest possible way to charge for it.
   if (Bleed.level) {
     for (const b of world.builtRegions()) {
-      const amt = bleedAt(b.id);
+      const amt = bleedAt(b.def.of || b.id);
       if (amt <= 0 || !b.ghosts) continue;
       g.save();
       g.globalAlpha = Math.min(0.5, amt * 0.62);
@@ -342,7 +344,7 @@ function drawDaylight(g, world) {
 function drawDark(g, world, player) {
   const px = player.x - cam.x, py = player.y - cam.y;
   for (const b of world.builtRegions()) {
-    if (isLit(b.id)) continue;
+    if (isLit(b.def.of || b.id)) continue;
     const rx = b.px - cam.x, ry = b.py - cam.y;
     if (rx > W / view.zoom || ry > H / view.zoom || rx + b.pw < 0 || ry + b.ph < 0) continue;
     g.save();

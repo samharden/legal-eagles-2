@@ -20,7 +20,7 @@ import { Bleed, bleedHooks, setBleed, witness, bleedAt, canCross, LEVEL_NAME, sa
 import { recordRun, runs, lastRun, hasRun, nextPath, nextLayer } from '../engine/run.js';
 import { walkInto, hasWalked, saveAtlas, loadAtlas, resetAtlas } from '../engine/atlas.js';
 import { Dialogue } from '../engine/dialogue.js';
-import { REGIONS, SPAWN } from './city.js';
+import { REGIONS, ALL_REGIONS, SPAWN } from './city.js';
 import { LAYERS, layerOf } from './layers.js';
 import { AREAS, DEFAULT_AREA, areaOf, importLE1 } from './areas.js';
 import { actorDef } from './actors.js';
@@ -219,19 +219,41 @@ CASE_HOOKS.ending = outcome => {
 
 /** The city is the one place district names live. Nothing else spells them. */
 export function districtName(id) {
-  const r = REGIONS.find(x => x.id === id);
+  const r = ALL_REGIONS.find(x => x.id === id);
   return r ? r.name : id;
+}
+
+const regionDef = id => ALL_REGIONS.find(x => x.id === id) || null;
+
+/**
+ * The district a region counts as. A room is not a place in its own right for
+ * anything that is measured per district: the lights, the bleed, standing, the
+ * map. Suite 2B is lit because The Strand is lit, and reading something in it
+ * bleeds The Strand. One helper, so no system has to know rooms exist.
+ */
+function districtOf(id) {
+  const r = regionDef(id);
+  return (r && r.of) || id;
 }
 
 function refreshCasefile() { if (Casefile.open) Casefile.render(G.layer); }
 
 // Where the map should put the dot. Global tiles, because that is the only
 // coordinate space this city has.
+//
+// Interiors live in a band of the grid a hundred and forty tiles below the
+// city, so the honest dot for a room is its district's door — you are at that
+// address, on a floor the map does not have.
 Casefile.hooks.player = () => {
   if (!G.player || !G.world) return null;
-  const gx = Math.floor(G.player.x / TILE), gy = Math.floor(G.player.y / TILE);
+  let gx = Math.floor(G.player.x / TILE), gy = Math.floor(G.player.y / TILE);
   const b = G.world.regionAt(gx, gy);
-  return { gx, gy, region: b ? b.id : null };
+  const def = b ? regionDef(b.id) : null;
+  if (def && def.interior) {
+    const home = regionDef(def.of);
+    if (home) { gx = home.ox + def.at[0]; gy = home.oy + def.at[1]; }
+  }
+  return { gx, gy, region: b ? districtOf(b.id) : null };
 };
 
 /* ================================ THE DOCKET ============================= */
@@ -378,23 +400,41 @@ clockHooks.onDue = e => {
 };
 
 /* -------------------------------- boot --------------------------------- */
+
+/**
+ * Whether a piece of authored content exists at all right now. Runs at BUILD
+ * time, so anything it reads has to be followed by a rebuild — which is exactly
+ * what makes it worth using for the office: buy the second chair and the chair
+ * is in the room before the dialogue closes.
+ *
+ * `bleed` was the first customer and is still the important one: nothing
+ * authored for Phase 4 is in the world until the layers have come apart that
+ * far.
+ */
+function worldGate(e) {
+  if (e.bleed != null && Bleed.level < e.bleed) return false;
+  if (e.needsUpgrade && !Practice.hasUpgrade(e.needsUpgrade)) return false;
+  if (e.notUpgrade && Practice.hasUpgrade(e.notUpgrade)) return false;
+  if (e.needsStaff && !Practice.hasStaff(e.needsStaff)) return false;
+  if (e.needsOffice != null && Practice.Office.held !== e.needsOffice) return false;
+  return true;
+}
+
 function beginPath(layerId, path, area, plus = 0, look = null) {
   G.path = path;
   G.layer = layerId;
   G.plus = plus;
   Facts.resetFacts();
   Quests.resetQuests();
-  G.world = new World(REGIONS, layerId);
-  // Anything authored with a `bleed` is not in the world until the layers have
-  // come apart that far. One line, and it is the whole of how Phase 4's content
-  // knows when it exists.
-  G.world.gate = e => e.bleed == null || Bleed.level >= e.bleed;
+  G.world = new World(ALL_REGIONS, layerId);
+  G.world.gate = worldGate;
   G.world.onEnter = (def, built) => {
     const L = built.layerData;
-    const unlit = G.layer === 'floor' && !isLit(def.id);
+    const unlit = G.layer === 'floor' && !isLit(districtOf(def.id));
     // onEnter fires exactly once per arrival, which makes it the one honest
-    // place to record that you have actually been somewhere.
-    walkInto(G.layer, def.id);
+    // place to record that you have actually been somewhere. Rooms are not
+    // districts and do not fill one in on the map — you have to walk the street.
+    if (!def.interior) walkInto(G.layer, def.id);
     showBanner(def.name, layerOf(G.layer).name + (unlit ? ' · UNLIT' : ''));
     // a district you have not paid for describes itself differently, and the
     // line you get after you light it is the one that was always written for it
@@ -498,7 +538,7 @@ function continueGame() {
   for (const id of G.world.residentIds()) G.world.evict(id);
   G.world.currentId = null;
   G.world.update(G.player.x, G.player.y);
-  camFollow(G.player.x, G.player.y);
+  camFollow(G.player.x, G.player.y, camBounds());
   if (d.complaint) spawnComplaint();
   // both are derived from the practice, never serialized separately — a save
   // that disagreed with itself about who is on the payroll would be the worst
@@ -618,14 +658,15 @@ function useProp(pr) {
   // reading it is what makes that district start showing the other side. This
   // is the difference between a bleed that happens to you on a schedule and one
   // you go and find: the level is global, the intensity is where you have been.
-  if (pr.bleed && witness(pr.region)) {
-    showBanner(districtName(pr.region), 'IT IS IN THIS ONE TOO');
+  if (pr.bleed && witness(districtOf(pr.region))) {
+    showBanner(districtName(districtOf(pr.region)), 'IT IS IN THIS ONE TOO');
     G.fx.addTrauma(0.3);
     if (G.world) { G.world.rebuild(); G.world.update(G.player.x, G.player.y); }
   }
 
   // ...and then the PRESENTATION half.
   if (pr.lights) return openPanel(pr);
+  if (pr.into) return goThrough(pr);
   if (pr.office) return openOffice(pr);
   if (pr.cross) return openCrossing(pr);
   // A prop can name a dialogue tree. Some things you have a conversation with
@@ -654,7 +695,7 @@ function useProp(pr) {
 function openPanel(pr) {
   // one source for what a floor costs: the region's own floor-layer data, so
   // the panel, the Casefile and the save all quote the same number.
-  const def = REGIONS.find(r => r.id === pr.region);
+  const def = regionDef(pr.region);
   const cost = (def && def.layers.floor && def.layers.floor.lightCost) || 10;
   const lit = isLit(pr.region);
   const T = { who: 'FLOOR LIGHTING — CHARGE TO MATTER № ____', spr: 'sign', start: 'a', nodes: {} };
@@ -687,6 +728,55 @@ function openPanel(pr) {
     text: 'You write the hours in. You leave the matter number blank, because there is no matter. The lights come on anyway.',
   };
   openDialogue(T);
+}
+
+/* ------------------------------- doors ---------------------------------- */
+
+/**
+ * A way in, or a way back out. `into` names the region on the far side and
+ * `spot` is the tile you arrive on, and both sides are authored — tools/check
+ * fails an unmatched pair, because a door with no door back is the same one-way
+ * trip a one-sided crossing is.
+ *
+ * Deliberately NOT a conversation. A CROSSING asks, every time, because going
+ * between the layers is the largest decision left in the game. A door is a step
+ * you take forty times a run and it should cost one keypress. The room says
+ * what it is on arrival, through the same `onEnter` greet a district uses.
+ *
+ * Nothing about the player changes. There is no coordinate space to leave: the
+ * room is on the same global grid as the street, a hundred and forty tiles
+ * south, and the streamer builds it on the next update the way it builds
+ * anything. Allies snap to their stations on their own — anything over 560px
+ * from the player is a jump, and this is always a jump.
+ */
+function goThrough(pr) {
+  const to = regionDef(pr.into);
+  if (!to || !pr.spot) return;
+  const p = G.player;
+  p.x = (to.ox + pr.spot[0]) * TILE + TILE / 2;
+  p.y = (to.oy + pr.spot[1]) * TILE + TILE / 2;
+  // paper in the air belonged to the room you left
+  G.incoming.length = 0; G.shots.length = 0;
+  // The grievance is not an enemy and does not care about walls, and a door is
+  // not a way out of it. Without this it is left a hundred and forty tiles away
+  // and spends a minute and a half walking back, which reads as "go inside and
+  // it stops". Allies need no such line: anything over 560px from the player
+  // snaps to its station on the next frame anyway.
+  if (G.complaint) { G.complaint.x = p.x - 140; G.complaint.y = p.y - 140; }
+  G.world.update(p.x, p.y);
+  camFollow(p.x, p.y, camBounds());
+  SFX.door();
+  syncHud();
+}
+
+/**
+ * The rectangle the camera may sit inside, in world pixels — a room, or null on
+ * the street. Without it a 20x14 room at 1.2x is a lit box adrift in black.
+ */
+function camBounds() {
+  if (!G.world || !G.player) return null;
+  const b = G.world.regionAt(Math.floor(G.player.x / TILE), Math.floor(G.player.y / TILE));
+  return b && b.def.interior ? { x: b.px, y: b.py, w: b.pw, h: b.ph } : null;
 }
 
 /* --------------------------- crossing over ------------------------------ */
@@ -1037,8 +1127,19 @@ Practice.practiceHooks.onUpgrade = u => {
     say('The vinyl went on at eight in the morning and by lunchtime three people had used your name without being told it.', 8);
   }
   applyUpgrades();
+  // The gate reads upgrades at BUILD time, so what you just bought is not in
+  // the room until the room is rebuilt. You are standing in it when you buy it:
+  // the second chair is there before the dialogue closes.
+  refreshWorld();
   syncHud(); refreshCasefile();
 };
+
+/** Re-run the gate over everything resident. Cheap, and the only way in. */
+function refreshWorld() {
+  if (!G.world || !G.player) return;
+  G.world.rebuild();
+  G.world.update(G.player.x, G.player.y);
+}
 
 function doCommingle(amount) {
   const n = Practice.commingle(amount, 'Rent — Suite 2B', Cal.day);
@@ -1060,6 +1161,8 @@ Practice.practiceHooks.onEvict = () => {
   showBanner('EVICTED', 'SUITE 2B — THE TAPE IS OFF THE BUZZER');
   say('Two weeks down and the lock is changed. Your files are in four boxes on the sidewalk.', 10);
   SFX.boom(); G.fx.addTrauma(0.8);
+  // the stair is not yours now. The car is where the day ends.
+  refreshWorld();
 };
 
 /**
@@ -1237,6 +1340,9 @@ function findSpawnPoint(world, p) {
     if (Math.abs(x - p.x) < view.w / 2 + 40 && Math.abs(y - p.y) < view.h / 2 + 40) continue;
     const b = world.regionAt(Math.floor(x / TILE), Math.floor(y / TILE));
     if (!b) continue;
+    // Nothing arrives in a room. A process server materialising in Suite 2B is
+    // a fight in a box with one exit, and a room is a beat, not an arena.
+    if (b.def.interior) continue;
     // room to stand AND room to leave. A spawn wedged in a doorway is a fight
     // you have one tile at a time, which flatters nobody.
     if (world.solidAtPx(x, y)) continue;
@@ -1619,18 +1725,22 @@ function updatePlay(dt) {
 
   // --- streaming ---
   world.update(p.x, p.y);
-  camFollow(p.x, p.y);
+
+  // Read once a frame and kept on G: the HUD, the renderer and the music all
+  // want this and none of them should be recomputing it for themselves. It has
+  // to be read BEFORE the camera now, because a room clamps the camera to its
+  // own walls and the camera has to know which region it is standing in.
+  const here = world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
+  const home = here ? districtOf(here.id) : null;
+  camFollow(p.x, p.y, here && here.def.interior ? { x: here.px, y: here.py, w: here.pw, h: here.ph } : null);
 
   // --- the dark ---
   // An unlit floor takes energy off you for as long as you stand on it. Slowly:
   // a minute of walking, not a death sentence. It is a clock, and the clock is
   // the whole argument for paying the panel — you CAN cross a dark district,
   // you just cannot work in one.
-  const here = world.regionAt(Math.floor(p.x / TILE), Math.floor(p.y / TILE));
-  // Read once a frame and kept on G: the HUD, the renderer and the music all
-  // want this and none of them should be recomputing it for themselves.
-  G.bleedAmt = here ? bleedAt(here.id) : 0;
-  G.dark = HAS_HOURS() && !!here && !isLit(here.id);
+  G.bleedAmt = home ? bleedAt(home) : 0;
+  G.dark = HAS_HOURS() && !!here && !isLit(home);
   if (G.dark) {
     p.hp -= DARK_DRAIN * dt;
     if (Math.random() < dt * 0.14)
@@ -1999,7 +2109,7 @@ function syncHudLight() {
   // The bleed reads as a property of the DISTRICT, next to its name, because
   // that is what it is — the level is global but a district you have found the
   // evidence in is much further gone than one you have only walked through.
-  const amt = b ? bleedAt(b.id) : 0;
+  const amt = b ? bleedAt(districtOf(b.id)) : 0;
   el('hDistrict').textContent = (b ? b.def.name + ' · ' + layerOf(G.layer).name : layerOf(G.layer).name)
     + (G.dark ? ' · UNLIT' : '')
     + (amt >= 0.4 ? ' · BLED' : amt > 0 ? ' · SEEPING' : '');

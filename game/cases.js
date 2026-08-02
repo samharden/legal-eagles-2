@@ -13,6 +13,7 @@
 import { defineFacts, learn, knows, knowsAny } from '../engine/facts.js';
 import { defineQuests, qResolve, isActive, isDone, isFailed as isFailedCase, started, outcomeOf, currentStage, questDef, qstate } from '../engine/quests.js';
 import { Bleed } from '../engine/bleed.js';
+import { Rep } from '../engine/practice.js';
 import { runs } from '../engine/run.js';
 
 /* ================================ FACTS ================================ */
@@ -50,6 +51,12 @@ defineFacts([
   { id: 'dch_clause9', case: 'retrieval', text: 'Clause 9. You signed it. Nobody read it out and you remember deciding that was normal.' },
   { id: 'dch_billing', case: 'retrieval', text: 'An internal billing summary: realisation by associate, four years, write-offs in their own column, and a note about which of them to have the conversation with.' },
   { id: 'dch_hargrove', case: 'retrieval', text: 'Hargrove signed the retrieval authorisation. He did not write it and he did not refuse it.' },
+  // Lobby colour. `hidden` keeps them off the Casefile's open questions: they
+  // are worth finding and no stage waits on them.
+  { id: 'dch_board', case: 'retrieval', hidden: true, text: 'Your name came off the eleventh floor on a Thursday. The unfaded felt is still the shape of it.' },
+  { id: 'dch_retained', case: 'reviews', hidden: true, text: 'The board in the atrium runs past the floors the building has, and the last group on it has no number: RETAINED.' },
+  { id: 'dch_signedin', case: 'reviews', hidden: true, text: 'Four hundred pages of the visitors\' book are in your hand, all IN, none OUT.' },
+  { id: 'gr_same', case: 'reviews', hidden: true, text: 'The Grabbit offer was typed before lunch on the Thursday you resigned. The folder has been on that counter ever since.' },
   { id: 'dch_list', case: 'retrieval', text: 'You did not take a document. You took a memory, and the firm has worked out that it cannot send three men to retrieve one.' },
 
   // ---- Department 13 ----
@@ -1364,6 +1371,76 @@ function centreTree() {
   return T;
 }
 
+/* --------------------------- RAY ON THE DESK ---------------------------- */
+// The man on the security desk at DC&H. He is not an obstacle in the sense of a
+// locked door: the lift would take you up and he would not stop you physically.
+// He is the covenant with a face on it, and he has known you for nine years.
+//
+// Everything he says is read off state the game already keeps — the retrieval
+// matter, In re Withdrawal, and your standing in the district — because a lobby
+// is exactly the place where you find out what the firm has decided about you.
+function dchDeskTree() {
+  const T = { who: 'Ray Okafor', spr: 'clerk', nodes: {} };
+  const standing = Rep.tower || 0;
+
+  if (isDone('withdrawal')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'Eleven minutes, I heard. — He has the bar report open on the desk, face down, the way you keep something you have read twice. — They took the board down and put it back up the same afternoon with the group headings changed. Nobody has explained that to me and I have not asked.',
+      choices: [
+        { label: '"Can I go up?"', to: 'up' },
+        { label: 'Sign the book anyway.', to: 'book' },
+      ],
+    };
+    T.nodes.up = {
+      text: 'No. — Without any weight on it at all. — That was never the covenant, counsellor. That was the card.',
+    };
+    T.nodes.book = {
+      text: 'He turns it round for you and hands you the pen on the chain, and watches you fill in all five columns including OUT, which nobody has filled in since the fourteenth.',
+    };
+    return T;
+  }
+
+  if (isActive('retrieval') || isActive('withdrawal')) {
+    T.start = 'a';
+    T.nodes.a = {
+      text: 'Morning. — Then, because he is honest and it costs him something: — I have got a note. It is not about you being in the lobby. It is about you being past the lifts, and I want you to know the note exists rather than find out what it says.',
+      choices: [
+        { tag: 'ASK', label: '"Who wrote it?"', to: 'who' },
+        { label: '"I only came in to read the door."', to: 'door' },
+      ],
+    };
+    T.nodes.who = {
+      text: 'Facilities. — He says it the way you would say a name you did not believe. — It came from facilities and it is signed by facilities and it uses the word ATTENDANCE, which facilities has no reason to have an opinion about.',
+      fx: () => learn('dch_hargrove'),
+    };
+    T.nodes.door = {
+      text: 'He nods at the glass. — It has been on there nine years and you are the fourth person to read it. Two of them were you.',
+    };
+    return T;
+  }
+
+  T.start = 'a';
+  T.nodes.a = {
+    text: standing <= -3
+      ? 'He sees you at the doors and comes round the desk before you are halfway across, which is not hostility. It is so that whatever is going to be said gets said quietly. — You cannot be in here at the moment. I am sorry. That is not me.'
+      : 'Ray looks up, and there is the half-second where he goes to say good morning to somebody who works here. — Counsellor. — He does not ask what you want, because asking would make it a visit.',
+    choices: () => [
+      { label: standing <= -3 ? '"Understood."' : '"How is the eleventh floor?"',
+        to: standing <= -3 ? null : 'eleven' },
+      { tag: 'CARD', label: '"Any chance my card still works?"', to: 'card' },
+    ],
+  };
+  T.nodes.eleven = {
+    text: 'Quiet. — He straightens something that was straight. — They put two of them in your office. Not one. Two, at right angles, and they took the window chair out to do it.',
+  };
+  T.nodes.card = {
+    text: 'It is in the drawer. — He does not open the drawer. — It works. That is the part people get wrong: they do not cancel them, they collect them. There are about forty in there and every one of them would open the barrier this afternoon.',
+    fx: () => learn('dch_board'),
+  };
+  return T;
+}
+
 function grabbitTree() {
   const T = { who: 'GRABBIT & RUNN — RECEPTION', spr: 'sign', nodes: {} };
   const stage = currentStage('grabbit');
@@ -1435,11 +1512,11 @@ function dept13Tree() {
   if (!stage || stage.type !== 'resolve') {
     T.start = 'a';
     T.nodes.a = {
-      text: 'You go in rather than reading the glass. It is warm and full and entirely silent and every seat is taken, and at the front a man in his eighties is presiding over an argument that is being made competently and at length by nobody at all. The clock above him says ten past nine.',
+      text: 'Warm, full, entirely silent, every seat behind you taken. At the front a man in his eighties is presiding over an argument that is being made competently and at length by nobody at all. The clock above him says ten past nine.',
       fx: () => { learn('d13_session'); learn('d13_bane'); },
       choices: [
-        { label: 'Read the caption on the file in front of the bench.', to: 'caption' },
-        { label: 'Go back out.', to: null },
+        { label: 'Read the caption. It is open on the table in front of you.', to: 'caption' },
+        { label: 'Leave it shut.', to: null },
       ],
     };
     T.nodes.caption = {
@@ -1511,11 +1588,11 @@ function copierTree() {
   if (!stage || stage.type !== 'resolve') {
     T.start = 'a';
     T.nodes.a = {
-      text: 'Three flights down and the air gets warmer rather than colder. At the bottom, in a room the size of the building above it, one copier, running, with a display that reads 400 REMAINING and has read 400 REMAINING for the entire time you have been able to hear it.',
+      text: 'One copier, running, in a room the size of the building above it. The display reads 400 REMAINING and has read 400 REMAINING for the entire time you have been able to hear it.',
       fx: () => learn('cop_sound'),
       choices: [
         { label: 'Look at what it is copying.', to: 'what' },
-        { label: 'Go back up.', to: null },
+        { label: 'Leave it running.', to: null },
       ],
     };
     T.nodes.what = {
@@ -1560,6 +1637,7 @@ const NPC_TREES = {
   lien: lienTree,
   centre: centreTree,
   grabbit: grabbitTree,
+  dcguard: dchDeskTree,
 
   /* ------------------------------ MARISOL RUIZ ------------------------------ */
   ruiz() {

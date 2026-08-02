@@ -15,6 +15,10 @@
 import { TILE } from './stage.js';
 import { parseRows, isSolid, VOID } from './tilemap.js';
 
+// Two regions closer together than these can be resident at the same time —
+// which for two INTERIORS means seeing into the other room across the void
+// between them. tools/check.mjs enforces the spacing and mirrors EVICT_PAD;
+// change it there too.
 const LOAD_PAD = 26;    // tiles beyond the player before a region is built
 const EVICT_PAD = 44;   // ...and before a built region is dropped
 

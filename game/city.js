@@ -60,6 +60,10 @@ export const REGIONS = [
       street: {
         greet: 'COURTHOUSE SQUARE. Filing window closes at four. The steps are where the work is.',
         props: [
+          { id: 'ch_in', tx: 19, ty: 11, spr: 'sign', repeat: true,
+            into: 'dept13', spot: [12, 13],
+            label: '[E] in through the doors',
+            text: 'Through the doors, past the metal detector nobody is manning.' },
           { id: 'ch_doors', tx: 19, ty: 12, spr: 'sign',
             label: '[E] Superior Court — Dept. 13',
             text: 'SUPERIOR COURT — DEPARTMENT 13. The docket is posted behind glass, sun-bleached to the point of prophecy. Hon. M. BANE presiding. He has been presiding since before you were born.' },
@@ -120,8 +124,12 @@ export const REGIONS = [
         litFree: true,
         lightCost: 0,
         props: [
-          { id: 'ch_doors', tx: 19, ty: 12, spr: 'sign', repeat: true, tree: 'dept13',
-            label: '[E] Department 13 — IN SESSION',
+          { id: 'ch_in', tx: 19, ty: 11, spr: 'sign', repeat: true,
+            into: 'dept13', spot: [12, 13],
+            label: '[E] in through the doors',
+            text: 'Through the doors. There is no metal detector on this side and the frame it stood in is still bolted to the floor.' },
+          { id: 'ch_doors', tx: 19, ty: 12, spr: 'sign',
+            label: '[E] the docket behind the glass',
             text: 'The docket behind the glass lists one matter. It has listed one matter for a very long time. The caption is your name, and under COUNSEL FOR, also your name.',
             fact: 'unsent_docket' },
           { id: 'ch_kiosk', tx: 20, ty: 17, spr: 'board', label: '[E] what is left of the newsstand',
@@ -197,10 +205,21 @@ export const REGIONS = [
       street: {
         greet: 'THE STRAND. Small business, small claims. Your office is the one over the Golden Wok.',
         props: [
-          { id: 'st_office', tx: 17, ty: 17, spr: 'sign',
-            label: '[E] SUITE 2B — above the Golden Wok',
+          { id: 'st_office', tx: 17, ty: 17, spr: 'sign', repeat: true,
+            into: 'suite2b', spot: [1, 7], needsOffice: true,
+            label: '[E] up to Suite 2B',
+            text: 'Up the stairs beside the Wok, past the smell.' },
+          { id: 'st_buzzer', tx: 15, ty: 18, spr: 'sign',
+            label: '[E] the buzzer',
             text: 'A strip of masking tape on the buzzer, and on the tape, in marker, your name. Under it someone has added ESQ. with a caret. You did not do that. You have decided to like it. Taped inside the glass, where a lease is required to be posted: GOLDEN WOK HOLDINGS LLC, LANDLORD.',
             fact: 'wok_landlord' },
+          // Evicted, the stair is not yours and the day still has to end
+          // somewhere. Blocking sleep would soft-lock the run: ending days is
+          // how you get to the work that pays the arrears off.
+          { id: 'st_car', tx: 20, ty: 18, spr: 'sign', repeat: true, office: true,
+            needsOffice: false,
+            label: '[E] the firm car',
+            text: 'The car, with the files in the footwell and the seat as far back as it goes. The stairwell door has a different lock on it now. It took them four days.' },
           { id: 'st_board', tx: 6, ty: 13, spr: 'board', label: '[E] corkboard',
             text: 'LAUNDROMAT CORKBOARD: a lost cat, a bass amp, three tabs torn off a card that reads EVICTION? KNOW YOUR RIGHTS — and four staples in a rectangle, holding nothing. Whatever was posted there was county-yellow; there is a strip of it still under the left staple, and the printed date on it has not come yet.',
             fact: 'wok_notice' },
@@ -208,9 +227,6 @@ export const REGIONS = [
             label: '[E] the lease, in the glass',
             text: 'Your own lease, posted in the glass by the stairwell because the code says it has to be. Eleven hundred a week for a room over a kitchen, on a form nobody drafted so much as assembled.',
             fact: 'lease_terms' },
-          { id: 'st_endday', tx: 20, ty: 18, spr: 'sign', repeat: true, office: true,
-            label: '[E] go up to Suite 2B',
-            text: 'Up the stairs beside the Wok, past the smell, to a folding table and a cot you have decided not to describe as a cot.' },
           // ---- the bleed ----
           { id: 'st_bleed', tx: 10, ty: 19, spr: 'board', bleed: 1,
             label: '[E] the storefront between the two storefronts',
@@ -240,10 +256,10 @@ export const REGIONS = [
           { id: 'st_panel', tx: 3, ty: 19, spr: 'board', repeat: true, lights: true,
             label: '[E] the lighting panel',
             text: 'The same panel. The same form, in the same hand, taped at the same height — which means somebody walked the whole length of this street putting them up, and that somebody expected people to be working here.' },
-          { id: 'st_office', tx: 17, ty: 17, spr: 'sign',
+          { id: 'st_office', tx: 17, ty: 17, spr: 'sign', repeat: true,
+            into: 'suite2b', spot: [1, 7],
             label: '[E] SUITE 2B — the door is open',
-            text: 'The tape on the buzzer is yellow and curling and your name is still on it, which is the part you cannot make work, because in this version you never resigned and never rented it. Inside, the desks go back further than the room should allow, and you open the nearest drawer, and then the next one, and then eleven more. Every drawer has a letter in it. None of them have been sent.',
-            fact: 'unsent_drawer' },
+            text: 'The door is open. It has been open the whole time.' },
           { id: 'st_board', tx: 6, ty: 13, spr: 'board', label: '[E] corkboard',
             text: 'The cork is furred with staples. Every notice has been taken down. The tabs are all still there — every phone number intact, nobody ever tore one off.' },
           { id: 'st_window1', tx: 12, ty: 10, spr: 'board', label: '[E] the first storefront',
@@ -317,13 +333,18 @@ export const REGIONS = [
       street: {
         greet: 'THE TOWER DISTRICT. Dewey, Cheatham & Howe on the left, Grabbit & Runn on the right, and a plaza between them with nowhere to stand that is not overlooked.',
         props: [
+          { id: 'tw_lobby', tx: 12, ty: 13, spr: 'sign', repeat: true,
+            into: 'dch', spot: [10, 9],
+            label: '[E] in through the doors',
+            text: 'You know the weight of these doors in your shoulder.' },
           { id: 'tw_doors', tx: 13, ty: 16, spr: 'sign',
             label: '[E] DEWEY, CHEATHAM & HOWE',
             text: 'You know the weight of these doors in your shoulder. Posted inside the glass where a licence has to be posted, and where nobody has ever read it: the partnership agreement\'s covenant clause. Two years. Fifty miles. Any client of the firm, and CLIENT OF THE FIRM is defined at paragraph forty-one to include anyone the firm has ever opened a file on.',
             fact: 'dch_noncompete' },
           { id: 'tw_plaque', tx: 23, ty: 13, spr: 'sign', label: '[E] the plaza plaque',
             text: 'DEWEY PLAZA — DEDICATED 1971 — A PLACE FOR THE PUBLIC. It is a place for the public in the sense that the public may cross it.' },
-          { id: 'tw_grabbit', tx: 31, ty: 12, spr: 'sign', repeat: true, tree: 'grabbit',
+          { id: 'tw_grabbit', tx: 31, ty: 11, spr: 'sign', repeat: true,
+            into: 'grabbit', spot: [7, 7],
             label: '[E] GRABBIT & RUNN — reception',
             text: 'The other one. Identical inside, apparently, down to the carpet, which people say the way you\'d mention a coincidence and not a supplier.' },
           { id: 'tw_dock', tx: 7, ty: 28, spr: 'board', label: '[E] the loading dock',
@@ -372,9 +393,17 @@ export const REGIONS = [
           { id: 'tw_panel', tx: 33, ty: 25, spr: 'board', repeat: true, lights: true,
             label: '[E] the lighting panel',
             text: 'This one is not taped up. It is engraved, on a brass plate, at eye height, next to the lift call button — which means it was not an improvisation. It was specified.' },
+          { id: 'tw_lobby', tx: 12, ty: 13, spr: 'sign', repeat: true,
+            into: 'dch', spot: [10, 9],
+            label: '[E] in through the doors',
+            text: 'The doors are not locked. They were not locked the night you left either.' },
           { id: 'tw_desk', tx: 16, ty: 17, spr: 'sign', label: '[E] the desk',
             text: 'The desk you woke at is out here, in the plaza, at the correct angle to a window that is eleven floors up. The nameplate is yours. The coffee is still warm and the ring under it is forty years deep.',
             fact: 'tw_desk' },
+          { id: 'tw_grabbit', tx: 31, ty: 11, spr: 'sign', repeat: true,
+            into: 'grabbit', spot: [7, 7],
+            label: '[E] GRABBIT & RUNN — reception',
+            text: 'The other one, lit the same, at the same hour, on the same side of a plaza with nobody crossing it.' },
           { id: 'tw_file', tx: 13, ty: 16, spr: 'dossier', repeat: true, tree: 'personnel',
             label: '[E] the personnel file',
             text: 'Your personnel file, open, on a chair nobody is sitting in.',
@@ -498,9 +527,10 @@ export const REGIONS = [
           { id: 'an_panel', tx: 18, ty: 27, spr: 'board', repeat: true, lights: true,
             label: '[E] the lighting panel',
             text: 'The oldest one you have seen. The form on it is not photocopied — it is carbon, and the carbon is on the third sheet, which means there were two above it, which means somebody was keeping a set.' },
-          { id: 'an_stair', tx: 30, ty: 4, spr: 'sign', repeat: true, tree: 'copier',
+          { id: 'an_stair', tx: 30, ty: 4, spr: 'sign', repeat: true,
+            into: 'sublevel', spot: [14, 2],
             label: '[E] SUBLEVEL C — the chain is down',
-            text: 'The chain is on the floor. The stair goes down further than three floors and the air coming up it is warm and smells of toner, and at the bottom, a long way down, something is running a copier.',
+            text: 'The chain is on the floor. The stair goes down further than three floors and the air coming up it is warm and smells of toner.',
             fact: 'an_sublevel' },
           { id: 'an_index', tx: 6, ty: 14, spr: 'board', label: '[E] the index',
             text: 'Forty drawers, all open. You go to D expecting the firm and find instead four hundred cards, one per name, each with a date of joining and a blank where a leaving date goes. Yours is filed under the year you were born.',
@@ -771,6 +801,452 @@ export const REGIONS = [
     },
   },
 ];
+
+// ============================== INSIDE ==============================
+// Rooms. Same engine, same global grid, same two layers — an interior is an
+// ordinary region that happens to sit in a band of the grid you cannot walk to,
+// at `oy: 200`, a hundred and forty tiles below the city and far outside the
+// streamer's 44-tile eviction pad. So a room is never resident while you are on
+// the street and the street is never resident while you are in a room.
+//
+// They are spaced 120 tiles apart along the belt for the same reason, and it is
+// not tidiness. Two rooms inside LOAD_PAD of each other are BOTH built, and at
+// low zoom you see the other one hanging in the void beside you. `tools/check`
+// enforces the spacing.
+//
+// Why a separate region rather than a hole carved in the building: the renderer
+// has no roof. A room cut out of a `#` block is on screen from the pavement,
+// permanently — you would read Department 13's benches from the newsstand. It
+// also caps every room at whatever the exterior footprint happens to allow,
+// which is a stupid reason for a room to be the shape it is.
+//
+// An interior declares:
+//   interior  true — the camera clamps to it, and nothing spawns in it
+//   of        the district it belongs to. Lighting, bleed and the map read
+//             through this, so a room in a lit district is lit
+//   at        that district's door tile, which is where the map puts your dot
+//
+// Doors are authored in PAIRS, `into` + `spot` on both sides, and tools/check
+// enforces the pairing exactly the way it enforces a crossing — a door in with
+// no door out is the same one-way trip and the same worst bug.
+export const INTERIORS = [
+  {
+    id: 'sublevel',
+    name: 'SUBLEVEL C',
+    interior: true, of: 'annex', at: [30, 4],
+    ox: 480, oy: 200,
+    // THE FLOOR ONLY, and the only region in the game with one layer — the
+    // deliberate exception DESIGN §9.3 reserves. On THE STREET the chain is
+    // still across the stair with its unclosed padlock, which is not a broken
+    // promise: it is a chain. On THE FLOOR the chain is on the ground and this
+    // is what is at the bottom.
+    //
+    // Floored in `%`, the same stone as the DC&H atrium, in a building the firm
+    // gifted to the county in 1971 subject to clause 9.
+    rows: [
+      '##############################',
+      '#############ss###############',
+      '#############ss###############',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%cccccccc%%%%%%cccccccc%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%cccccccc%%%%%%cccccccc%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%cc%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%cc%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%cccccccc%%%%%%cccccccc%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%cccccccc%%%%%%cccccccc%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%%%%%%%%%#',
+      '##############################',
+    ],
+    layers: {
+      floor: {
+        greet: 'SUBLEVEL C. A room the size of the building above it, and the air is warmer down here than it was up there.',
+        greetDark: 'SUBLEVEL C, unlit, and the only thing you can hear is running, and it is not going to stop while you decide.',
+        props: [
+          { id: 'sl_up', tx: 14, ty: 1, spr: 'sign', repeat: true,
+            into: 'annex', spot: [30, 5],
+            label: '[E] back up the stair',
+            text: 'Three flights up, and the air gets colder on the way.' },
+          // the matter, at the bottom of the stair that has been describing it
+          { id: 'sl_copier', tx: 14, ty: 9, spr: 'sign', repeat: true, tree: 'copier',
+            label: '[E] the copier' },
+          { id: 'sl_boxes', tx: 6, ty: 4, spr: 'dossier', repeat: true,
+            label: '[E] the boxes it is working from',
+            text: 'Banker\'s boxes on steel racking, in runs, lids off, and the run nearest the machine has been worked along from left to right — one box pulled forward, emptied, refilled, pushed back, the next one pulled forward. It is about a third of the way down the first run.' },
+          { id: 'sl_output', tx: 22, ty: 6, spr: 'dossier', repeat: true,
+            label: '[E] the finished side',
+            text: 'The other side of the room is what has come off it. Four hundred boxes going in and four hundred coming out, continuously, since 1994, and every sheet of it is somebody\'s work and none of it is wrong. It is not a person and it is not pretending to be one. It is a going concern, and it is still going.',
+            fact: 'tf_going' },
+          { id: 'sl_door', tx: 27, ty: 18, spr: 'sign', repeat: true,
+            label: '[E] the door at the far end',
+            text: 'A fire door in the far wall with a push bar on this side and no handle on the other, which means it has opened outwards, from in here, whenever anybody wanted. There is a wedge on the floor beside it that has never been used. Nobody asked anybody to stay.',
+            fact: 'tf_nobody' },
+          { id: 'sl_stone', tx: 14, ty: 17, spr: 'board',
+            label: '[E] the floor',
+            text: 'The same stone as the atrium across town, laid the same way, in a building the firm gave to the county in 1971 in perpetuity and subject to clause 9. Somebody specified this for a basement nobody was going to stand in.' },
+        ],
+        pickups: [
+          { id: 'sl_toner', tx: 20, ty: 12, spr: 'dossier', item: 'toner',
+            name: 'A TONER ORDER, STANDING',
+            note: 'A standing order for toner, quarterly, delivered to a loading dock at an address that has been the county\'s since 1971, paid from an account that is not the county\'s. Last amended 1994.' },
+        ],
+        actors: [
+          { id: 'sl_unb1', type: 'unbilled', tx: 8, ty: 12 },
+          { id: 'sl_unb2', type: 'unbilled', tx: 24, ty: 16 },
+        ],
+      },
+    },
+  },
+  {
+    id: 'dept13',
+    name: 'DEPARTMENT 13',
+    interior: true, of: 'courthouse', at: [19, 11],
+    ox: 360, oy: 200,
+    // A courtroom, laid out as one: the bench at the top, two counsel tables in
+    // the well, the bar across the middle with its gate, the gallery behind it,
+    // and a centre aisle running from the doors to the gate.
+    //
+    // The bar is `|`, which is the whole layer contrast. On THE STREET it is
+    // there and you are behind it, because you are not counsel of record on
+    // anything being heard. On THE FLOOR it is not there at all, and the room
+    // is one twenty-four by thirteen space with nothing between you and the
+    // bench, and the caption has your name on both sides.
+    rows: [
+      '##########################',
+      '#________________________#',
+      '#________cccccccc________#',
+      '#________________________#',
+      '#________________________#',
+      '#_____cccc______cccc_____#',
+      '#________________________#',
+      '#________________________#',
+      '#|||||||||||__|||||||||||#',
+      '#________________________#',
+      '#__ccccccccc__ccccccccc__#',
+      '#________________________#',
+      '#__ccccccccc__ccccccccc__#',
+      '#________________________#',
+      '#wwwwwwwwwww++wwwwwwwwwww#',
+      '##########################',
+    ],
+    layers: {
+      street: {
+        greet: 'SUPERIOR COURT, DEPARTMENT 13. The ten oclock calendar, called at twenty past.',
+        props: [
+          { id: 'd13_out', tx: 12, ty: 14, spr: 'sign', repeat: true,
+            into: 'courthouse', spot: [19, 12],
+            label: '[E] back out to the steps',
+            text: 'Out through the doors, down the steps.' },
+          { id: 'd13_bench', tx: 12, ty: 2, spr: 'sign', repeat: true,
+            label: '[E] the bench',
+            text: 'Hon. M. Bane, presiding, in a robe that has been pressed by somebody who does it every week. He is hearing a motion to compel from a man who has plainly not read his own exhibit, and he is hearing all of it, and he will rule correctly and without pleasure.' },
+          { id: 'd13_bar', tx: 12, ty: 7, spr: 'sign', repeat: true,
+            label: '[E] the gate in the bar',
+            text: 'A swing gate in a wooden rail, eleven inches of it, with a brass plate worn through the lacquer where thirty years of hands have gone over the top of it. You are on the public side. That is not a rule about the gate.' },
+          { id: 'd13_calendar', tx: 3, ty: 9, spr: 'board',
+            label: '[E] the calendar for the day',
+            text: 'Twenty-six matters at ten oclock, in the order the clerk typed them, which is not the order they will be called. Nine are unlawful detainers. Four of the nine have NO APPEARANCE FOR RESPONDENT written in already, in pen, before ten oclock.' },
+          { id: 'd13_gallery', tx: 6, ty: 11, spr: 'sign', repeat: true,
+            label: '[E] the gallery',
+            text: 'Four rows, and everybody in them is here about the thing that is going to happen to them this morning. A woman two along has her file in a supermarket bag. She has read it. You can tell from the edges of it that she has read it more than you have read most of yours.' },
+          { id: 'd13_table', tx: 7, ty: 5, spr: 'sign', repeat: true,
+            label: '[E] the near counsel table',
+            text: 'Two chairs, a jug of water and four glasses upside down on a tray, and a power outlet in the floor under it with a strip of gaffer tape over the socket that says OUT — 2019.' },
+        ],
+      },
+      floor: {
+        // no bar. Nothing between you and the bench.
+        sub: { '|': '_' },
+        greet: 'DEPARTMENT 13. You came in rather than reading the glass.',
+        props: [
+          { id: 'd13_out', tx: 12, ty: 14, spr: 'sign', repeat: true,
+            into: 'courthouse', spot: [19, 12],
+            label: '[E] back out to the steps',
+            text: 'Out through the doors. The session does not pause while you leave, because it does not pause.' },
+          // the matter itself, in the room it has been describing since Phase 3
+          { id: 'd13_file', tx: 12, ty: 3, spr: 'dossier', repeat: true, tree: 'dept13',
+            label: '[E] the file in front of the bench' },
+          { id: 'd13_bar', tx: 12, ty: 8, spr: 'sign', repeat: true,
+            label: '[E] where the bar was',
+            text: 'There is a line in the boards the width of the room where a rail was taken up, and the holes are still in the floor, and the brass is still bright in them. Nobody stopped at it on the way in, including you, and you did not notice you had not.' },
+          { id: 'd13_gallery', tx: 6, ty: 11, spr: 'sign', repeat: true,
+            label: '[E] the gallery',
+            text: 'Every seat is taken and the room is entirely silent. None of them are waiting to be called. They have all been called. That is what the seats are for.' },
+          { id: 'd13_clock', tx: 18, ty: 2, spr: 'board',
+            label: '[E] the clock above the bench',
+            text: 'Ten past nine. It is a mains clock with a sweep second hand and the second hand is going round, and it has gone round eleven times while you have been looking at it, and it is ten past nine.' },
+          { id: 'd13_reporter', tx: 18, ty: 5, spr: 'board',
+            label: '[E] the reporter\'s machine',
+            text: 'A stenotype on its stand, keys going, tape coming off it in a fold onto the floor. There is nobody at it. The transcript is of what is being argued, and it is accurate, and you check two lines of it against what you have just heard and they match.' },
+        ],
+      },
+    },
+  },
+  {
+    id: 'grabbit',
+    name: 'GRABBIT & RUNN',
+    interior: true, of: 'tower', at: [31, 11],
+    ox: 240, oy: 200,
+    // Deliberately the DC&H atrium again, at three-quarter scale and tile for
+    // tile: lift doors along the top, the counter across the middle, the glass
+    // and the way out at the bottom, the same stone underfoot. `gr_carpet` has
+    // said "the same layout" since Phase 3 and nobody could check it. Now the
+    // player walks in and checks it.
+    rows: [
+      '################',
+      '#%%||%%%%%%||%%#',
+      '#%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%#',
+      '#%%%%cccccc%%%%#',
+      '#%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%#',
+      '#wwwwww++wwwwww#',
+      '################',
+    ],
+    layers: {
+      street: {
+        greet: 'GRABBIT & RUNN. You have been in this room before. You have never been in this room.',
+        props: [
+          { id: 'gr_out', tx: 7, ty: 8, spr: 'sign', repeat: true,
+            into: 'tower', spot: [31, 12],
+            label: '[E] back out to the plaza',
+            text: 'Out, across the plaza, past the other set of doors.' },
+          // the matter itself, moved off the plaza and into the room it has
+          // been describing since Phase 3
+          { id: 'gr_desk', tx: 7, ty: 4, spr: 'sign', repeat: true, tree: 'grabbit',
+            label: '[E] reception' },
+          { id: 'gr_chairs', tx: 12, ty: 6, spr: 'sign', repeat: true,
+            label: '[E] the chairs',
+            text: 'Four chairs at right angles to each other, and a low table with the firm\'s own publications on it: a client bulletin on changes to the limitation period, and a glossy about the pro bono programme with a photograph of eleven people in a food bank.' },
+          { id: 'gr_photo', tx: 3, ty: 2, spr: 'board',
+            label: '[E] the photograph on the wall',
+            text: 'A photograph of the building at dusk with every window lit, blown up to four feet. There is one at DC&H of the other building, at dusk, with every window lit, blown up to four feet, and you have walked past it eleven hundred times.' },
+          { id: 'gr_lifts', tx: 11, ty: 1, spr: 'sign', repeat: true,
+            label: '[E] the lift bank',
+            text: 'Four lifts and a card reader on the wall between the second and the third, at the height the reader is at across the plaza, in the finish the reader is in across the plaza.' },
+        ],
+      },
+      floor: {
+        sub: { '|': '%' },
+        greet: 'GRABBIT & RUNN. The same room. Not similar — the same, and the folder is already on the counter.',
+        greetDark: 'GRABBIT & RUNN, unlit, and you cross it without putting a hand out, because you know where the counter is.',
+        props: [
+          { id: 'gr_out', tx: 7, ty: 8, spr: 'sign', repeat: true,
+            into: 'tower', spot: [31, 12],
+            label: '[E] back out to the plaza',
+            text: 'Out through the doors. They open outwards on this side too.' },
+          { id: 'gr_folder', tx: 7, ty: 4, spr: 'dossier', repeat: true,
+            label: '[E] the folder on the counter',
+            text: 'A folder, made up, your name spelled correctly on the tab. Inside: of counsel, a floor, a salary with a comma in it, and the covenant bought out on your first day. The date on the covering letter is the Thursday you resigned, and it was typed before lunch.',
+            fact: 'gr_same' },
+          { id: 'gr_photo', tx: 3, ty: 2, spr: 'board',
+            label: '[E] the photograph on the wall',
+            text: 'The building at dusk with every window lit. You have been in both of these rooms tonight and you could not now say which one you are in, and the photograph is not going to settle it, because the photograph is of the other one from here and of this one from there.' },
+          { id: 'gr_chairs', tx: 12, ty: 6, spr: 'sign', repeat: true,
+            label: '[E] the chairs',
+            text: 'Four chairs at right angles. The one facing the counter has been sat in recently enough that the cushion has not come back up, and it comes back up while you are looking at it.' },
+          { id: 'gr_lifts', tx: 11, ty: 1, spr: 'sign', repeat: true,
+            label: '[E] the lifts standing open',
+            text: 'Four lifts, all open, all lit. The panel in each one has the same buttons as the panel across the plaza, including the floors the building does not have, and including the one at the bottom with no number on it.' },
+        ],
+        actors: [
+          { id: 'gr_sty1', type: 'stayed', tx: 4, ty: 6 },
+        ],
+      },
+    },
+  },
+  {
+    id: 'dch',
+    name: 'DEWEY, CHEATHAM & HOWE',
+    interior: true, of: 'tower', at: [12, 13],
+    ox: 120, oy: 200,
+    // Twenty by nine of nothing, which is the whole point of it. The atrium is
+    // not big because the firm needs the room; it is big because you are meant
+    // to cross it on foot while somebody watches. `%` is stone rather than the
+    // boards Suite 2B is floored in: the paint class IS the material, so a
+    // lobby stops feeling like your office without a per-room palette. The `|`
+    // row is the lift doors — shut on THE STREET, standing open on THE FLOOR.
+    rows: [
+      '######################',
+      '#%%||%%%%%||%%%%%||%%#',
+      '#%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%ccccccc%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%#',
+      '#%%%%%%%%%%%%%%%%%%%%#',
+      '#wwwwwwwww++wwwwwwwww#',
+      '######################',
+    ],
+    layers: {
+      street: {
+        greet: 'DEWEY, CHEATHAM & HOWE. Nine years of mornings. The floor is the same floor.',
+        props: [
+          { id: 'dc_out', tx: 10, ty: 10, spr: 'sign', repeat: true,
+            into: 'tower', spot: [12, 14],
+            label: '[E] back out to the plaza',
+            text: 'Out through the doors, down the steps.' },
+          { id: 'dc_board', tx: 4, ty: 3, spr: 'board', repeat: true,
+            label: '[E] the directory board',
+            text: 'Cut vinyl on black felt, floors 3 to 19, practice groups in caps and partners under them in title case. Your name came off the eleventh floor on a Thursday. The felt where it was has not faded like the felt around it, so the shape of it is still there, at the right height, in the light.',
+            fact: 'dch_board' },
+          { id: 'dc_lifts', tx: 10, ty: 1, spr: 'sign', repeat: true,
+            label: '[E] the lift bank',
+            text: 'Six lifts, and a card reader on the wall between the third and the fourth. You handed the card back at the desk downstairs on your last morning and watched a woman you had never met put it in a drawer with about forty others.' },
+          { id: 'dc_desk', tx: 10, ty: 5, spr: 'sign', repeat: true,
+            label: '[E] the visitors\' book',
+            text: 'A visitors\' book, turned to face out, and a pen on a chain. NAME, FIRM, WHOM VISITING, IN, OUT. Nobody has filled in an OUT since the fourteenth.' },
+          { id: 'dc_licence', tx: 17, ty: 9, spr: 'board',
+            label: '[E] what is posted by the door',
+            text: 'The things a firm has to post where they can be read, in a frame, at the height of nobody: the licence, the trust-account certification, the notice about fee disputes, and a card giving the number of the bar\'s complaint line. The card is the only one that has been touched.' },
+        ],
+        npcs: [
+          { id: 'dcguard', name: 'Ray Okafor', spr: 'clerk', tx: 10, ty: 6,
+            label: '[E] the man on the desk' },
+        ],
+      },
+      floor: {
+        // the lifts are open on this side
+        sub: { '|': '%' },
+        greet: 'DEWEY, CHEATHAM & HOWE. The lights are on in the atrium and the lifts are standing open.',
+        greetDark: 'DEWEY, CHEATHAM & HOWE. You cross it from memory. You have crossed it from memory before, in the dark, at this hour, awake.',
+        props: [
+          { id: 'dc_out', tx: 10, ty: 10, spr: 'sign', repeat: true,
+            into: 'tower', spot: [12, 14],
+            label: '[E] back out to the plaza',
+            text: 'Out through the doors. They open outwards and they do not resist.' },
+          { id: 'dc_board', tx: 4, ty: 3, spr: 'board', repeat: true,
+            label: '[E] the directory board',
+            text: 'Every name is on it. Yours is on it, on eleven, where it was. The floors run 3 to 19 and then keep going: 20, 21, 24, 31, and a group at the bottom with no number beside it at all, headed RETAINED.',
+            fact: 'dch_retained' },
+          { id: 'dc_lifts', tx: 10, ty: 1, spr: 'sign', repeat: true,
+            label: '[E] the lift standing open',
+            text: 'One lift is open and lit and has been for some time. The call button is already pressed. Inside, the panel has a button for every floor on the board, including the ones the board has that the building does not.' },
+          { id: 'dc_book', tx: 10, ty: 5, spr: 'sign', repeat: true,
+            label: '[E] the visitors\' book',
+            text: 'The book is full. Every line is the same hand, and the hand is yours, and the IN times run from 06:40 to 07:15 for four hundred pages. The OUT column has never been filled in.',
+            fact: 'dch_signedin' },
+          { id: 'dc_chair', tx: 15, ty: 7, spr: 'board',
+            label: '[E] the chair by the window',
+            text: 'A chair pulled away from the wall and turned to face the doors, at the angle somebody sits at when they are waiting for one particular person. There is a coat over the back of it. It is your coat, and it is the one you were wearing.' },
+        ],
+        pickups: [
+          { id: 'dc_pass', tx: 6, ty: 7, spr: 'dossier', item: 'pass',
+            name: 'A BUILDING PASS, STILL LIVE',
+            note: 'Your photograph, your name, and an expiry four years after you handed it back. The magnetic strip is worn the way a card gets worn by being used.' },
+        ],
+        actors: [
+          { id: 'dc_sty1', type: 'stayed', tx: 17, ty: 3 },
+        ],
+      },
+    },
+  },
+  {
+    id: 'suite2b',
+    name: 'SUITE 2B',
+    interior: true, of: 'strand', at: [17, 17],
+    ox: 0, oy: 200,
+    // Twelve by six, which is the room the writing has always described: a
+    // folding table, a cot, and one window. The `|` at the back is a wall on
+    // THE STREET and floor on THE FLOOR, so the room you rent is six deep and
+    // the room in the other version of it is nine, in a building that is six.
+    rows: [
+      '##############',
+      '#ww####www####',
+      '#____________#',
+      '#_c__________#',
+      '#____________#',
+      '#__________cc#',
+      '#____________#',
+      '+ss__________#',
+      '#||||||||||||#',
+      '#||||||||||||#',
+      '#||||||||||||#',
+      '##############',
+    ],
+    layers: {
+      street: {
+        greet: 'SUITE 2B. Eleven hundred a week, one window, and the smell of the Wok comes up through the floor.',
+        props: [
+          { id: 's2_out', tx: 0, ty: 7, spr: 'sign', repeat: true,
+            into: 'strand', spot: [17, 18],
+            label: '[E] back down the stairs',
+            text: 'Down the stairs, past the smell, to the street.' },
+          { id: 's2_desk', tx: 2, ty: 3, spr: 'sign', repeat: true, office: true,
+            label: '[E] the folding table',
+            text: 'A folding table, a lamp, and a chair that came with the room. The day ends here. So does everything else.' },
+          { id: 's2_cot', tx: 11, ty: 5, spr: 'sign', repeat: true, notUpgrade: 'bed',
+            label: '[E] the cot',
+            text: 'A cot you have decided not to describe as a cot. It folds. You have never folded it.' },
+          { id: 's2_bed', tx: 11, ty: 5, spr: 'sign', repeat: true, needsUpgrade: 'bed',
+            label: '[E] the bed',
+            text: 'A bed, made, which the cot never was. The cot went out to the kerb on a Tuesday and was gone by the evening.' },
+          { id: 's2_chair', tx: 4, ty: 3, spr: 'sign', repeat: true, needsUpgrade: 'chair',
+            label: '[E] the second chair',
+            text: 'The second chair, and a phone on the table beside it that rings. Somebody could sit here. Somebody does.' },
+          { id: 's2_vinyl', tx: 1, ty: 6, spr: 'sign', repeat: true, needsUpgrade: 'door',
+            label: '[E] your name, in vinyl',
+            text: 'Your name on the glass in cut vinyl, reading backwards from in here. The masking tape came off the buzzer the same afternoon.' },
+          { id: 's2_window', tx: 7, ty: 2, spr: 'board', repeat: true,
+            label: '[E] the window over the Strand',
+            text: 'The window looks down on the block: the laundromat, the corkboard, the two benches, the storefront that has been PERMANENTLY CLOSED for six years. You can see your own doorway from up here, and the people who walk past it.' },
+          { id: 's2_lease', tx: 3, ty: 2, spr: 'board',
+            label: '[E] the copy of the lease',
+            text: 'Your copy of the lease, on the table where you left it. Eleven hundred a week, payable Fridays, and a clause about the stairwell being common. Signed by somebody at Golden Wok Holdings whose name is a stamp.',
+            fact: 'lease_terms' },
+        ],
+      },
+      floor: {
+        // the back wall is not there on this side
+        sub: { '|': '_' },
+        greet: 'SUITE 2B. The door was open. The room goes back further than the building does.',
+        greetDark: 'SUITE 2B, in the dark. You know where the table is. The room past it does not sound like six feet.',
+        props: [
+          { id: 's2_out', tx: 0, ty: 7, spr: 'sign', repeat: true,
+            into: 'strand', spot: [17, 18],
+            label: '[E] back down the stairs',
+            text: 'Down the stairs. The smell of the Wok is not on this side and the stairwell is the same length anyway.' },
+          { id: 's2_tape', tx: 1, ty: 6, spr: 'sign', repeat: true,
+            label: '[E] the tape on the inside of the glass',
+            text: 'Your name on the buzzer tape, yellow and curling. In this version you never resigned and never rented it.',
+            fact: 'unsent_drawer' },
+          { id: 's2_desks', tx: 6, ty: 4, spr: 'board',
+            label: '[E] the desks',
+            text: 'Desks, in rows, where the folding table is on the other side. They go back past where the wall is. You count eleven and stop, because the eleventh is against nothing.' },
+          { id: 's2_drawer1', tx: 3, ty: 9, spr: 'board',
+            label: '[E] the nearest drawer',
+            text: 'A letter, drafted, signed, addressed, stamped. Not sent. The date on it is a Thursday you remember.' },
+          { id: 's2_drawer2', tx: 8, ty: 10, spr: 'board',
+            label: '[E] the next drawer',
+            text: 'The same. So is the one under it. Every drawer in this room has a letter in it and none of them have been sent. The handwriting stops being yours somewhere around the fourth.' },
+          { id: 's2_drawer3', tx: 11, ty: 10, spr: 'board',
+            label: '[E] the last drawer you open',
+            text: 'This one is addressed to the Strand. To the building. To Suite 2B. Your name is in the return corner and the postmark is four years out.' },
+          { id: 's2_win', tx: 7, ty: 2, spr: 'board', repeat: true,
+            label: '[E] the window over the Strand',
+            text: 'The window looks down on the block, and the block is lit, and nothing on it moves. The bench you can see from here has somebody on it who has been there as long as you have been at the table.' },
+        ],
+        pickups: [
+          { id: 's2_unsent', tx: 6, ty: 9, spr: 'dossier', item: 'unsent',
+            name: 'A LETTER, NOT SENT', note: 'Yours, drafted, stamped, and in a drawer for four years.' },
+        ],
+      },
+    },
+  },
+];
+
+/** Districts and the rooms inside them — everything the streamer holds. */
+export const ALL_REGIONS = [...REGIONS, ...INTERIORS];
 
 // Where each path starts. Both are on the same street, forty tiles apart.
 export const SPAWN = {

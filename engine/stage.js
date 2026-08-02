@@ -71,9 +71,22 @@ export function cycleZoom() {
 // Follow a point without clamping to a map rectangle — an open world has no
 // edges to hold the camera inside. Unloaded space reads as void, which is what
 // the city's unbuilt lots should look like anyway.
-export function camFollow(x, y) {
+//
+// `bounds` is the one exception, in world pixels: an INTERIOR is a room, and a
+// small room adrift in black reads as a bug rather than as a room. So an axis
+// SHORTER than the view is centred on the room.
+//
+// An axis longer than the view is deliberately left alone rather than clamped
+// to the walls. Clamping buys nothing there — you cannot see past the room on
+// that axis anyway — and it costs something real: in a room taller than the
+// view, standing at the top pins the player against the top of the canvas,
+// which is where the HUD is. Follow normally and the player stays centred.
+export function camFollow(x, y, bounds = null) {
   cam.x = x - view.w / 2;
   cam.y = y - view.h / 2;
+  if (!bounds) return;
+  if (bounds.w <= view.w) cam.x = bounds.x + (bounds.w - view.w) / 2;
+  if (bounds.h <= view.h) cam.y = bounds.y + (bounds.h - view.h) / 2;
 }
 
 // screen <-> world
